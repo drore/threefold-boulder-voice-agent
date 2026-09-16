@@ -161,7 +161,8 @@ export function buildLocalApp(
       if (session.delegationCount >= MAX_LOCAL_DELEGATIONS) {
         return reply.code(429).send({
           status: "unavailable",
-          speech: "I've reached my limit for this session — please try again in a little while.",
+          speech:
+            "I've reached my limit for this session — please try again in a little while.",
         });
       }
       session.delegationCount += 1;
