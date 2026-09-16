@@ -13,7 +13,7 @@ This file explains our choices for the Threefold assignment so Dror, a reviewer,
 
 This is repository engineering documentation. The separate D3 submission writeup remains at most one page and will summarize actual delivered choices and limitations.
 
-**Selected** means agreed direction, not a completed integration. **Planned — feasibility pending** requires prototype evidence. **Recommended** means a proposal awaiting its SPEC review gate. Official-source capabilities and the city's relevant pages have been researched; account access, compatibility, latency, costs, answer quality, and live operation have not been measured in this project. Current authorization is documentation only.
+**Selected** means agreed direction, not a completed integration. **Planned — feasibility pending** requires prototype evidence. **Recommended** means a proposal awaiting its SPEC review gate. Official-source capabilities and the city's relevant pages have been researched; account access, compatibility, latency, costs, answer quality, and live operation have not been measured in this project. Local Application Core implementation has begun; external actions retain separate gates.
 
 ## 1. Why Boulder?
 
@@ -39,17 +39,17 @@ This is repository engineering documentation. The separate D3 submission writeup
 
 **Reconsider when:** M1 finds blocking access/browser/delegation issues, or measured task quality, latency, reliability, or approved cost is unacceptable. Propose a concrete alternative and run the same contract/task/voice cases. The voice choice does not select the final reasoning model or require all future providers to be OpenAI.
 
-## 3. Why GPT-Live, and why consider client delegation?
+## 3. Why GPT-Live and client delegation?
 
-**Status:** GPT-Live planned; client delegation recommended, Q1 unresolved. **SPEC:** ADR-007; Q1.
+**Status:** GPT-Live planned; client delegation selected by Dror. Provider feasibility and reasoning model pending M1. **SPEC:** ADR-007; Q1.
 
-**Why:** Our application already needs independently testable reasoning, retrieval, state, and tools. GPT-Live's separate backend architecture fits those responsibilities while conversation continues. Client delegation would let our server choose the reasoning backend/provider, own its context, and compare candidate backends later. [Official delegation guide](https://developers.openai.com/api/docs/guides/live-delegation).
+**Why:** Our application already needs independently testable reasoning, retrieval, state, and tools. GPT-Live's separate backend architecture fits those responsibilities while conversation continues. Client delegation lets our server choose the reasoning backend/provider, own its context, validate results before returning them, and compare candidate backends later. [Official delegation guide](https://developers.openai.com/api/docs/guides/live-delegation).
 
 **Alternatives:** Responses delegation manages more reasoning/context orchestration with an OpenAI-hosted backend. OpenAI Realtime combines speech, reasoning, and tools in one model session. A chained pipeline exposes intermediate speech/text stages for inspection. All are documented options; application authorization remains necessary with each. [Architecture comparison](https://developers.openai.com/api/docs/guides/voice-agents#choose-the-right-architecture).
 
 **Tradeoff:** Client delegation adds context reconstruction, stale-result handling, cancellation, and integration work. Managed delegation reduces some application orchestration but changes context/provider ownership. A chained pipeline adds speech-stage coordination. None is automatically superior for every task.
 
-**Reconsider when:** Dror resolves Q1 or M1 demonstrates a materially better fit. Exact wording requirements would need a more controlled playback design. Recency alone is insufficient reason to select or migrate a model.
+**Reconsider when:** M1 demonstrates blocking access, latency, reliability, or a materially better fit for another mode. Exact wording requirements would need a more controlled playback design. Recency alone is insufficient reason to select or migrate a model.
 
 ## 4. Why Supabase?
 
@@ -60,6 +60,8 @@ This is repository engineering documentation. The separate D3 submission writeup
 **Alternatives:** Neon or another managed PostgreSQL service would be valid behind the same ports. An earlier Neon recommendation focused too narrowly on conversations; the current choice considers the complete application. SQLite or files simplify an initial local prototype but change the path to the selected managed relational deployment.
 
 **Tradeoff:** Local containers require setup/resources. Hosted roles, grants, migrations, configuration, and retention still need deliberate design. A service-role key bypassing RLS cannot replace application authorization. [Supabase security guidance](https://supabase.com/docs/guides/api/securing-your-api).
+
+**Current access choice:** The Node backend uses the small `pg` driver against a private Postgres schema. Draft revision checks need one explicit database transaction; the browser never receives database credentials or a Data API route to intake tables. [Supabase connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres) and [node-postgres transaction guidance](https://node-postgres.com/features/transactions) support this persistent-service path. A Supabase Data API client would be useful for other access patterns but would move this atomic transition into database RPC. The local test connection currently uses the development database's admin user; a restricted runtime login and hosted TLS/connection settings are a deployment gate, not a proven property of the local harness.
 
 **Reconsider when:** Actual operational needs, compatible tooling, approved cost, or deployment constraints favor another PostgreSQL host. Keep stores independent of Supabase SDK types. A versioned knowledge corpus can remain outside the database initially.
 
@@ -95,7 +97,7 @@ Dror refined local testing: core units use a simple port fake; Linear-adapter te
 
 **Status:** Accepted. **SPEC:** ADR-003, ADR-009; R5.
 
-**Why:** The assignment explicitly requires deterministic hours-based routing/ticket decisions. Schedules, closures, timezone, department maps, and policy belong in DB configuration; server code interprets that validated data. This gives repeatable decisions and a recorded explanation independent of phrasing or model choice.
+**Why:** The assignment explicitly requires deterministic hours-based routing/ticket decisions. Schedules, closures, timezone, department maps, and policy belong in DB configuration; server code interprets that validated data. A pure hours check answers open/closed/indeterminate, and a separate pure mapping chooses route/ticket/unavailable. Each can be tested and later changed without mixing timezone arithmetic with workflow actions. This gives repeatable decisions and a recorded explanation independent of phrasing or model choice.
 
 **Alternatives:** Prompt-only enforcement leaves action selection dependent on model behavior. Code constants simplify a prototype but conflict with Dror's requirement that configuration come from the DB. A general rules engine adds another system before these small policies need it.
 
@@ -133,6 +135,8 @@ P0 deliberately uses one simple responsive task screen. It keeps conversation, v
 
 **Status:** Accepted. **SPEC:** ADR-009, ADR-013; architecture/workflow specs.
 
+Voice fulfills the assignment, but conversation state, agent tools, confirmation, and authorized actions belong to the shared application workflow. A text channel can later provide its own observed messages and render the same outcomes without duplicating city policy or ticket logic. Channel provenance still matters for confirmation; a text response cannot confirm a voice prompt in another admission scope.
+
 **Why:** Models interpret speech and propose work; application code owns authorization, current confirmation, state, deadlines, attempts, and effects. Small ports isolate actual external boundaries and give each part meaningful independent tests. Provider replacement should preserve outcome semantics and expose capability differences.
 
 **Alternatives:** Direct SDK/model calls spread throughout the app make independent testing and replacement harder. Giving AI a general HTTP/SQL/tool runner expands its authority. A universal plugin framework or one interface for every function adds indirection without demonstrated reuse.
@@ -147,6 +151,8 @@ P0 deliberately uses one simple responsive task screen. It keeps conversation, v
 
 **Why:** Our selected topics can start with transparent deterministic source selection and exact source passages/provenance. Actual code, official website guidance, and dated news/event details remain distinguishable. Missing/stale/conflicting evidence can be tested without a model or live crawl.
 
+Event search has its own agent tool and provider contract because an occurrence is identified by a local date/time and current status, not just by a relevant passage. The city listing discovers events, while detail pages provide the available time and location; the separate special-events calendar includes events that are not necessarily city-sponsored. This boundary keeps an article's publication date from being mistaken for an event date.
+
 **Alternatives:** Embeddings/vector retrieval or live search can help broader coverage but add ingestion/retrieval complexity and require separate relevance/freshness checks. Model memory cannot establish precise current municipal facts.
 
 **Tradeoff:** Coverage is limited and refresh work is required. A valid citation is not proof that every spoken claim preserves code exceptions or applicability. Retrieval time is different from legal currency.
@@ -155,7 +161,7 @@ P0 deliberately uses one simple responsive task screen. It keeps conversation, v
 
 ## 12. Why TypeScript, React, Node, and this toolkit?
 
-**Status:** TypeScript/React/Node selected; concrete toolkit recommended pending M0 checks. **SPEC:** ADR-011, ADR-016; runtime spec.
+**Status:** TypeScript/React/Node selected; first offline toolkit slice installed and verified locally, remaining UI/server tools pending their slices. **SPEC:** ADR-011, ADR-016; runtime spec.
 
 **Why:** Shared TypeScript contracts reduce browser/server translation work while runtime schemas validate external data. React supplies the selected reviewer UI. One long-lived Node service can serve built assets and own conversation control/state composition. The lean toolkit assigns distinct responsibilities: Vite browser development/bundling, TypeScript type checks/backend output, Fastify HTTP, Vitest unit/contracts, Playwright browser journeys, and Biome lint/format. npm scripts/lockfile keep project orchestration simple.
 
@@ -163,7 +169,7 @@ P0 deliberately uses one simple responsive task screen. It keeps conversation, v
 
 **Tradeoff:** TypeScript still needs runtime validation. Vite transpilation/Biome do not replace type checks. Playwright does not replace actual speech/device evaluation. Biome may lack a future required rule; modern tools also need compatibility/support/advisory review. Long-lived hosting must be verified; the vendor is unselected.
 
-**Reconsider when:** M0 compatibility or required rules/features favor an alternative. Choose supported stable versions at installation, keep dependencies justified, and adopt extra build/task infrastructure only for actual needs. No toolkit benchmark or clean vulnerability audit has been run yet.
+**Reconsider when:** M0 compatibility or required rules/features favor an alternative. The first slice pins Node 24.21.0, npm 11.19.0, TypeScript 7.0.2, Vitest 5.0.1, Vite 8.3.0 as Vitest's required peer, Biome 2.5.13, and Node type definitions 24.13.5. `npm audit --audit-level=high` reported zero known advisories at introduction; this does not guarantee future safety. Keep dependencies justified and adopt extra build/task infrastructure only for actual needs.
 
 Tool references: [Vite](https://vite.dev/guide/), [Vitest](https://vitest.dev/guide/), [Playwright](https://playwright.dev/docs/intro), [Biome](https://biomejs.dev/guides/getting-started/).
 
@@ -195,9 +201,11 @@ Meaningful constants explain fixed values; small message catalogs prevent reusab
 
 ## 15. Why minimal maintained dependencies and advisory gates?
 
-**Status:** Accepted policy; exact versions/advisories pending. **SPEC:** ADR-013, ADR-016.
+**Status:** Accepted policy; first offline slice reviewed, later packages pending. **SPEC:** ADR-013, ADR-016.
 
 **Why:** Every dependency adds maintenance and transitive exposure. Justified packages, supported stable versions/Node LTS, pinned resolution, reproducible installs, and reviewed updates keep the project simpler and reduce known vulnerability risk. Useful schema/security/provider libraries can reduce correctness risk rather than invite homemade replacements.
+
+The first core slice uses native `Date` and `Intl` for trusted instants and Boulder timezone conversion and has no runtime package dependencies. It accepts a validated schedule, leaving raw DB-row validation to the configuration adapter. The initial prototype put whole-city validation in the hours function, including departments and simulated destinations; that made a simple decision hard to read. This was removed. A schema library may be justified when the actual DB boundary is built: native `Date.parse` alone accepts and rolls over some impossible calendar dates. The advisory check reported zero known vulnerabilities for the current lockfile at review time.
 
 **Alternatives:** Convenience packages for every utility increase the tree. Blindly choosing newest releases or forcing bulk audit fixes can change behavior unexpectedly. Avoiding all libraries can shift complex security/protocol work into our own code.
 
@@ -243,7 +251,7 @@ Meaningful constants explain fixed values; small message catalogs prevent reusab
 
 ## Decisions still open
 
-The SPEC Q1–Q9 register owns the complete prerequisites. In particular, delegation mode, exact reasoning/runtime/package versions, hosting vendor/region/plan, reviewer access, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not close those choices or authorize coding, paid calls, external mutations, or publication.
+The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation is selected; exact reasoning/runtime/package versions, hosting vendor/region/plan, reviewer access, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not authorize paid calls, external mutations, or publication.
 
 ## Keeping the rationale current
 

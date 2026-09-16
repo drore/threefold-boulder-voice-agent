@@ -11,7 +11,7 @@ tags: [architecture, application-core, contracts, tdd]
 
 ## 1. Purpose and scope
 
-Define the provider-neutral Application Core for P0: its authority, domain invariants, inbound use cases, outbound ports, transaction boundaries, failure semantics, and independently testable behavior. This is a review proposal and contains no implementation.
+Define the provider-neutral Application Core for P0: its authority, domain invariants, inbound use cases, outbound ports, transaction boundaries, failure semantics, and independently testable behavior. The separate pure business-hours check and action mapping are implemented. The first pothole draft-preparation slice has a provider-neutral port, fake tests, a local Postgres adapter, and a small browser-to-tool path. Confirmation evidence, action authorization, runtime business-hours configuration, and other application use cases remain pending.
 
 The core is the application's decision and workflow boundary. It accepts server-scoped commands or validated reasoning proposals, applies deterministic rules, persists authoritative state through ports, invokes only allowed effects, and returns stable outcomes and views. It does not contain React components, HTTP handlers, voice/media code, model prompts, provider SDK types, SQL, GraphQL, or deployment configuration.
 
@@ -33,7 +33,7 @@ This specification owns core responsibility and port semantics. The [system arch
 - **COR-006:** Use named use cases and narrow ports. Do not introduce a generic command bus, repository base class, service locator, dependency-injection framework, rules engine, or plugin registry for P0.
 - **COR-007:** Create an abstraction for a meaningful external boundary, nondeterminism, or demonstrated reuse. Do not create interfaces for every internal function or erase provider capabilities behind a misleading lowest-common-denominator contract.
 - **COR-008:** Stable domain codes and schemas shall have one authoritative definition close to the core. Displayed/spoken wording, provider labels, and database rows shall not control workflow decisions.
-- **COR-009:** Starting a voice/model session and each delegated reasoning run shall consume application-owned durable admission/budget state. The session coordinator may invoke the provider, but it shall obtain core authorization first and record the provider outcome/available usage afterward. Direct API and voice paths share the same limits.
+- **COR-009:** Starting a model/conversation session and each delegated reasoning run shall consume application-owned durable admission/budget state. The session coordinator may invoke the provider, but it shall obtain core authorization first and record the provider outcome/available usage afterward. Text and voice paths share the same limits.
 
 ### Conversation, information, and request lifecycle
 
@@ -69,6 +69,7 @@ This specification owns core responsibility and port semantics. The [system arch
 - **COR-033:** Presentation layers shall consume bounded views and outcomes from application use cases, not query Supabase or Linear directly. A current Linear refresh remains an authorized core use case and is visibly distinguished from a stored snapshot.
 - **COR-034:** Core functions shall use explicit control flow, cohesive modules, descriptive domain names, and meaningful failures. DRY applies to shared rules and schemas; superficially similar department or provider code is not sufficient reason for a generic framework.
 - **COR-035:** P1/P2 features may extend a stable use case or add a capability-specific port without changing P0 semantics. A replacement adapter must preserve outcome meaning and expose unsupported capabilities explicitly.
+- **COR-036:** Core use cases and agent-tool handlers shall be channel-neutral. Voice transcripts and text messages carry distinct server-observed provenance, but use the same draft revision, confirmation, authorization, hours, and provider paths. Channel-specific output formatting stays in presentation adapters.
 
 ### Proposed P0 simplification for review
 
@@ -118,6 +119,7 @@ The signatures below describe semantic boundaries, not a required class hierarch
 | `reserveReasoningRun` | Context, allowed purpose, current session/run budget | Atomically reserve a bounded delegation/run or return blocked; no provider call occurs here. |
 | `recordReasoningRun` | Context, reserved run ID, normalized provider outcome and available usage | Persist completion/failure/usage metadata and release/close the reservation honestly. |
 | `retrieveEvidence` | Context plus supported topic/query and freshness need | Call `KnowledgeProvider`; return approved evidence bundle, insufficient/conflicting, or unavailable. No arbitrary URL. |
+| `findEvents` | Context plus bounded question and optional local-date range | Call `CityEventProvider`; return dated, source-linked event records with verified status/freshness or an explicit limitation. No arbitrary URL or model-selected current time. |
 | `recordInformationResult` | Context, bounded answer, evidence references issued for this run | Persist information outcome and sources; no draft operation, ticket, or transfer. |
 | `updateDraft` | Context, expected revision, supported field patch, observation references | Validate/normalize bounded fields, atomically apply revision, invalidate stale confirmation; return draft view, needs input, conflict, or blocked. |
 | `requestConfirmation` | Context, draft ID, current revision | Persist server-authored summary/reference; return pending confirmation view. |
@@ -129,11 +131,14 @@ The signatures below describe semantic boundaries, not a required class hierarch
 | `getConversationView` | Authorized context | Return bounded current conversation/draft/operation/source state; no raw provider objects or cross-session data. |
 | `closeConversation` | Authorized context and close reason | Persist close/finalization state; retain committed/uncertain work and return final bounded view. |
 
+The first `prepareServiceReport` slice covers only potholes. Its server-supplied context contains conversation, city, and admission IDs. The server also selects a draft ID and expected revision: both are `null` to create a draft, or both identify the current draft and integer revision to update it. This does not decide COR-P01's proposed session-wide draft limit. The saved draft explicitly records `requestType: pothole`. Candidate location and description each carry text and a server-issued observation reference. The draft store checks admission/conversation scope and observation ownership, and atomically compares the expected revision when saving. The core merges an observed patch with the existing draft, trims bounded text, leaves the revision unchanged when no new fields are proposed, and returns missing required fields or a summary bound to that revision. `needs_confirmation` here means the details are complete enough to request confirmation; it does **not** issue a confirmation prompt, establish caller acceptance, or authorize a ticket/transfer. Park maintenance currently returns `unsupported_request_type` until its own intake rules are implemented. The in-memory test store verifies this contract offline; real local Postgres tests verify scope, revision races, and persistence across store instances. The current loopback UI/API keeps one developer session in process memory, so it does not prove multi-user browser admission or draft recovery after a Node restart.
+
 ### Reasoning proposal boundary
 
 The session coordinator invokes `ReasoningBackend` and maps its runtime-validated output to named use cases. The core accepts only a closed proposal union equivalent to:
 
-- information topic/evidence request;
+- municipal-code or city-service evidence request;
+- bounded dated-event request;
 - supported service-request field patch;
 - current confirmation candidate with observation reference;
 - cancellation candidate;
@@ -146,10 +151,11 @@ No proposal may contain an executable provider name, URL, SQL, phone number, Lin
 
 | Port | Core expectation | Adapter responsibility |
 | --- | --- | --- |
-| `Clock` | Trusted UTC instant for deadlines and policy; fixed fake in tests. | Server clock implementation; timezone conversion follows validated config. |
+| `Clock` | Trusted current time for deadlines and policy; fixed fake in tests. | Server clock implementation; timezone conversion follows validated config. |
 | `ConversationStore` | Scoped durable reads, atomic revision/confirmation/operation transitions, quotas, result persistence. | Supabase implementation with transactions/constraints and explicit unavailable/conflict outcomes. |
 | `CityConfigStore` | Versioned validated snapshot fresh enough for authorization. | Supabase implementation; no model/browser mutation path. |
 | `KnowledgeProvider` | Approved bounded evidence with provenance/freshness or explicit insufficiency/conflict. | Reviewed corpus initially; no arbitrary caller URL fetching. |
+| `CityEventProvider` | Bounded dated official event records with per-occurrence source, timezone, status, and freshness or explicit insufficiency. | Reviewed event feed/listing and detail records; no arbitrary caller URL fetching. |
 | `TicketProvider` | One prepared attempt; classified create/read/reconcile result and capability metadata. | Linear translation, identity/team validation, receipt/readback, and redacted diagnostics. |
 | `TransferProvider` | Start one allowed simulated route and inspect/cancel it through explicit capabilities; return normalized pending/answered/failed/cancelled results. | Configured simulation; never accepts/dials an arbitrary number and never writes application state directly. |
 | `OperationalEvents` | Best-effort validated event emission that cannot authorize work. | OpenTelemetry/test observer translation and redaction. |
@@ -162,7 +168,7 @@ For every staff action, the use case shall execute this order:
 
 1. Validate server context, ownership, deadline, capability, and command shape.
 2. Load the current draft and validated configuration; obtain trusted time.
-3. Evaluate pure required-field, confirmation, limit, and business-hours policy.
+3. Evaluate required fields, revision-bound confirmation, and limits. Call `isWithinBusinessHours(validatedSchedule, trustedTime)`, then pass its result to `decideBusinessHoursAction` to select the permitted action. These pure functions are internal to `executeRequest`, never model-visible tools.
 4. Atomically compare expected revision/state and persist one operation intent with configuration/time evidence.
 5. Before every provider invocation, durably record/consume one unique started attempt; the first attempt may be prepared in the operation transaction.
 6. Commit the database transaction containing the attempt intent.
@@ -222,7 +228,7 @@ Hexagonal boundaries do not require many services or classes. One Node applicati
 
 ### Internal dependencies
 
-- Shared runtime validation and TypeScript contracts selected in M0.
+- The first pure policy accepts a validated schedule value. A later configuration adapter validates untrusted DB rows and creates that value; add shared runtime schemas only when that boundary is implemented.
 - Workflow policy and state contracts.
 - Security/session admission contracts.
 - Versioned scenario-to-check manifest.
@@ -235,7 +241,7 @@ Hexagonal boundaries do not require many services or classes. One Node applicati
 - Application simulation for the first `TransferProvider`.
 - OpenTelemetry-compatible observer for `OperationalEvents`.
 
-OpenAI voice/reasoning and React are adjacent adapters/clients of core contracts, not core dependencies. Exact packages and versions remain M0 decisions after supported-version and advisory review.
+OpenAI voice/reasoning and React are adjacent adapters/clients of core contracts, not core dependencies. The initial offline tooling versions are pinned in package.json; server/client/provider packages remain future M0/M1 decisions.
 
 ## 9. Examples and edge cases
 
@@ -259,7 +265,7 @@ Before implementation authorization:
 - Check that no contract conflicts with the workflow, integration, voice, security, or root acceptance scenarios.
 - Map initial TDD cases to A4–A8, A12–A14, A17–A21, A23–A24.
 
-M0 validates dependency rules and contract schemas. M2 validates provider-free core behavior plus real local DB concurrency/state. Planning review is not implementation evidence.
+The first import-boundary guard and pure policy tests provide local evidence for their narrow behavior. M0 still needs shared browser/server schemas, CI, and the local service; M2 still needs provider-free use cases and real local DB concurrency/state. Passing policy tests are not effect-authorization or provider evidence.
 
 ## 11. Related specifications and further reading
 

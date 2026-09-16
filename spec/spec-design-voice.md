@@ -11,7 +11,9 @@ tags: [design, voice, reasoning]
 
 ## 1. Purpose and scope
 
-P0 browser voice via planned GPT-Live, independent reasoning/tool contracts, honest task updates, and session lifecycle. Exact model/access/delegation must pass Q1/M1. P1 adds tone/representative UI; P2 telephony.
+P0 browser voice via planned GPT-Live with selected client delegation, independent reasoning/tool contracts, honest task updates, and session lifecycle. Exact model/access/event behavior must pass M1. P1 adds tone/representative UI; P2 telephony.
+
+Voice is one channel adapter into the shared server conversation workflow. The same agent-tool boundary and Application Core also support a later text-chat adapter; text does not require GPT-Live or voice delegation. The system architecture owns this channel-neutral boundary, while this document owns voice-specific media/events/playback behavior.
 
 ## 2. Definitions
 
@@ -46,9 +48,22 @@ Normalized server events: voice_started, input_observed (observation ID/text/tim
 - Mock transfer pending: explicitly simulated destination; never real municipal staff.
 - Completed: verified outcome/reference, including demo qualification.
 
-Client delegation recommendation: server owns transient transcripts/current task snapshots, calls ReasoningBackend, validates results, returns concise verified facts to Live. A delegation event may contain only metadata; adapter must reconstruct appropriate task context from observations/state and handle corrections while work runs. Discard stale result communication but retain committed operation evidence.
+Selected client delegation: server owns transient transcripts/current task snapshots, calls ReasoningBackend, validates results, returns concise verified facts to Live. The delegation event contains metadata rather than task text; adapter must reconstruct appropriate task context from observations/state and handle corrections while work runs. Discard stale result communication but retain committed operation evidence.
 
-Managed Responses alternative: hosted context/reasoning loop proposes custom functions; backend validates each function, supplies results, and controls continuation. Update supported backend prompt/tool settings by phase. It remains valid if independent reasoning/evidence/operation contracts can be tested. Q1 selects the planned mode; M1 confirms actual behavior.
+The voice model requests a supported task; the server assembles observed caller details and current state for the reasoning backend. It does not receive `isWithinBusinessHours`, `decideBusinessHoursAction`, `TicketProvider`, or `TransferProvider` as callable tools. The coordinator maps validated reasoning proposals to the core's `updateDraft`, `requestConfirmation`, and `recordConfirmation` use cases. Only after the server verifies confirmation of the current draft revision may the coordinator call `executeRequest`. The core chooses the action from validated database configuration and trusted time, then returns a verified outcome for the coordinator to communicate through Live.
+
+The reasoning backend receives four bounded P0 tools from the server. The server validates every tool name and argument before passing it to the corresponding application capability. The current [tool boundary](../src/server/agent-tools.ts) exposes honest unavailable stubs; no provider, DB, or voice integration is implied by their existence.
+
+| Agent tool | Model-supplied input | Application responsibility |
+| --- | --- | --- |
+| `lookupMunicipalCode` | Bounded question | Retrieve reviewed actual code text and qualifications through `retrieveEvidence`. |
+| `lookupCityInformation` | Bounded question | Retrieve reviewed city service/department website facts through `retrieveEvidence`. |
+| `findCityEvents` | Bounded question, optional ISO local-date range | Search dated official events with freshness, timezone, cancellation, and upcoming/past checks. |
+| `prepareServiceReport` | Supported report type and candidate location/description | Validate untrusted details and update a draft; return needed fields or confirmation state, never submit a ticket or route directly. |
+
+Conversation/city scope, trusted time, observations, source allowlists, department mappings, and provider settings are supplied by the server. The model cannot pass URLs, source IDs, Linear destinations, permissions, confirmation booleans, or a business-hours outcome. Only the confirmed core `executeRequest` flow may cause a ticket or simulated route. Tool definitions are backend-owned in client delegation; GPT-Live delegates the conversation task rather than executing these application tools itself. The [knowledge spec](spec-data-knowledge.md) owns code/site evidence and event data rules.
+
+For client delegation, the server correlates `session.delegation.created` with scoped transcript and task state, executes its bounded reasoning workflow, and sends verified speakable results with `session.commentary.append` and the matching delegation ID. An append acknowledgment is not proof of playback. M1 validates actual event ordering and correction behavior. Responses delegation remains an alternative only if client delegation proves unworkable.
 
 Live prompt skeleton (specification guidance, not exact mandated speech):
 
@@ -74,6 +89,8 @@ Required capture rules are enforced through workflow contracts, not just this pr
 - AC-003: Given meaningful correction during work, agent yields; correction winning before atomic authorization prevents old-revision execution. If authorization won first, retain that revision and report committed/uncertain results honestly.
 - AC-004: Given tool uncertainty/failure, agent does not speak success.
 - AC-005: Given denied mic, connection loss, or close, resources release and recoverable state is accurate.
+- AC-006: Given a delegated code, service-guidance, or event question, the corresponding tool returns only approved scoped evidence or an explicit limitation; a model-supplied URL or stale/unsupported claim cannot become a sourced answer.
+- AC-007: Given an unknown tool, invalid argument shape/report type, or model-supplied confirmation/destination, the tool boundary rejects the call without invoking a handler. Valid stubs return unavailable until their use cases are implemented. The event use case later validates calendar dates and allowed ranges before returning event data.
 
 ## 6. Test automation strategy
 

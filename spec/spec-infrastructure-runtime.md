@@ -35,7 +35,7 @@ Define a deployable P0 Node/React application and verification boundaries. No ho
 
 ## 4. Interfaces and data contracts
 
-Recommended toolkit (planning baseline; no install/version selection yet):
+Selected toolkit for the local slice; Playwright and production hosting remain planned:
 
 | Responsibility | Tool | Reason / boundary |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ Recommended toolkit (planning baseline; no install/version selection yet):
 | Unit and contract checks | Vitest | Shared TypeScript test tooling, controlled clocks/mocks, watch feedback |
 | Browser journeys | Playwright | Real browser/UI/API checks with controlled cloud boundaries; actual speech/device evidence remains separate |
 | Lint and formatting | Biome | One tool for JS/TS/JSON lint/format; TypeScript still checks types |
-| Dependency resolution and scripts | npm + committed lockfile | Simple reproducible project workflow; exact compatible package-manager version pinned in M0 |
+| Dependency resolution and scripts | npm + committed lockfile | Simple reproducible project workflow; first slice pins npm 11.19.0; more scripts follow their implementation |
 | Local database services | Supabase CLI + Docker-compatible runtime | Local persistence/migrations consistent with managed Supabase |
 
 Keep a single modular app and small configurations. Add plugins/build orchestration only for a demonstrated need. Backend compilation uses TypeScript output initially; extra server bundling is justified only by deployment requirements. M0 documents actual dev-watch/build/check commands and their compatibility. Local Vite API/event proxying preserves the same-origin session contract; deployed Node serves built UI assets. Check target browsers separately from build compatibility.
@@ -60,7 +60,7 @@ Environment contract:
 | Ticketing | Provider fake for core units; loopback Linear API mock for adapter tests; dedicated real Linear board for opt-in E2E | Real Linear in the explicitly approved reviewer/demo board; test mock excluded |
 | Knowledge | Reviewed local corpus and official read-only refresh | Deployed corpus with the same provenance/freshness contract |
 
-The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. M0 documents reproducible local setup; M2 validates migrations and DB behavior locally; M6 verifies the cloud environment separately. Exact CLI/container commands are discovered and recorded during implementation.
+The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback-only development harness serves `GET/POST /api/local/report` and `/health` for one developer session; it has no browser authentication, voice connection, or process-restart session recovery and must not be exposed as the reviewer service. The local Postgres migration/adapter tests are implemented; production configuration and M6 cloud verification remain separate.
 
 Proposed HTTP surface:
 
@@ -98,7 +98,7 @@ Candidate hosting: one long-lived container/web service. Render documentation su
 
 ## 6. Test automation strategy
 
-Planned `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`, `npm run check:architecture`, `npm run check:spec`, `npm run check:dependencies`, `npm run test:core`, `npm run test:contracts`, `npm run test:browser`, and `npm run test:e2e`. Introduce package scripts in M0. Routine browser/component checks may use controlled boundaries; `test:e2e` always requires the dedicated real Linear board and is opt-in. Real microphone/device/provider evals remain explicit. Verify DB migrations from fresh local reset and deployed schema separately. Dependency audit needs registry access but no paid provider credentials; behavioral offline checks remain runnable when the registry is unavailable.
+The first slice implements `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`, `npm run check:architecture`, `npm run test:core`, `npm run check`, and `npm run audit:dependencies`. The core boundary uses Biome rules for prohibited SDK imports and CommonJS `require`; time conversion uses native `Date`/`Intl`. Raw DB-row validation and its dependency choice belong to the configuration-adapter slice. `npm run check:spec`, contracts, browser, E2E, and local DB commands remain planned. Routine browser/component checks may use controlled boundaries; `test:e2e` always requires the dedicated real Linear board and is opt-in. Real microphone/device/provider evals remain explicit. Verify DB migrations from fresh local reset and deployed schema separately. Dependency audit needs registry access but no paid provider credentials; behavioral offline checks remain runnable when the registry is unavailable.
 
 ## 7. Rationale and context
 

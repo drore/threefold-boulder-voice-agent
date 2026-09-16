@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Boulder municipal voice agent — specification
 
-Status: review-ready planning baseline. Accepted principles, proposed defaults, and release prerequisites are distinguished below. No application, integration, or deployment exists. Current authorization covers planning and versioned documentation; implementation, paid calls, provisioning, and publication require their applicable authorization.
+Status: implementation started with a local provider-free Application Core policy slice. Accepted principles, proposed defaults, and release prerequisites are distinguished below. No database, external integration, browser voice, or deployment exists. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
 
 ## 1. Purpose and priorities
 
@@ -32,9 +32,9 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | R2 | Answer current city-event questions | Dated official news/events support current answers, including freshness, past/upcoming status, times, and cancellations. | Sources investigated |
 | R3 | Open a ticket in a selected platform | Confirmed spoken report creates a real Linear issue in the approved demo team; a real API readback verifies ID and fields. | Linear selected |
 | R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Departments selected |
-| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Policy accepted |
-| R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | Spec drafted |
-| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local docs only |
+| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Pure policy tested; DB/spoken proof pending |
+| R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | First offline checks pass; full evaluation pending |
+| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local docs committed; first code slice uncommitted for review |
 | D2 | Link reviewers can try | Fresh session verifies the deployed revision's voice, sources, real demo tickets, and simulated routing; access steps documented. | No deployment |
 | D3 | Writeup at most one page | Rendered writeup includes cuts, decisions, component diagram, limitations, and next steps. | Planned |
 
@@ -79,7 +79,7 @@ P0 uses `alwaysOpenTicket=false`:
 
 The accepted `alwaysOpenTicket=true` extension creates a ticket before routing when open, and only a ticket when closed. Implement in P1. P0 rejects an unsupported enabled configuration instead of silently ignoring it. Information never creates tickets/routing with either setting.
 
-Backend validates configuration and checks server time at action authorization. Record config revision/time. Schedule intervals are `[opensAt, closesAt)`; closing instant is closed. Missing/invalid required configuration produces an unavailable outcome; do not guess hours. Every conversation is recorded independently of tickets; full transcript/audio retention is separate.
+Backend validates configuration and checks server time at action authorization. Record config revision/time. Each opening-hours entry includes its `opensAt` time and excludes its `closesAt` time; at closing time the office is closed. Missing/invalid required configuration produces an unavailable outcome; do not guess hours. The first pure policy slice separates an hours check (`true`, `false`, or `undefined` when indeterminate) from the action mapping (`route`, `create_ticket`, or `unavailable`). The check receives a validated schedule and trusted server time; an invalid time, timezone, or expired schedule is indeterminate. The workflow invokes the action mapping only for a confirmed, supported staff request; information requests remain no-action. The DB/configuration boundary will validate city identity, source metadata, opening-hours entries, department mappings, and simulated destinations before the workflow calls this policy. The slice does not read the DB or authorize/perform a provider effect. Every conversation is recorded independently of tickets; full transcript/audio retention is separate.
 
 ### ADR-004 — Supabase application state
 
@@ -95,13 +95,15 @@ The previously accepted tone and representative view move to P1 under Dror's ass
 
 Web link with microphone/spoken output, source cards, actual action status, responsive layout. No inbound phone. Target desktop Chrome/mobile Safari subject to M1 and empirical testing; record verified versions. Handle denied microphone, disconnect, and graceful close.
 
+Voice is the required P0 interaction channel, not an Application Core dependency. A later text-chat adapter must be able to use the same agent tools, conversation state, confirmation rules, business-hours policy, and provider operations. Text messages and voice transcripts enter as different server-observed evidence with channel provenance; neither channel may choose its own authorization or ticket path. A text-chat UI is not required to satisfy the voice assignment and remains a later implementation slice.
+
 P0 uses one simple responsive task screen. It exposes only the conversation, voice state, collected request, deterministic hours decision, supporting source, confirmation controls, and verified action outcome needed to demonstrate the assignment. Optional product surfaces and visual polish remain deferred until mandatory evidence gates pass.
 
 ### ADR-007 — GPT-Live with feasibility gate
 
 Planned voice adapter is GPT-Live. Evidence, reasoning, task state, and actions remain separate. M1 validates access, actual browser audio, interruption/transcripts, one backend round trip, and control-connection hosting. Speech interruption is not automatic task cancellation. Revisit blocking findings with Dror.
 
-Delegation choice is Q1. Client delegation is recommended for ownership of reasoning context, validation, and later model comparison. Neither mode guarantees all spoken words. Mandatory exact speech needs controlled playback, outside P0.
+Client delegation is selected for ownership of reasoning context, validation, and later model comparison. The application assembles scoped transcript/task context, handles delegation events, runs the reasoning workflow, and returns verified concise results to GPT-Live. M1 must validate actual access, event ordering, latency, and browser behavior; exact reasoning model remains open. This mode does not guarantee every spoken word. Mandatory exact speech needs controlled playback, outside P0.
 
 ### ADR-008 — Independent testing
 
@@ -113,6 +115,8 @@ One modular application; core defines contracts and adapters translate SDK types
 
 AI interprets requests and handles dialogue. Code enforces fields, confirmed revisions, state transitions, hours, permissions, deadlines, bounded retries, and duplicate protection. Department conversation guidance is separate from enforceable rules. Speech updates follow actual workflow events.
 
+The P0 reasoning backend has four agent-facing capabilities: municipal-code lookup, city service/department information lookup, dated city-event search, and preparation of a supported service report. Event search is separate from general city information because date range, timezone, current status, and freshness determine its answers. `isWithinBusinessHours` and action mapping remain internal core policy, never agent tools. The pothole report tool now prepares a durable local draft through the server and core; the other three capabilities still return unavailable. No voice/model call, caller confirmation, ticket, or transfer is implemented by this slice, so R1–R5 remain open.
+
 ### ADR-010 — Observability and later comparison
 
 P0 records correlated events/traces across boundaries: IDs, config/prompt/model versions, evidence, timings, attempts, guardrail outcomes, real results, available usage. No hidden chain of thought. Persistent records remain authoritative if telemetry export fails. Backend completion differs from actual playback.
@@ -123,7 +127,7 @@ P1 adds controlled replay and asynchronous sampled reasoning shadows: isolated s
 
 ### ADR-011 — TypeScript, React, Node
 
-Dror selected TypeScript, React, Node. Shared runtime-validated contracts span browser/backend boundaries. Recommend one long-lived Node HTTP service serving the built UI and owning voice control. The lean modern toolkit recommendation is Vite for React development/bundling, the TypeScript compiler for strict checks/backend JavaScript output, Fastify for HTTP, Vitest for unit/contracts, Playwright for browser journeys, and Biome for lint/format checks. Use npm scripts/lockfile and a supported Node LTS line. [Runtime specification](spec/spec-infrastructure-runtime.md) owns tool responsibilities. Verify compatible supported stable versions/advisories and pin them in M0; no packages are installed by this plan. Hosting vendor/plan are not selected/provisioned.
+Dror selected TypeScript, React, Node. Shared runtime-validated contracts span browser/backend boundaries. Recommend one long-lived Node HTTP service serving the built UI and owning voice control. The lean modern toolkit uses Vite for React development/bundling, the TypeScript compiler for strict checks/backend JavaScript output, Fastify for HTTP, Vitest for unit/contracts, planned Playwright for browser journeys, and Biome for lint/format checks. Use npm scripts/lockfile and a supported Node LTS line. [Runtime specification](spec/spec-infrastructure-runtime.md) owns tool responsibilities. The current local slice pins Node 24.21.0, npm 11.19.0, TypeScript 7.0.2, Vitest 5.0.1, Vite 8.3.0, Biome 2.5.13, Fastify 5.12.5, React/React DOM 19.3.0, and `pg` 8.23.0 with a resolved lockfile. Playwright remains uninstalled until browser regression automation is needed. Hosting vendor/plan are not selected/provisioned.
 
 ### ADR-012 — Living specification and delivery priorities
 
@@ -131,7 +135,7 @@ Update root/component specs alongside behavior, prompts, configuration, tests/ev
 
 ### ADR-013 — Simple, human-readable engineering
 
-Dror explicitly requires simple, readable, maintainable code and established engineering principles. Prefer clear domain names, small cohesive functions/modules, explicit control flow and errors, and minimal dependencies. Apply DRY to shared business rules, schemas, and workflows; keep one authoritative definition. Earn abstractions through actual reuse or a meaningful external boundary. Similar-looking code alone does not justify a generic framework. Use separation of concerns and dependency inversion where they make independent testing and provider replacement concrete. Correctness and diagnosable failures take precedence over brevity or cleverness.
+Dror explicitly requires simple, readable, maintainable code and established engineering principles. Prefer clear domain names, small cohesive functions/modules, explicit control flow and errors, and minimal dependencies. Apply single responsibility where it clarifies a real boundary: separate distinct questions, decisions, and side effects, while avoiding trivial extraction for its own sake. Apply DRY to shared business rules, schemas, and workflows; keep one authoritative definition. Earn abstractions through actual reuse or a meaningful external boundary. Similar-looking code alone does not justify a generic framework. Use separation of concerns and dependency inversion where they make independent testing and provider replacement concrete. Correctness and diagnosable failures take precedence over brevity or cleverness.
 
 Avoid magic values and scattered user-facing text. Give meaningful values one clear owner:
 
@@ -145,13 +149,13 @@ Avoid magic values and scattered user-facing text. Give meaningful values one cl
 
 Keep constants cohesive rather than collecting unrelated values in a global constants file. Obvious local literals such as zero, one, or booleans can stay inline when extracting them adds no meaning. Workflow decisions use stable codes and validated data, never displayed wording. Official municipal passages remain evidence with provenance, rather than message-catalog content. Tests retain independent expected outcomes/boundary values; importing the production constant alone must not define both the behavior and its expected result.
 
-Maintain a logical, lean folder structure with related files grouped by responsibility. The [architecture specification](spec/spec-architecture-system.md) owns the layout. Root instructions apply repository-wide; add a nested `AGENTS.md` only for a non-trivial local responsibility, dependency/safety boundary, format convention, specialized check, or pitfall that the root/SPEC does not already explain. Do not create local notes merely because a directory exists, and remove them when their local guidance becomes trivial. M0 checks code boundaries and validates documentation that exists; current work remains documentation only.
+Maintain a logical, lean folder structure with related files grouped by responsibility. The [architecture specification](spec/spec-architecture-system.md) owns the layout. Root instructions apply repository-wide; add a nested `AGENTS.md` only for a non-trivial local responsibility, dependency/safety boundary, format convention, specialized check, or pitfall that the root/SPEC does not already explain. Do not create local notes merely because a directory exists, and remove them when their local guidance becomes trivial. The first core import guard uses Biome's restricted-import and CommonJS rules; it is a source-review aid, not an authorization control or proof of all possible dependency forms.
 
 Code review must be understandable to a human unfamiliar with the conversation: explain non-obvious decisions, avoid unnecessary indirection, and remove dead code/speculative extension machinery. M0–M5 verify these criteria alongside behavior and security.
 
 ### ADR-014 — Local development, cloud production
 
-Dror requires the application to work in a local development environment before cloud deployment. Current work remains planning/documentation only; wait for explicit instruction before writing application code.
+Dror requires the application to work in a local development environment before cloud deployment. Local Application Core implementation has begun; local React/Node/Supabase application operation is still pending.
 
 Development runs React, Node, and a local Supabase stack on the developer machine. Production runs the built UI, long-lived backend, and managed Supabase in the cloud. Use the same application contracts and versioned migrations, with environment-specific endpoints, credentials, origins, and validated configuration. Keep development data and credentials separate from production; no automatic production reset or demo mutation.
 
@@ -167,7 +171,7 @@ Tests assert observable outcomes and enforceable invariants, with independent ex
 
 ### ADR-016 — Minimal, maintained, reviewed dependencies
 
-Dror requires minimal dependencies and modern, safe versions with low known vulnerability exposure. Add a package only for a current need and record its purpose, maintenance/support, compatibility, and transitive impact. Prefer native platform capabilities for simple utilities; established schema/security/provider libraries earn their place when they reduce correctness risk. Keep development tools separate from runtime dependencies and ship only needed runtime packages.
+Dror requires minimal dependencies and modern, safe versions with low known vulnerability exposure. Add a package only for a current need and record its purpose, maintenance/support, compatibility, and transitive impact. Prefer native platform capabilities for simple utilities; established schema/security/provider libraries earn their place when they reduce correctness risk. The first policy slice uses native `Date`/`Intl` for time and timezone conversion; strict validation of untrusted DB configuration belongs to the later configuration adapter. Keep development tools separate from runtime dependencies and ship only needed runtime packages.
 
 At M0 and each update, verify current official releases/security advisories; choose supported stable versions and a supported Node LTS patch line. Pin selected direct versions and runtime/tooling versions, commit the resolved lockfile, and use reproducible installs. Updates are reviewed, tested changes rather than automatic forced upgrades. Remove unused dependencies.
 
@@ -236,7 +240,7 @@ P0 scenarios gate submission. P1 scenarios define later behavior.
 
 | ID | Recommendation / prerequisite | Gate |
 | --- | --- | --- |
-| Q1 | Client delegation recommended; exact reasoning model chosen by task/latency checks. Await Dror's delegation choice. | Architecture review + M1 |
+| Q1 | Resolved: Dror selected client delegation. Exact reasoning model and working provider flow still require task/latency checks. | M1 feasibility |
 | Q2 | Long-lived Node web service; Render is a candidate supporting WebSockets. Choose vendor/region/plan and cost before deployment. | M0 review; M6 external approval |
 | Q3 | Same-origin server reviewer sessions; simple access gate recommended, no privileged direct browser DB access. Choose method/credential delivery. | Security review; M6 |
 | Q4 | DB general city office hours Mon–Fri 08:00–17:00 America/Denver; verified closure dates/validity horizon. Park hours are distinct. Override shape supports future department differences. | Core review + M1 |
@@ -261,7 +265,7 @@ P0 scenarios gate submission. P1 scenarios define later behavior.
 - [Decision rationale and alternatives](DECISIONS.md)
 - [Simple responsive interface concept](design/README.md) — selected P0 direction; synthetic example, no implemented UI/provider evidence.
 
-Commands in component specs/plan are future implementation targets until created. No application checks have run. Resolve material choices with Dror before their implementation/release gate.
+The first local commands are documented in README and have run for the provider-free policy slice. Other commands in component specs/plan remain future targets until created. Resolve material choices with Dror before their implementation/release gate.
 
 ## 10. Source ledger
 
@@ -276,8 +280,8 @@ Assignment rechecked September 15, 2026 via direct HTML: [Threefold](https://www
 - [GPT-Live delegation](https://developers.openai.com/api/docs/guides/live-delegation), [controls](https://developers.openai.com/api/docs/guides/voice-server-controls?api=live): conversation/task separation.
 - [Supabase security](https://supabase.com/docs/guides/api/securing-your-api), [Linear GraphQL](https://linear.app/developers/graphql), [Linear limits](https://linear.app/developers/rate-limiting): verify live schema/permissions at adapter gates.
 - [Supabase local development](https://supabase.com/docs/guides/local-development): local stack via CLI and Docker-compatible container runtime; checked September 15. Tool installation/setup remains implementation work.
-- [Node releases](https://nodejs.org/en/about/previous-releases), [npm audit reference](https://docs.npmjs.com/cli/v11/commands/npm-audit), [npm ci reference](https://docs.npmjs.com/cli/v11/commands/npm-ci): supported-runtime and lockfile/audit guidance; checked September 15. Versioned npm references establish semantics, not selection of npm 11. Exact selected versions/current documentation and commands are verified in M0.
-- [Vite](https://vite.dev/guide/), [Vitest](https://vitest.dev/guide/), [Playwright](https://playwright.dev/docs/intro), [Biome](https://biomejs.dev/guides/getting-started/): modern tool responsibilities checked September 15; exact compatible stable versions/advisories remain M0 work.
+- [Node releases](https://nodejs.org/en/about/previous-releases), [npm audit reference](https://docs.npmjs.com/cli/v11/commands/npm-audit), [npm ci reference](https://docs.npmjs.com/cli/v11/commands/npm-ci): supported-runtime and lockfile/audit guidance. The initial Node/npm versions are pinned for local checks; repeat advisory review before delivery.
+- [Vite](https://vite.dev/guide/), [Vitest](https://vitest.dev/guide/), [Playwright](https://playwright.dev/docs/intro), [Biome](https://biomejs.dev/guides/getting-started/): modern tool responsibilities. The first offline slice pins TypeScript/Vitest/Vite/Biome; Playwright and server/UI tools enter later.
 - [Ports/adapters](https://alistair.cockburn.us/hexagonal-architecture), [LiveKit workflows](https://docs.livekit.io/agents/logic/workflows/), [OTel voice traces](https://docs.livekit.io/deploy/observability/tracing/), [Render WebSockets](https://render.com/docs/websocket): patterns/candidate feasibility, not added runtime dependencies or purchased services.
 
 ## 11. Planning completion

@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Detailed development plan
 
-Status: planning completed for review, implementation not started. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. All commands below are future targets until M0 creates them.
+Status: the first local pothole intake path now runs through a small React form, the server tool boundary, provider-neutral core, and local Supabase Postgres. M0/M2 and the assignment's voice, information, event, confirmation, action, and delivery gates remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
 
 ## 1. Outcome and delivery boundary
 
@@ -15,21 +15,23 @@ P0 delivers browser voice for Boulder, actual code AND website answers, current 
 
 P0 also includes required-field confirmation, session-scoped access, safe operation/retry handling, minimal correlated tracing, and provider-neutral boundaries. These are foundations for correct delivery, not an invitation to build a general platform.
 
-Engineering quality follows SPEC ADR-013: simple human-readable code, clear naming/control flow, small cohesive modules, minimal dependencies, and DRY for shared rules/contracts/workflows. Every slice reviews these criteria; abstractions need actual reuse or a useful external boundary. Do not trade clarity for cleverness or compress code merely to reduce line count.
+Engineering quality follows SPEC ADR-013: simple human-readable code, clear naming/control flow, single responsibility at useful boundaries, small cohesive modules, minimal dependencies, and DRY for shared rules/contracts/workflows. Every slice reviews these criteria; abstractions need actual reuse or a useful external boundary. Do not trade clarity for cleverness or compress code merely to reduce line count.
 
 P1: ticket-always execution, tone, representative view, replay/shadow runner/comparison UI. P2: telephony, other cities/providers, broader code/topic coverage, distributed workers, measured scale. Do not start P1 while a P0 gate is missing.
 
-Initial baseline: TypeScript/React/Node, one long-lived service, Supabase/Linear, planned GPT-Live. Delegation Q1 awaits Dror's answer; other concrete material defaults in SPEC Q2–Q9 are reviewed before their corresponding implementation/release gate. No purchase/provisioning/publication inferred from approval of this plan.
+Initial baseline: TypeScript/React/Node, one long-lived service, Supabase/Linear, planned GPT-Live with client delegation selected. Provider feasibility and exact reasoning model remain M1 checks; other concrete material defaults in SPEC Q2–Q9 are reviewed before their corresponding implementation/release gate. No purchase/provisioning/publication inferred from approval of this plan.
 
-Local-first environment requirement (SPEC ADR-014): M0–M5 run the application and Supabase locally before M6 cloud deployment. Core units use a port fake; Linear-adapter tests use a narrow loopback mock of the consumed GraphQL API; local E2E and the deployed demo use a dedicated real Linear board. GPT-Live/hosted reasoning remain cloud APIs with separate approved development/demo settings. Offline, mock-adapter, and live external evidence remain distinct. Dror explicitly asked to wait with actual code writing; current authorization remains documentation only.
+Local-first environment requirement (SPEC ADR-014): M0–M5 run the application and Supabase locally before M6 cloud deployment. Core units use provider-free functions and port fakes where needed; Linear-adapter tests use a narrow loopback mock of the consumed GraphQL API; local E2E and the deployed demo use a dedicated real Linear board. GPT-Live/hosted reasoning remain cloud APIs with separate approved development/demo settings. Offline, mock-adapter, and live external evidence remain distinct. Local Application Core work is authorized; external mutations and release gates are separate.
 
 Development discipline follows ADR-015/ADR-016: tests protect SPEC-linked behavior in every slice, defects retain regression cases, and minimal maintained dependencies have reviewed pinned versions, a lockfile, advisory checks, and focused tested updates. M5 consolidates evidence rather than starting testing.
 
-Modern toolkit baseline: Vite, TypeScript, Fastify/Node LTS, Vitest, Playwright, Biome, npm scripts/lockfile, and local Supabase tooling. [Runtime spec](spec/spec-infrastructure-runtime.md) defines responsibilities; M0 verifies compatible stable versions/advisories and establishes exact commands. Keep build/test orchestration simple and avoid overlapping tools.
+Delivery loop for each small slice: choose one user-observable scenario and its failure case; record the expected behavior in the affected SPEC; implement only the needed path with automated checks; have an evaluator other than the implementer attempt the scenario against the runnable local system or a clearly labeled test harness; feed observed failures back into the same slice and repeat until the scenario passes. Record which parts were exercised with fakes, real local dependencies, or external providers. Do not count stubs, green unit tests, or a diagram as a working path, and do not begin optional expansion while a basic P0 path still fails.
+
+Modern toolkit baseline: Vite, TypeScript, Fastify/Node LTS, Vitest, Playwright, Biome, npm scripts/lockfile, and local Supabase tooling. [Runtime spec](spec/spec-infrastructure-runtime.md) defines responsibilities. Node 24, TypeScript, Vitest, Vite, and Biome are pinned for the first slice; add other packages only when required. Keep build/test orchestration simple and avoid overlapping tools.
 
 ## 2. Decisions and review gates
 
-Before coding, review the root SPEC, [decision rationale](DECISIONS.md), dependency diagram, and affected component contracts. Resolve Q1 delegation and runtime composition; record selected defaults and budget/privacy/access choices. Credentials/resources must be verified before using them. Do not wait for optional P1 design to freeze P0.
+Before coding, review the root SPEC, [decision rationale](DECISIONS.md), dependency diagram, and affected component contracts. Use the selected client delegation mode and verify runtime composition at M1; record selected defaults and budget/privacy/access choices. Credentials/resources must be verified before using them. Do not wait for optional P1 design to freeze P0.
 
 | Gate | Decision / evidence | Owner |
 | --- | --- | --- |
@@ -81,13 +83,13 @@ Dependencies: M0/G1; local Supabase prerequisites for real DB checks. Cloud proj
 
 Implement the provider-free domain/use-case slice before its Supabase adapter. The core tests establish behavioral meaning; database tests then prove the atomic persistence contract. M1 is an early provider feasibility spike, not the foundation of core authority.
 
-- T20: Implement pure DB-config policy with server Clock, interval/weekday/holiday/DST/validity validation, and unsupported ticket-always setting rejection.
+- T20: Implement separate pure hours check and action mapping with server Clock, then connect validated configuration, department resolution, and unsupported ticket-always rejection in workflow composition. **Partial:** both pure functions have offline tests; `Clock`/`CityConfigStore`, raw snapshot validation, actual DB seed/source verification, and action authorization remain pending.
 - T21: Implement draft intake schemas, current-revision confirmation request/evidence, correction invalidation, and explicit transition/result types.
 - T22: Implement ConversationStore/CityConfigStore, atomic prepare-operation/revision transitions, unique operation keys, durable quota/attempt accounting and ownership restrictions.
-- T23: Create migrations using installed CLI-discovered commands; version synthetic seeds for Boulder hours/departments/mock destinations and validate a fresh local Supabase setup. Runtime reads the selected environment's DB, not code constants.
+- T23: Create migrations using installed CLI-discovered commands; version synthetic seeds for Boulder hours/departments/mock destinations and validate a fresh local Supabase setup. The configuration adapter validates every raw date, opening and closing time, timezone, city/source field, department mapping, and mock destination before constructing `OfficeSchedule`; invalid rows never reach action authorization. Runtime reads the selected environment's DB, not code constants.
 - T24: Implement no-mutation behavior for missing configuration/persistence, block/expiry/cancel handling, reconnect/restart operation recovery.
 - T25: Emit correlated workflow events/spans at every decision/attempt boundary; no hidden reasoning or unnecessary personal data.
-- T26: Add core and real local DB regression checks for all implemented policy/state branches, both authorization/correction race winners, unique operation preparation, session scope, persistence failure, and restart/uncertain recovery. Wire local DB checks into required CI and link actual check IDs to affected SPEC requirements.
+- T26: Add core and real local DB regression checks for all implemented policy/state branches, both authorization/correction race winners, unique operation preparation, session scope, persistence failure, and restart/uncertain recovery. Include malformed raw `validThrough` and opening hours that could otherwise appear open; prove they return unavailable without a ticket or route effect. Wire local DB checks into required CI and link actual check IDs to affected SPEC requirements.
 
 Exit evidence: offline policy/state tests plus isolated DB concurrency/access checks; no unconfirmed authorization or execution of a revision superseded before authorization, no cross-conversation access. Test both correction/authorization race winners and honest post-authorization outcomes. A13/A14/A18/A23/A24 verified at appropriate level.
 
@@ -117,7 +119,7 @@ Dependencies: M2/M3; M1 code sample.
 
 - T40: Add J2 park maintenance through shared workflow; required park/location context and separate allowed department. Do not create a second copy of workflow logic.
 - T41: Complete reviewed supported code/service/shelter corpus and deterministic KnowledgeProvider selection/limitation contract.
-- T42: Acquire selected official news and upcoming event detail records, publication/time/location/cancellation metadata and freshness validation/refresh command.
+- T42: Build `CityEventProvider` from the official city events listing and individual detail records. Normalize local occurrence date, available time/location/status, canonical source, and verification time; test upcoming/past, missing time, cancellation, stale coverage, and date-range handling. Keep dated news articles as source documents with publication metadata, separate from event occurrences. Provide a bounded refresh command.
 - T43: Wire informational dialogue/source cards; save every informational conversation while keeping tickets/routing absent.
 - T44: Enforce evidence references and limited factual answers; preserve critical exceptions and source date limitations. Test injection in user/retrieved data and unsupported city requests.
 
@@ -228,7 +230,7 @@ The [evaluation spec](spec/spec-process-evaluation.md) assigns layer/milestone c
 | Planned command | Purpose | External cost/action |
 | --- | --- | --- |
 | npm run typecheck / lint / format:check / build | Static correctness, readability and builds | None |
-| npm run check:architecture | Core SDK dependency and declared architectural boundaries | None |
+| npm run check:architecture | Current core SDK-import/CommonJS boundary; extend for later layer direction | None |
 | npm run check:spec | SPEC/scenario/check references and implemented-behavior gaps | None |
 | npm run check:dependencies | Full direct/transitive advisory report, including dev tools; default high/critical blocking gate | Registry read-only advisory access; no paid model calls |
 | npm run test:core | Policy/state/confirmation/limits with fixed fake ports | None |
@@ -239,7 +241,7 @@ The [evaluation spec](spec/spec-process-evaluation.md) assigns layer/milestone c
 | npm run test:e2e | Local/deployed end-to-end journey with controlled voice and dedicated real Linear board | Opt-in external demo mutations; approved credentials/board and bounded synthetic data required |
 | npm run eval:text / eval:voice | Empirical model/audio task outcomes | Approved provider budget; synthetic/redacted data |
 
-M0 must create and document exact scripts; current repository has no package/runtime scripts. Use installed Supabase CLI help to define migration/reset/advisor commands; do not copy guessed commands from planning docs. CI secrets/mutations remain opt-in.
+The first package scripts and exact Node version are in README/package.json; M0 still needs local service, DB, CI, traceability manifest, and further contract checks. Use installed Supabase CLI help to define migration/reset/advisor commands; do not copy guessed commands from planning docs. CI secrets/mutations remain opt-in.
 
 ## 7. Time and risk controls
 
@@ -267,6 +269,10 @@ P0 need not implement these runners/providers/features. Retain enough structure 
 
 September 15, 2026: independent read-only review identified duplicate contract definitions, evaluation-schema/command drift, and an overbroad post-authorization correction guarantee. These were corrected; follow-up review found no remaining material cross-document issue. Readability/DRY criteria and local-versus-hosted feasibility boundaries were also verified.
 
-Local documentation checks passed for 12 planning documents: relative links, frontmatter/component section structure, balanced code fences, whitespace, obsolete contract/script names, all 21 P0 A-scenario mappings, and all 10 voice/capability/deliverable gates. Git whitespace checks passed. No application/provider/model/voice/deployment checks ran; implementation does not exist. Q1 and gated release prerequisites remain visible decisions for Dror, not completed work.
+The planning-baseline documentation checks previously passed for 12 documents. The first local policy slice was developed RED then GREEN. Review found the initial whole-city validator disproportionate to business-hours checking, so the current slice separates one pure hours check over a validated schedule from a pure mapping of its result to an action. The 16-case suite checks open/closed decisions, opening and closing times, weekends, date overrides, DST, expiry, invalid clock/timezone inputs, and all three action mappings. On September 16, 2026, Node 24.21.0 `npm run check` (16 tests), `npm run build`, and `git diff --check` passed after this split. The core import boundary is a Biome configuration checked by `npm run lint` and `npm run check:architecture`; manual probes confirmed rejection of static/dynamic provider imports and CommonJS `require`. The configuration adapter will own raw DB-row validation, city/source identity, department mappings, and simulated destinations, with separate tests. This remains pure-policy evidence for part of A4/A5/A6/A23 and COR-001, not DB integration, atomic authorization, real Linear, browser voice, model, or deployment proof. Client delegation is selected; M1 feasibility and gated release prerequisites remain open.
 
-Additional planning review on September 15 covered local-development/cloud-production separation, testing throughout each slice with SPEC/regression protection, minimal maintained dependencies/advisory gates, and the modern Vite/TypeScript/Vitest/Playwright/Biome toolchain. Independent read-only reviews found no material issue; no concrete runtime/package versions, application code, test implementation, or dependency-audit result were claimed or created. Current authorization remains documentation only.
+At the initial boundary checkpoint, four P0 capabilities had runtime name/argument validation and unavailable handlers. On September 16, 2026, the local format/lint/type/test check passed with 30 total tests after the channel-neutral boundary review, and the TypeScript build passed. That checkpoint verified the stub boundary only. The later report-intake slice below implements one handler; municipal-code, city-information, and event handlers, plus client delegation, remain pending.
+
+September 16, 2026 local intake checkpoint: a pothole description and later location now flow from a tiny React text form through Fastify's validated local API, the `prepareServiceReport` agent tool, provider-neutral core, and a private-schema Supabase Postgres draft store. The local DB migration, scoped observations/admissions, atomic revision compare, refresh read, and draft-only UI are implemented. An independent black-box evaluator found that the fresh page hid the process-global prior draft and Fastify coerced numeric/boolean fields into text; initial GET hydration and strict no-coercion validation were added with regression checks. Local DB/API tests and a second browser evaluation are the acceptance gate for this slice. The current loopback harness has one in-memory developer session and does not recover that session after a Node restart; the DB draft itself persists. It is not browser voice, caller confirmation, a ticket, or a transfer, and it is not a deployable multi-user admission model.
+
+Additional planning review on September 15 covered local-development/cloud-production separation, testing throughout each slice with SPEC/regression protection, minimal maintained dependencies/advisory gates, and the modern Vite/TypeScript/Vitest/Playwright/Biome toolchain. That record described the planning baseline at the time; the local core-policy implementation above followed later authorization.

@@ -32,6 +32,12 @@ Satisfy R1 municipal code AND website answers and R2 current events using a boun
 
 `KnowledgeProvider.retrieve(ctx, query, topic?, nowUtc) -> EvidenceBundle`.
 
+The reasoning backend uses distinct `lookupMunicipalCode` and `lookupCityInformation` tools, both backed by the core's `retrieveEvidence` with separate source/type filters. `KnowledgeProvider` remains an internal port rather than a direct model credential or unrestricted web search. The distinct `findCityEvents` tool has a local-date range and event-specific status/timezone semantics; it uses the core's `findEvents` use case and `CityEventProvider` port when implemented. The session coordinator supplies server-owned scope and trusted time for all three tools. No source is trusted merely because the model requested it.
+
+`CityEventProvider.search(ctx, {query, startDate?, endDate?}, nowUtc) -> EventSearchResult` is a separate dated-data contract. An event occurrence carries title, canonical official detail URL, local date, `America/Denver` timezone, optional start/end time and location, source-observed status (`scheduled`, `cancelled`, `postponed`, or `unknown`), last-verified time, and any limitations. Search returns matching occurrences plus a freshness/coverage result; an empty list is not proof that no city events exist. The server interprets relative date phrases using trusted time, bounds the range, and checks current status before labeling an occurrence upcoming. For a same-day event without a start time, it can give the date but cannot assert that it has not started or ended.
+
+P0 event ingestion targets the official [city events listing](https://bouldercolorado.gov/events) and the linked event detail pages. The listing helps discover candidates; details supply date, available time/location, and source-specific updates. Store normalized reviewed occurrences with source URL, retrieval/verification times, and an explicit freshness horizon; refresh before demo/submission and fail honestly when stale. The [special-events calendar](https://bouldercolorado.gov/office-special-events-calendar) includes permitted or under-review events and explicitly does not imply city sponsorship, so it is outside P0 unless clearly labeled and separately modeled. News articles remain dated source documents, not event occurrences merely because they have a publication date.
+
 | Field | Meaning |
 | --- | --- |
 | status | sufficient, insufficient, stale, conflicting |
@@ -39,7 +45,6 @@ Satisfy R1 municipal code AND website answers and R2 current events using a boun
 | passages | sourceId, passageId, exact passage text, canonicalURL, title, kind, section?, publication/effective metadata?, retrievedAtUtc, verifiedAtUtc |
 | applicability | Geographic/facility/topic limitations and required cross-references |
 | freshness | expiresAt/verification status/reason; no fabricated effective dates |
-| event facts | date/start/end/local timezone/location/status; omitted if source does not provide them |
 | limitations | Unknown dates, missing amendments, unsupported topic, absent time, conflicting text |
 
 Model answer proposal includes answer text, claim -> passage references, source IDs, limitations, and whether clarification is needed. Verify cited IDs belong to this bundle and critical facts match evidence; schema success alone is not grounding. Exact wording can still vary during speech, so voice evaluation checks final spoken claims.
@@ -66,6 +71,8 @@ Manual reviewed code acquisition is acceptable P0 if provenance/version is retai
 - AC-003: Given expired/conflicting/absent evidence, then clarification/limitation results without unsupported precision.
 - AC-004: Given yesterday's event or a cancellation, when asked upcoming events today, then it is not presented as upcoming.
 - AC-005: Given injected instructions inside a passage, then no tool scope/authorization changes.
+- AC-006: Given an event listing and its detail page, search returns a source-linked occurrence with the detail page's available date/time/location/status; missing time remains missing.
+- AC-007: Given a past occurrence, same-day occurrence without a time, cancellation, stale record, or unverified range, then the agent does not present it as a verified upcoming scheduled event.
 
 ## 6. Test automation strategy
 
@@ -85,7 +92,7 @@ Park guidance hours do not define city office hours. Missing event time -> say s
 
 ## 10. Validation criteria
 
-M1 acquires and verifies at least one code answer with actual text and one separate website answer. M4 builds bounded events/news corpus and refresh path. M6 refreshes before submission and records manifest/revision/date against A1–A3/A11/A19. No corpus/eval exists yet.
+M1 acquires and verifies at least one code answer with actual text and one separate website answer. M4 builds the bounded dated event index and reviewed news documents with a refresh path. M6 refreshes before submission and records manifest/revision/date against A1–A3/A11/A19. No corpus/eval exists yet.
 
 ## 11. Related specifications
 

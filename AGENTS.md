@@ -6,7 +6,7 @@ This project is the Threefold Boulder municipal voice-agent assignment. Work wit
 
 - Read `SPEC.md`, the affected files in `spec/`, and the current milestone in `DEVELOPMENT_PLAN.md`.
 - Follow applicable personal instructions and the Git/worktree guide. Use an isolated worktree from the explicit integration branch; never edit/build in a bare repository.
-- At this baseline, only planning/documentation is authorized. Get implementation authorization at G0. Existing explicit authorization remains valid within its unchanged scope.
+- Local implementation of the agreed Application Core loop is authorized. External mutation, spending, provisioning, and publication retain their separate gates.
 
 ## Specification discipline
 
@@ -29,6 +29,7 @@ This project is the Threefold Boulder municipal voice-agent assignment. Work wit
 ## Simplicity and readability
 
 - Optimize for a human reader: clear domain names, small cohesive functions/modules, explicit control flow, and useful error messages. Prefer the simplest correct implementation and minimal dependencies.
+- Apply single responsibility at useful boundaries: keep distinct questions, decisions, and side effects separate when that makes each easier to understand and test. Do not extract trivial functions merely to satisfy a rule.
 - Apply DRY to business rules, contracts/schemas, and shared workflows. Keep one authoritative definition; do not copy policy or intake logic between departments.
 - Replace magic values with descriptive module/domain constants or shared typed schemas. Keep constants cohesive; extracting obvious local zero/one/boolean literals is unnecessary when it adds no meaning.
 - Follow SPEC ADR-013 value ownership: runtime city policy stays in validated DB configuration; deployment/provider settings stay in validated server/environment configuration. Do not move either into application constants.
@@ -76,4 +77,4 @@ This project is the Threefold Boulder municipal voice-agent assignment. Work wit
 
 Keep updates concise. Explain real design/Git tradeoffs and failure modes at natural review points so Dror can explain and debug the system. Surface material uncertainty with evidence and a recommendation. Ask only for unresolved decisions or actions requiring his approval; continue useful independent work meanwhile.
 
-Implementation commands do not exist yet. M0 must create and document them before any agent reports application validation.
+The first local commands are documented in `README.md`. Report only checks that actually ran; the remaining M0–M6 targets are planned.

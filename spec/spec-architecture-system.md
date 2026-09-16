@@ -28,10 +28,11 @@ Define the boundaries of the P0 modular application and the seams for P1 provide
 - ARC-007: Stable provider-neutral operational events and trace propagation across asynchronous work.
 - ARC-008: Maintain cohesive responsibility-based folders. Root instructions apply repository-wide; add a nested `AGENTS.md` only for non-obvious local responsibility, dependency/safety boundaries, conventions, specialized checks, or pitfalls. Do not generate empty layers or instruction files for structural symmetry.
 - ARC-009: Presentation/session layers invoke named Application Core use cases and consume bounded views. They do not read provider/storage adapters directly. Reasoning proposals pass through core validation and cannot invoke effect adapters.
+- ARC-010: Voice and text adapters normalize user observations into the same server-scoped conversation workflow and render the same bounded outcomes through their own channels. Channel provenance remains attached to confirmation evidence; the core never branches into a separate policy or ticket workflow by channel.
 
 ```mermaid
 flowchart TD
-  Browser[React: microphone, speaker, sources, action status]
+  Browser[React: voice or text, sources, action status]
   Voice[Voice adapter: GPT-Live]
   Session[Node session coordinator]
   Reason[ReasoningBackend adapter]
@@ -42,7 +43,7 @@ flowchart TD
   Transfer[TransferProvider: simulation]
   Trace[Operational events and OpenTelemetry]
   Browser <-->|audio via WebRTC| Voice
-  Browser <-->|authenticated API and UI events| Session
+  Browser <-->|authenticated text, controls, and UI events| Session
   Voice <-->|server control and normalized events| Session
   Session --> Reason
   Reason -->|typed proposals and evidence requests| Core
@@ -57,7 +58,7 @@ flowchart TD
   Core --> Trace
 ```
 
-Arrows show runtime communication. Code dependency direction points toward the core contracts. Browser audio may bypass Node while private tool execution remains server-owned. Exact delegation/transport is subject to Q1/M1.
+Arrows show runtime communication. Code dependency direction points toward the core contracts. Browser audio may bypass Node while private tool execution remains server-owned. Text messages reach the same coordinator through the authenticated application API, without a VoiceSession. Client delegation is selected for the P0 voice channel; exact transport and event behavior remain subject to M1.
 
 ## 4. Interfaces and data contracts
 
@@ -65,10 +66,11 @@ The table below identifies whole-system ports. The [Application Core specificati
 
 | Port | Input / output | Ownership and failure contract |
 | --- | --- | --- |
-| Clock | `now(): UTC instant` | Production server time; fixed fake in tests. No model/browser-selected production time. |
+| Clock | `now(): Date` | Production server time; fixed fake in tests. No model/browser-selected production time. |
 | CityConfigStore | city ID -> validated versioned configuration or unavailable | Supabase adapter; fresh read for action authorization in P0. |
 | ConversationStore | scoped drafts/evidence/operations and atomic transitions | Compare expected revision/state; return conflict/unavailable. |
 | KnowledgeProvider | topic/query + city/time -> evidence bundle | Restricts sources, records freshness, returns insufficient/conflicting explicitly. |
+| CityEventProvider | city/query/local-date range + trusted time -> dated event records | Restricts official sources; validates occurrence dates, timezone, status, and freshness. |
 | ReasoningBackend | scoped history/state/tool definitions -> typed answer/intake/action proposals | Cancellable bounded work; no direct application mutations. |
 | TicketProvider | prepared ticket + server operation ID -> receipt/retryable failure/uncertain; authorized linked reference -> provider snapshot/not-found/unavailable | Simple port fake for core units; real Linear adapter against narrow API mock for adapter tests and actual Linear for E2E/cloud. Scoped references and timestamped snapshots follow the integration contract. |
 | TransferProvider | allowed destination + operation ID -> lifecycle result | Simulation initial adapter; no arbitrary number argument from model. |
@@ -81,7 +83,7 @@ Shared shapes:
 // Specification only; runtime schemas must implement and validate these contracts.
 type ExecutionContext = {
   conversationId: string; cityId: string; admissionId: string;
-  runId: string; traceId: string;
+  runId: string; traceId: string; channel: 'voice' | 'text';
   mode: 'live' | 'replay' | 'shadow'; deadlineUtc: string;
 }; // Created/resolved by server; admissionId is an opaque authorization scope.
    // The context is never accepted verbatim from model, browser, or caller.
@@ -104,7 +106,7 @@ type DomainEvent = {
 
 Events include draft_updated, confirmation_requested/recorded/invalidated, evidence_selected, policy_decided, operation_started/attempted/completed/uncertain/failed, conversation_closed, and request_blocked. Keep enum definitions central. Event delivery and API retries can repeat; consumers deduplicate by event/operation ID.
 
-Maintained layout target follows the existing responsibility boundaries. The root, `spec/`, and `design/` currently hold planning documents/concepts; application folders below are created during authorized implementation when they first contain maintained files. Nested `AGENTS.md` files are added only where local guidance is materially different; they are omitted from the tree for readability.
+Maintained layout target follows the existing responsibility boundaries. The root, `spec/`, and `design/` hold planning documents/concepts; `src/core/` and `tests/` now contain the first pure policy slice. Other application folders below are created when they first contain maintained files. Nested `AGENTS.md` files are added only where local guidance is materially different; they are omitted from the tree for readability.
 
 ```text
 /
@@ -143,7 +145,7 @@ Readability/DRY follow root ADR-013. Share one policy, intake/workflow implement
 
 ## 6. Test automation strategy
 
-Planned targets: `npm run test:core`, `npm run test:contracts`, `npm run check:architecture`. The architecture check must detect prohibited SDK imports and dependency-direction violations in core. Documentation validation checks links/structure in root and any justified nested `AGENTS.md`; it does not require directory-wide coverage. Contract checks exercise success, classified error, uncertain outcome, cancellation, and repeated event delivery. Verify real adapters separately; substitutes alone do not establish compatibility.
+`npm run test:core` and `npm run check:architecture` exist; `npm run test:contracts` remains planned. The first architecture check uses Biome to reject named provider/browser/server SDK imports and CommonJS `require` in core. As layers are implemented, extend the check to enforce their actual dependency direction; the first check alone does not prove every possible import path is safe. Documentation validation checks links/structure in root and any justified nested `AGENTS.md`; it does not require directory-wide coverage. Contract checks exercise success, classified error, uncertain outcome, cancellation, and repeated event delivery. Verify real adapters separately; substitutes alone do not establish compatibility.
 
 ## 7. Rationale and context
 

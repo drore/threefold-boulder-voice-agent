@@ -40,7 +40,7 @@ Proposed DB entities (schema/migration implementation in M2):
 | Entity | Minimum fields / invariant |
 | --- | --- |
 | city_configs | city ID, monotonic revision, timezone, policy, validity/source metadata; validated snapshot |
-| departments/schedules/closures | city/config revision, allowed request mappings, fictional destination, verified weekly/date intervals; normalized or validated versioned JSON is an implementation choice |
+| departments/schedules/closures | city/config revision, allowed request mappings, fictional destination, verified weekly and special-date opening hours; normalized or validated versioned JSON is an implementation choice |
 | conversations | server ID, city, scope/owner binding, created/closed UTC, mode, status, prompt/model/config versions; minimal summary/context |
 | request_drafts | conversation FK, request type, current revision, bounded location/description, state |
 | confirmation_evidence | draft/revision, pending-summary reference, observed explicit response/provenance/time; invalidated on correction |

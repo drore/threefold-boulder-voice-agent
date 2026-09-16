@@ -1,0 +1,47 @@
+{
+  "name": "threefold-boulder-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Boulder municipal voice-agent developer assignment",
+  "type": "module",
+  "engines": {
+    "node": "24.21.0"
+  },
+  "packageManager": "npm@11.19.0",
+  "scripts": {
+    "audit:dependencies": "npm audit --audit-level=high",
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build:web": "vite build",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "check:architecture": "biome lint src/core --only=style/noRestrictedImports --only=style/noCommonJs",
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "npm run build:server && node --env-file=.env.local dist/server/main.js",
+    "dev:web": "vite --host 127.0.0.1",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "test:db": "node --env-file=.env.local node_modules/vitest/vitest.mjs run",
+    "test:core": "vitest run tests/core",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@types/node": "24.13.5",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  },
+  "dependencies": {
+    "fastify": "5.12.5",
+    "pg": "8.23.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
