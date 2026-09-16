@@ -16,10 +16,12 @@ export type ReportFields = Readonly<{
   description?: ObservedReportField;
 }>;
 
-export type PotholeReportData = ReportFields &
-  Readonly<{ requestType: "pothole" }>;
+export type SupportedReportType = "pothole" | "park_maintenance";
 
-export type ReportDraft = PotholeReportData &
+export type ServiceReportData = ReportFields &
+  Readonly<{ requestType: SupportedReportType }>;
+
+export type ReportDraft = ServiceReportData &
   Readonly<{
     draftId: string;
     conversationId: string;
@@ -49,13 +51,13 @@ export interface DraftStore {
     context: ReportContext,
     draftId: string | null,
     expectedRevision: number | null,
-    fields: PotholeReportData,
+    fields: ServiceReportData,
   ): Promise<DraftWrite>;
 }
 
 export type PrepareReportInput = ReportFields &
   Readonly<{
-    requestType: "pothole" | "park_maintenance";
+    requestType: SupportedReportType;
     draftId: string | null;
     expectedRevision: number | null;
   }>;
@@ -65,6 +67,7 @@ export type PrepareReportResult =
       status: "needs_input";
       draftId: string;
       revision: number;
+      requestType: SupportedReportType;
       fields: ("location" | "description")[];
     }
   | {
@@ -72,7 +75,7 @@ export type PrepareReportResult =
       draftId: string;
       revision: number;
       summary: {
-        requestType: "pothole";
+        requestType: SupportedReportType;
         location: string;
         description: string;
       };
@@ -88,9 +91,13 @@ export type PrepareReportResult =
     };
 
 const MAX_FIELD_LENGTH = 500;
+const SUPPORTED_REPORT_TYPES: readonly SupportedReportType[] = [
+  "pothole",
+  "park_maintenance",
+];
 
 /**
- * Saves a scoped pothole draft and reports which details or confirmation it needs.
+ * Saves a scoped service-report draft and reports which details or confirmation it needs.
  * Input: `{requestType: "pothole", draftId: null, expectedRevision: null, location: {text: "15th and Pine", observationId: "turn-1"}}`.
  * Output: `needs_input` for its description, or `needs_confirmation` once complete.
  */
@@ -99,7 +106,7 @@ export async function prepareServiceReport(
   input: PrepareReportInput,
   store: DraftStore,
 ): Promise<PrepareReportResult> {
-  if (input.requestType !== "pothole") {
+  if (!SUPPORTED_REPORT_TYPES.includes(input.requestType)) {
     return { status: "blocked", code: "unsupported_request_type" };
   }
   if (
@@ -137,6 +144,9 @@ export async function prepareServiceReport(
   if ((current?.revision ?? null) !== input.expectedRevision) {
     return { status: "blocked", code: "revision_conflict" };
   }
+  if (current && current.requestType !== input.requestType) {
+    return { status: "blocked", code: "revision_conflict" };
+  }
 
   const location = input.location
     ? { ...input.location, text: input.location.text.trim() }
@@ -144,8 +154,8 @@ export async function prepareServiceReport(
   const description = input.description
     ? { ...input.description, text: input.description.text.trim() }
     : current?.description;
-  const fields: PotholeReportData = {
-    requestType: "pothole",
+  const fields: ServiceReportData = {
+    requestType: input.requestType,
     ...(location ? { location } : {}),
     ...(description ? { description } : {}),
   };
@@ -181,6 +191,7 @@ function nextStepForDraft(draft: ReportDraft): PrepareReportResult {
       status: "needs_input",
       draftId: draft.draftId,
       revision: draft.revision,
+      requestType: draft.requestType,
       fields: missing,
     };
   }

@@ -147,6 +147,7 @@ describe("agent tool boundary", () => {
       status: "needs_input",
       draftId: "draft-1",
       revision: 1,
+      requestType: "pothole",
       fields: ["location"],
     });
     expect(store.save).toHaveBeenCalledExactlyOnceWith(

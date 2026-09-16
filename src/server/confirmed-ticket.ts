@@ -1,5 +1,8 @@
 import type { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
-import type { ReportContext } from "../core/prepare-service-report.js";
+import type {
+  ReportContext,
+  SupportedReportType,
+} from "../core/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
@@ -33,7 +36,10 @@ export type ConfirmedTicketResult =
         | "store_unavailable";
     };
 
-const TICKET_TITLE = "Boulder demo: pothole report";
+const TICKET_TITLES: Record<SupportedReportType, string> = {
+  pothole: "Boulder demo: pothole report",
+  park_maintenance: "Boulder demo: park maintenance report",
+};
 
 /**
  * Creates at most one Linear issue for a confirmed closed-hours draft.
@@ -76,9 +82,10 @@ export async function submitConfirmedTicket(
   }
 
   const operation = claimed.operation;
+  const title = TICKET_TITLES[operation.requestType];
   const description = ticketDescription(operation);
   const creation = await provider.createTicket({
-    title: TICKET_TITLE,
+    title,
     description,
   });
   let outcome: TicketOperationOutcome;
@@ -87,7 +94,7 @@ export async function submitConfirmedTicket(
     outcome =
       readback.status === "found" &&
       readback.ticket.id === creation.ticket.id &&
-      readback.ticket.title === TICKET_TITLE &&
+      readback.ticket.title === title &&
       readback.ticket.description === description
         ? {
             state: "created",
@@ -130,6 +137,7 @@ function ticketDescription(operation: TicketOperation): string {
   return [
     "Boulder municipal service demo",
     `Demo operation: ${operation.operationId}`,
+    `Request type: ${operation.requestType}`,
     `Location: ${operation.location}`,
     `Issue: ${operation.description}`,
   ].join("\n");

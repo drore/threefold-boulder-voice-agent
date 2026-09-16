@@ -21,6 +21,7 @@ const READY_OPERATION: TicketOperation = {
   draftId: "draft-1",
   draftRevision: 2,
   policyRevision: 1,
+  requestType: "pothole",
   location: "15th and Pine",
   description: "Large pothole in the driving lane",
   state: "ready",
@@ -72,9 +73,11 @@ function operationFixture(initial: TicketOperation = READY_OPERATION) {
 /** Input: the issue body passed to create. Output: a matching Linear readback fixture. */
 function providerFixture() {
   let createdDescription = "";
+  let createdTitle = "";
   const createTicket = vi.fn(
     async (input: { title: string; description: string }) => {
       createdDescription = input.description;
+      createdTitle = input.title;
       return {
         status: "created" as const,
         ticket: {
@@ -90,7 +93,7 @@ function providerFixture() {
     ticket: {
       provider: "linear" as const,
       id: issueId,
-      title: "Boulder demo: pothole report",
+      title: createdTitle,
       description: createdDescription,
       fetchedAt: "2026-09-17T00:00:00.000Z",
     },
@@ -100,6 +103,31 @@ function providerFixture() {
 }
 
 describe("confirmed closed-hours ticket", () => {
+  it("labels a park maintenance issue with its verified report type", async () => {
+    const operations = operationFixture({
+      ...READY_OPERATION,
+      requestType: "park_maintenance",
+      location: "North Boulder Park",
+      description: "Broken swing",
+    });
+    const linear = providerFixture();
+
+    const result = await submitConfirmedTicket(
+      CONTEXT,
+      "draft-1",
+      2,
+      1,
+      operations.store,
+      linear.provider,
+    );
+
+    expect(result).toMatchObject({ status: "linear_ticket_created" });
+    expect(linear.createTicket).toHaveBeenCalledWith({
+      title: "Boulder demo: park maintenance report",
+      description: expect.stringContaining("Request type: park_maintenance"),
+    });
+  });
+
   it("creates and reads back one ticket, then only re-reads on repeat confirmation", async () => {
     const operations = operationFixture();
     const linear = providerFixture();

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   prepareServiceReport,
   type DraftStore,
-  type PotholeReportData,
   type ReportContext,
   type ReportDraft,
+  type ServiceReportData,
 } from "../../src/core/prepare-service-report.js";
 
 const CONTEXT: ReportContext = {
@@ -29,7 +29,7 @@ class InMemoryDraftStore implements DraftStore {
     context: ReportContext,
     draftId: string | null,
     expectedRevision: number | null,
-    fields: PotholeReportData,
+    fields: ServiceReportData,
   ) {
     if (!this.isAllowed(context)) return { status: "denied" as const };
     const current = draftId ? this.drafts.get(draftId) : undefined;
@@ -79,6 +79,7 @@ describe("prepareServiceReport", () => {
       status: "needs_input",
       draftId: "draft-1",
       revision: 1,
+      requestType: "pothole",
       fields: ["location", "description"],
     });
     expect(store.saves).toBe(1);
@@ -105,6 +106,7 @@ describe("prepareServiceReport", () => {
       status: "needs_input",
       draftId: "draft-1",
       revision: 1,
+      requestType: "pothole",
       fields: ["location"],
     });
     expect(store.drafts.get("draft-1")?.description?.text).toBe(
@@ -292,20 +294,77 @@ describe("prepareServiceReport", () => {
     expect(store.saves).toBe(0);
   });
 
-  it("does not pretend park maintenance is implemented", async () => {
+  it("collects a park location and issue without using pothole-specific logic", async () => {
     const store = new InMemoryDraftStore();
+
+    const first = await prepareServiceReport(
+      CONTEXT,
+      {
+        requestType: "park_maintenance",
+        draftId: null,
+        expectedRevision: null,
+        description: {
+          text: "Broken swing",
+          observationId: "observation-1",
+        },
+      },
+      store,
+    );
+    expect(first).toEqual({
+      status: "needs_input",
+      draftId: "draft-1",
+      revision: 1,
+      requestType: "park_maintenance",
+      fields: ["location"],
+    });
 
     expect(
       await prepareServiceReport(
         CONTEXT,
         {
           requestType: "park_maintenance",
-          draftId: null,
-          expectedRevision: null,
+          draftId: "draft-1",
+          expectedRevision: 1,
+          location: {
+            text: "North Boulder Park, west playground",
+            observationId: "observation-2",
+          },
         },
         store,
       ),
-    ).toEqual({ status: "blocked", code: "unsupported_request_type" });
-    expect(store.saves).toBe(0);
+    ).toEqual({
+      status: "needs_confirmation",
+      draftId: "draft-1",
+      revision: 2,
+      summary: {
+        requestType: "park_maintenance",
+        location: "North Boulder Park, west playground",
+        description: "Broken swing",
+      },
+    });
+    expect(store.saves).toBe(2);
+  });
+
+  it("does not change an existing draft to a different report type", async () => {
+    const store = new InMemoryDraftStore();
+    await prepareServiceReport(
+      CONTEXT,
+      { requestType: "pothole", draftId: null, expectedRevision: null },
+      store,
+    );
+
+    expect(
+      await prepareServiceReport(
+        CONTEXT,
+        {
+          requestType: "park_maintenance",
+          draftId: "draft-1",
+          expectedRevision: 1,
+        },
+        store,
+      ),
+    ).toEqual({ status: "blocked", code: "revision_conflict" });
+    expect(store.drafts.get("draft-1")?.requestType).toBe("pothole");
+    expect(store.saves).toBe(1);
   });
 });

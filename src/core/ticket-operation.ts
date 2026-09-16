@@ -1,11 +1,15 @@
-import type { ReportContext } from "./prepare-service-report.js";
+import type {
+  ReportContext,
+  SupportedReportType,
+} from "./prepare-service-report.js";
 
-/** One confirmed pothole draft may authorize one Linear create attempt. */
+/** One confirmed supported report may authorize one Linear create attempt. */
 export type TicketOperation = Readonly<{
   operationId: string;
   draftId: string;
   draftRevision: number;
   policyRevision: number;
+  requestType: SupportedReportType;
   location: string;
   description: string;
   state: "ready" | "attempting" | "created" | "uncertain" | "rejected";

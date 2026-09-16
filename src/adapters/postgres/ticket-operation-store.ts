@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import type { ReportContext } from "../../core/prepare-service-report.js";
+import type {
+  ReportContext,
+  SupportedReportType,
+} from "../../core/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
@@ -11,6 +14,7 @@ import type {
 
 type DraftRow = {
   revision: number;
+  request_type: SupportedReportType;
   location_text: string | null;
   description_text: string | null;
 };
@@ -20,6 +24,7 @@ type OperationRow = {
   draft_id: string;
   draft_revision: number;
   policy_revision: number;
+  request_type: SupportedReportType;
   location_text: string;
   description_text: string;
   state: TicketOperation["state"];
@@ -30,7 +35,7 @@ type OperationRow = {
   reason: string | null;
 };
 
-/** Stores one durable Linear create attempt per pothole draft in private Postgres tables. */
+/** Stores one durable Linear create attempt per supported report draft. */
 export class PostgresTicketOperationStore implements TicketOperationStore {
   /** Input: server-owned database pool. Output: a store with no external provider calls. */
   constructor(private readonly pool: Pool) {}
@@ -87,9 +92,9 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
       }
 
       const draftResult = await client.query<DraftRow>(
-        `select revision, location_text, description_text
+        `select revision, request_type, location_text, description_text
          from app.request_drafts
-         where id = $1 and conversation_id = $2 and request_type = 'pothole'
+         where id = $1 and conversation_id = $2
          for update`,
         [draftId, context.conversationId],
       );
@@ -133,8 +138,8 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
       const created = await client.query<OperationRow>(
         `insert into app.ticket_operations
            (id, conversation_id, draft_id, draft_revision, policy_revision,
-            location_text, description_text)
-         values ($1, $2, $3, $4, $5, $6, $7)
+            request_type, location_text, description_text)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
          returning *`,
         [
           randomUUID(),
@@ -142,6 +147,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
           draftId,
           expectedRevision,
           policyRevision,
+          draft.request_type,
           draft.location_text,
           draft.description_text,
         ],
@@ -291,6 +297,7 @@ function toOperation(row: OperationRow): TicketOperation {
     draftId: row.draft_id,
     draftRevision: row.draft_revision,
     policyRevision: row.policy_revision,
+    requestType: row.request_type,
     location: row.location_text,
     description: row.description_text,
     state: row.state,

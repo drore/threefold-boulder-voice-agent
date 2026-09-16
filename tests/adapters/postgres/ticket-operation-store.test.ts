@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { PostgresDraftStore } from "../../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../../src/adapters/postgres/ticket-operation-store.js";
 import type { ReportContext } from "../../../src/core/prepare-service-report.js";
+import type { SupportedReportType } from "../../../src/core/prepare-service-report.js";
 
 const localDatabaseUrl = process.env.LOCAL_DATABASE_URL;
 if (localDatabaseUrl) {
@@ -59,29 +60,40 @@ describe.skipIf(!localDatabaseUrl)(
       return result.context;
     }
 
-    /** Input: one conversation. Output: a complete revision-1 pothole draft. */
-    async function completeDraft(context: ReportContext): Promise<string> {
+    /** Input: one conversation and report type. Output: a complete revision-1 draft. */
+    async function completeDraft(
+      context: ReportContext,
+      requestType: SupportedReportType = "pothole",
+    ): Promise<string> {
+      const locationText =
+        requestType === "pothole"
+          ? "15th and Pine"
+          : "North Boulder Park, west playground";
+      const descriptionText =
+        requestType === "pothole"
+          ? "Large pothole in the driving lane"
+          : "Broken swing";
       const location = await drafts.recordObservation(
         context,
         "text",
-        "A pothole at 15th and Pine",
+        locationText,
       );
       const description = await drafts.recordObservation(
         context,
         "text",
-        "A large pothole in the driving lane",
+        descriptionText,
       );
       if (location.status !== "recorded" || description.status !== "recorded") {
         throw new Error("Local observation unavailable");
       }
       const saved = await drafts.save(context, null, null, {
-        requestType: "pothole",
+        requestType,
         location: {
-          text: "15th and Pine",
+          text: locationText,
           observationId: location.observationId,
         },
         description: {
-          text: "Large pothole in the driving lane",
+          text: descriptionText,
           observationId: description.observationId,
         },
       });
@@ -124,6 +136,7 @@ describe.skipIf(!localDatabaseUrl)(
           draftId,
           draftRevision: 1,
           policyRevision: 1,
+          requestType: "pothole",
           location: "15th and Pine",
           description: "Large pothole in the driving lane",
           state: "ready",
@@ -147,6 +160,22 @@ describe.skipIf(!localDatabaseUrl)(
         [draftId],
       );
       expect(count.rows[0]?.count).toBe("1");
+    });
+
+    it("authorizes a park-maintenance ticket with its immutable report type", async () => {
+      const context = await open();
+      const draftId = await completeDraft(context, "park_maintenance");
+
+      expect(await operations.authorize(context, draftId, 1, 1)).toMatchObject({
+        status: "found",
+        operation: {
+          draftId,
+          requestType: "park_maintenance",
+          location: "North Boulder Park, west playground",
+          description: "Broken swing",
+          state: "ready",
+        },
+      });
     });
 
     it("blocks missing details, stale revision, policy mismatch, and wrong scope", async () => {

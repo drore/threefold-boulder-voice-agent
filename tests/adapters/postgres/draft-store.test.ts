@@ -123,6 +123,63 @@ describe.skipIf(!localDatabaseUrl)(
       });
     });
 
+    it("persists park-maintenance details without changing the draft type", async () => {
+      const context = await open();
+      const descriptionId = await observe(context, "Broken swing");
+      const first = await prepareServiceReport(
+        context,
+        {
+          requestType: "park_maintenance",
+          draftId: null,
+          expectedRevision: null,
+          description: {
+            text: "Broken swing",
+            observationId: descriptionId,
+          },
+        },
+        store,
+      );
+      expect(first.status).toBe("needs_input");
+      if (first.status !== "needs_input") return;
+
+      const newStore = new PostgresDraftStore(pool);
+      const locationId = await observe(
+        context,
+        "North Boulder Park, west playground",
+      );
+      expect(
+        await prepareServiceReport(
+          context,
+          {
+            requestType: "park_maintenance",
+            draftId: first.draftId,
+            expectedRevision: first.revision,
+            location: {
+              text: "North Boulder Park, west playground",
+              observationId: locationId,
+            },
+          },
+          newStore,
+        ),
+      ).toMatchObject({
+        status: "needs_confirmation",
+        summary: {
+          requestType: "park_maintenance",
+          location: "North Boulder Park, west playground",
+          description: "Broken swing",
+        },
+      });
+      expect(await store.load(context, first.draftId)).toMatchObject({
+        status: "found",
+        draft: { requestType: "park_maintenance", revision: 2 },
+      });
+      expect(
+        await newStore.save(context, first.draftId, 2, {
+          requestType: "pothole",
+        }),
+      ).toEqual({ status: "conflict" });
+    });
+
     it("denies another admission and an observation from another conversation", async () => {
       const context = await open();
       const other = await open();

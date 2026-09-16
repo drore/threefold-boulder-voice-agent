@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import type {
   DraftStore,
-  PotholeReportData,
   ReportContext,
   ReportDraft,
+  ServiceReportData,
 } from "../../core/prepare-service-report.js";
 
 const MAX_OBSERVATION_LENGTH = 4000;
@@ -12,7 +12,7 @@ const MAX_OBSERVATION_LENGTH = 4000;
 type DraftRow = {
   id: string;
   revision: number;
-  request_type: "pothole";
+  request_type: ServiceReportData["requestType"];
   location_text: string | null;
   location_observation_id: string | null;
   description_text: string | null;
@@ -20,7 +20,7 @@ type DraftRow = {
 };
 
 /**
- * Persists the first pothole intake path in Supabase Postgres. The supplied
+ * Persists the two supported service-report drafts in Supabase Postgres. The supplied
  * pool belongs to the server; neither the browser nor the model gets DB access.
  */
 export class PostgresDraftStore implements DraftStore {
@@ -128,7 +128,7 @@ export class PostgresDraftStore implements DraftStore {
     context: ReportContext,
     draftId: string | null,
     expectedRevision: number | null,
-    fields: PotholeReportData,
+    fields: ServiceReportData,
   ) {
     let client: PoolClient | undefined;
     let transactionStarted = false;
