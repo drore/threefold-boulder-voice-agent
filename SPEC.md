@@ -7,19 +7,21 @@ owner: Dror Elovits
 
 # Boulder municipal voice agent — specification
 
-Status: implementation started with a local provider-free Application Core policy slice. Accepted principles, proposed defaults, and release prerequisites are distinguished below. No database, external integration, browser voice, or deployment exists. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
+Status: a local text intake slice now runs from the browser through the server and Application Core to Supabase Postgres. The pure business-hours policy is tested. Voice, live information, confirmation, Linear, routing, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
 
 ## 1. Purpose and priorities
 
 Deliver a Boulder, Colorado municipal voice agent covering all six Threefold capabilities and all three deliverables. Dror must understand its design and be able to debug it in the 45-minute follow-up.
 
-The assignment suggests approximately 4–6 hours and permits partial completion. Dror requires all six capabilities, wants delivery within 48 hours, and now prioritizes assignment coverage over additional features. Track actual effort. The elapsed delivery target is not a 48-hour coding budget and must not silently reset when implementation starts.
+The [assignment](https://www.threefold.ai/developer-task) calls this a small version of Threefold's work, suggests approximately 4–6 hours, and explicitly permits partial completion. Dror's target is all six capabilities within 48 hours elapsed, with assignment coverage ahead of additional features. Track actual effort and report any cut honestly. The elapsed delivery target is not a 48-hour coding budget and must not silently reset when implementation starts.
 
 - **P0 — submission:** assignment capabilities/deliverables and the controls needed for safe, observable behavior.
 - **P1 — extensions:** additional experiences and policies, after P0 or in a later iteration.
 - **P2 — expansion:** broader coverage, additional providers, production telephony, and measured scale.
 
 P0 has small provider-neutral interfaces and extension points. Do not build a general plugin framework or distributed platform to demonstrate replaceability. Keep updating this SPEC and affected component specs as decisions change.
+
+**Interview scope limit:** prove each capability with the smallest credible end-to-end example. P0 has one Boulder configuration, one browser voice screen, two report types/departments, a small reviewed set of code/website/event sources, one Linear demo destination, and a compact evaluation suite. A thin server-owned boundary is enough for provider replacement; no provider marketplace, administration console, full city knowledge base, telephony integration, staff portal, analytics dashboard, replay service, or multi-city setup. Implement only reliability controls that the demonstrated action path needs. If time or access prevents a capability, preserve a working reviewer path and name the omission in the one-page writeup; a stub does not count as coverage.
 
 ## 2. Assignment coverage and evidence gates
 
@@ -34,7 +36,7 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Departments selected |
 | R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Pure policy tested; DB/spoken proof pending |
 | R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | First offline checks pass; full evaluation pending |
-| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local docs committed; first code slice uncommitted for review |
+| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local planning and first intake slice committed; reviewer access pending |
 | D2 | Link reviewers can try | Fresh session verifies the deployed revision's voice, sources, real demo tickets, and simulated routing; access steps documented. | No deployment |
 | D3 | Writeup at most one page | Rendered writeup includes cuts, decisions, component diagram, limitations, and next steps. | Planned |
 
@@ -155,7 +157,7 @@ Code review must be understandable to a human unfamiliar with the conversation: 
 
 ### ADR-014 — Local development, cloud production
 
-Dror requires the application to work in a local development environment before cloud deployment. Local Application Core implementation has begun; local React/Node/Supabase application operation is still pending.
+Dror requires the application to work in a local development environment before cloud deployment. The first local React/Node/Supabase text-intake path works; the remaining assignment paths and deployment are pending.
 
 Development runs React, Node, and a local Supabase stack on the developer machine. Production runs the built UI, long-lived backend, and managed Supabase in the cloud. Use the same application contracts and versioned migrations, with environment-specific endpoints, credentials, origins, and validated configuration. Keep development data and credentials separate from production; no automatic production reset or demo mutation.
 

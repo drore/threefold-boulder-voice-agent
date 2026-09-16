@@ -15,6 +15,8 @@ P0 delivers browser voice for Boulder, actual code AND website answers, current 
 
 P0 also includes required-field confirmation, session-scoped access, safe operation/retry handling, minimal correlated tracing, and provider-neutral boundaries. These are foundations for correct delivery, not an invitation to build a general platform.
 
+This is an interview exercise with a suggested 4–6-hour time box, not a municipal product build. The milestone tasks below are a risk/acceptance checklist, not a request to implement every possible resilience mechanism. Choose the smallest working implementation that proves the six capabilities: one city, two supported staff intents, one voice screen, one real Linear demo destination, a small reviewed information/events corpus, DB-backed hours, and a compact test/evaluation set. Do not spend time on a general configuration framework, provider plugin system, analytics product, staff UI, or production telephony. Where a basic path is still missing, prioritize that path over deeper hardening. If the target cannot be met, ship the strongest working subset and describe the cut accurately.
+
 Engineering quality follows SPEC ADR-013: simple human-readable code, clear naming/control flow, single responsibility at useful boundaries, small cohesive modules, minimal dependencies, and DRY for shared rules/contracts/workflows. Every slice reviews these criteria; abstractions need actual reuse or a useful external boundary. Do not trade clarity for cleverness or compress code merely to reduce line count.
 
 P1: ticket-always execution, tone, representative view, replay/shadow runner/comparison UI. P2: telephony, other cities/providers, broader code/topic coverage, distributed workers, measured scale. Do not start P1 while a P0 gate is missing.
@@ -45,7 +47,7 @@ Provider identity/access and costs are finite prerequisites, not open architectu
 
 ## 3. Implementation sequence
 
-Estimates are provisional focused engineering effort, excluding this planning conversation, guided review, account access delays, and provider surprises. Rough P0 range: 12–20 focused hours plus contingency. This is broader than Threefold's suggested 4–6-hour exercise; report actual effort honestly. The desired 48-hour elapsed window is not reset by this plan. Confirm remaining availability at G0.
+Estimates are provisional focused engineering effort, excluding this planning conversation, guided review, account access delays, and provider surprises. The earlier 12–20-hour P0 estimate exposed an overbroad implementation plan relative to Threefold's 4–6-hour exercise. Treat the times below as warnings about scope, not a budget to consume. Prefer a working, explainable demonstration and honest cuts over completing every listed subtask. Report actual effort. The desired 48-hour elapsed window is not reset by this plan.
 
 ### M0 — foundation and operational shape (0.5–1.5 hours)
 
@@ -248,8 +250,9 @@ The first package scripts and exact Node version are in README/package.json; M0 
 - End M1 before investing heavily in app integrations. Voice access and actual code acquisition are highest-risk assumptions.
 - At M3, reassess remaining elapsed window with a complete resident report, not just separate components.
 - Reserve final effort for deployment, fresh reviewer access, evidence, writeup, and rehearsal. These are mandatory delivery work.
-- If effort exceeds assumptions, keep P1 deferred and narrow topic depth within accepted P0 rather than remove a capability or bypass safety. Material scope changes go to Dror.
+- If effort exceeds assumptions, keep P1 deferred and narrow topic depth within accepted P0 before cutting a capability. If a capability still cannot be completed, bring Dror the working evidence and proposed honest cut; do not claim a stub or bypass safety.
 - Do not expand retrieval frameworks, full authentication products, vector infrastructure, background orchestration, or shadow UI without a concrete requirement.
+- At each slice boundary, ask whether the next task gives a reviewer new evidence for one of V0/R1–R6/D1–D3. If it only prepares for hypothetical scale or a later feature, defer it. Keep the narrow safeguards needed for the ticket/transfer path and a usable deployed link.
 
 ## 8. Later feature seams
 
