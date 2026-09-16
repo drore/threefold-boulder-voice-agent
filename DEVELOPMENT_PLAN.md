@@ -7,13 +7,13 @@ owner: Dror Elovits
 
 # Detailed development plan
 
-Status: the first local pothole intake path now runs through a small React form, the server tool boundary, provider-neutral core, and local Supabase Postgres. M0/M2 and the assignment's voice, information, event, confirmation, action, and delivery gates remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
+Status: the first local pothole intake path runs through a small React form, the server tool boundary, provider-neutral core, and local Supabase Postgres. A separate DB-backed Boulder policy read and pure route-or-ticket decision are tested, but no action is authorized or executed. The assignment's voice, information, event, confirmation, action, and delivery gates remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
 
 ## 1. Outcome and delivery boundary
 
-P0 delivers browser voice for Boulder, actual code AND website answers, current official news/events, real Linear demo tickets, correct observable mock routing, deterministic Supabase-backed business hours, and evaluation setup. Submission includes reviewer-accessible Git history, deployed link, <=1-page writeup, and debugging readiness.
+P0 delivers one browser voice journey for Boulder, one actual municipal-code answer, one official website answer, one dated city-event answer, a confirmed real Linear demo ticket, two observable mock department routes, deterministic Supabase-backed business hours, and a compact evaluation setup. Submission includes reviewer-accessible Git history, a tryable link, <=1-page writeup, and debugging readiness.
 
-P0 also includes required-field confirmation, session-scoped access, safe operation/retry handling, minimal correlated tracing, and provider-neutral boundaries. These are foundations for correct delivery, not an invitation to build a general platform.
+P0 also includes required-field confirmation, session-scoped access, safe one-operation handling, a readable correlation ID across the action path, and small provider boundaries. Each serves the demonstrated path; broader resilience and telemetry work can follow if needed.
 
 This is an interview exercise with a suggested 4–6-hour time box, not a municipal product build. The milestone tasks below are a risk/acceptance checklist, not a request to implement every possible resilience mechanism. Choose the smallest working implementation that proves the six capabilities: one city, two supported staff intents, one voice screen, one real Linear demo destination, a small reviewed information/events corpus, DB-backed hours, and a compact test/evaluation set. Do not spend time on a general configuration framework, provider plugin system, analytics product, staff UI, or production telephony. Where a basic path is still missing, prioritize that path over deeper hardening. If the target cannot be met, ship the strongest working subset and describe the cut accurately.
 

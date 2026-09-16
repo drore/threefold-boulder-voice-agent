@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Boulder municipal voice agent — specification
 
-Status: a local text intake slice now runs from the browser through the server and Application Core to Supabase Postgres. The pure business-hours policy is tested. Voice, live information, confirmation, Linear, routing, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
+Status: a local text intake slice runs from the browser through the server and Application Core to Supabase Postgres. The pure business-hours policy and a separate Postgres read of seeded Boulder hours/departments are tested. The DB policy is not yet wired into action authorization. Voice, live information, confirmation, Linear, routing, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
 
 ## 1. Purpose and priorities
 
@@ -34,7 +34,7 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | R2 | Answer current city-event questions | Dated official news/events support current answers, including freshness, past/upcoming status, times, and cancellations. | Sources investigated |
 | R3 | Open a ticket in a selected platform | Confirmed spoken report creates a real Linear issue in the approved demo team; a real API readback verifies ID and fields. | Linear selected |
 | R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Departments selected |
-| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Pure policy tested; DB/spoken proof pending |
+| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Pure policy and DB policy read tested; action/spoken proof pending |
 | R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | First offline checks pass; full evaluation pending |
 | D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local planning and first intake slice committed; reviewer access pending |
 | D2 | Link reviewers can try | Fresh session verifies the deployed revision's voice, sources, real demo tickets, and simulated routing; access steps documented. | No deployment |
