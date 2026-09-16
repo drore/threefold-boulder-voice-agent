@@ -18,6 +18,7 @@ The [dedicated Linear project](https://linear.app/hamaarag/project/threefold-bou
 - [Component specifications](spec/)
 - [Versioned live intent evaluation and last result](eval/README.md)
 - [One-page reviewer writeup draft](WRITEUP.md)
+- [Evidence ledger: gates, revisions, and results](EVIDENCE.md)
 - [Agent engineering instructions](AGENTS.md)
 
 ## Working approach
