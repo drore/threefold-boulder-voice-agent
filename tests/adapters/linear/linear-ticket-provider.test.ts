@@ -217,6 +217,8 @@ describe("LinearTicketProvider", () => {
             id: "issue-456",
             title: "Existing ticket",
             description: null,
+            team: { id: "team-123" },
+            project: { id: "project-123" },
           },
         },
       });
@@ -235,12 +237,20 @@ describe("LinearTicketProvider", () => {
     });
     expect(activeServer.requests).toHaveLength(1);
     expect(activeServer.requests[0]?.body.operationName).toBe("ReadIssue");
+    expect(activeServer.requests[0]?.body.query).toContain("team { id }");
+    expect(activeServer.requests[0]?.body.query).toContain("project { id }");
   });
 
   it("supports explicit create then readback with the returned issue ID", async () => {
     const issues = new Map<
       string,
-      { id: string; title: string; description: string }
+      {
+        id: string;
+        title: string;
+        description: string;
+        team: { id: string };
+        project: { id: string };
+      }
     >();
     activeServer = await startMockLinearServer((request, response) => {
       if (request.body.operationName === "CreateIssue") {
@@ -253,6 +263,8 @@ describe("LinearTicketProvider", () => {
           id: "issue-created-1",
           title: String(input.title),
           description: String(input.description),
+          team: { id: String(input.teamId) },
+          project: { id: String(input.projectId) },
         };
         issues.set(issue.id, issue);
         respondJson(response, {
@@ -310,6 +322,32 @@ describe("LinearTicketProvider", () => {
     });
   });
 
+  it.each([
+    ["team", "other-team"],
+    ["project", "other-project"],
+  ])("rejects a ticket outside the configured %s", async (field, id) => {
+    activeServer = await startMockLinearServer((_request, response) => {
+      respondJson(response, {
+        data: {
+          issue: {
+            id: "issue-456",
+            title: "Existing ticket",
+            description: "Location: 13th and Pearl",
+            team: { id: field === "team" ? id : "team-123" },
+            project: { id: field === "project" ? id : "project-123" },
+          },
+        },
+      });
+    });
+
+    const provider = createProvider(activeServer);
+
+    expect(await provider.readTicket("issue-456")).toEqual({
+      status: "unavailable",
+      reason: "linear_issue_scope_mismatch",
+    });
+  });
+
   it("rejects unbounded provider text on read", async () => {
     activeServer = await startMockLinearServer((_request, response) => {
       respondJson(response, {
@@ -318,6 +356,8 @@ describe("LinearTicketProvider", () => {
             id: "issue-oversized",
             title: "Existing ticket",
             description: "x".repeat(5001),
+            team: { id: "team-123" },
+            project: { id: "project-123" },
           },
         },
       });

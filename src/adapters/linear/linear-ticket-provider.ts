@@ -21,6 +21,8 @@ query ReadIssue($id: String!) {
     id
     title
     description
+    team { id }
+    project { id }
   }
 }
 `;
@@ -119,8 +121,8 @@ export class LinearTicketProvider {
   }
 
   /**
-   * Reads one Linear issue by provider ID without creating or mutating anything.
-   * Input: `"issue-uuid"`. Output: current bounded ticket snapshot, `not_found`, or a classified failure.
+   * Reads one Linear issue by ID and accepts only the configured team and project.
+   * Input: `"issue-uuid"`. Output: scoped ticket snapshot, `not_found`, or a classified failure.
    */
   async readTicket(issueId: string): Promise<LinearReadTicketResult> {
     if (!isUsableText(issueId)) {
@@ -137,7 +139,13 @@ export class LinearTicketProvider {
     }
     if (response.status !== "ok") return response;
 
-    return parseReadEnvelope(response.envelope, issueId, new Date());
+    return parseReadEnvelope(
+      response.envelope,
+      issueId,
+      this.options.teamId,
+      this.options.projectId,
+      new Date(),
+    );
   }
 
   /**
@@ -228,10 +236,12 @@ function classifyCreateFailure(
   return { status: "uncertain", reason: response.reason };
 }
 
-/** Input: GraphQL read envelope plus requested ID. Output: bounded issue snapshot or `not_found`. */
+/** Input: GraphQL issue and expected ID/team/project. Output: scoped snapshot or a classified failure. */
 function parseReadEnvelope(
   envelope: GraphQlEnvelope,
   expectedIssueId: string,
+  expectedTeamId: string,
+  expectedProjectId: string,
   fetchedAt: Date,
 ): LinearReadTicketResult {
   const data = envelope.data;
@@ -248,6 +258,16 @@ function parseReadEnvelope(
     !isBoundedText(data.issue.title, MAX_LINEAR_TITLE_LENGTH)
   ) {
     return { status: "unavailable", reason: "linear_issue_fields_invalid" };
+  }
+  const team = data.issue.team;
+  const project = data.issue.project;
+  if (
+    !isRecord(team) ||
+    team.id !== expectedTeamId ||
+    !isRecord(project) ||
+    project.id !== expectedProjectId
+  ) {
+    return { status: "unavailable", reason: "linear_issue_scope_mismatch" };
   }
   if (
     data.issue.description !== null &&
