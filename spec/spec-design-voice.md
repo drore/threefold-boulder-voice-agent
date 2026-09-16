@@ -11,7 +11,7 @@ tags: [design, voice, reasoning]
 
 ## 1. Purpose and scope
 
-P0 browser voice uses GPT-Live with client delegation, independent reasoning/tool contracts, honest task updates, and session lifecycle. The local WebRTC/session/delegation path is implemented and fake-tested; actual microphone, spoken replies, and event ordering still need M1 verification. P1 adds tone/representative UI; P2 telephony.
+P0 browser voice uses GPT-Live with client delegation, independent reasoning/tool contracts, honest task updates, and session lifecycle. The local WebRTC/session/delegation path is implemented and fake-tested; Dror personally exercised the spoken browser path on September 16, 2026 and reported it working well, while formal recorded microphone/interruption evidence remains pending. P1 adds tone/representative UI; P2 telephony.
 
 Voice is one channel adapter into the shared server conversation workflow. The same agent-tool boundary and Application Core also support a later text-chat adapter; text does not require GPT-Live or voice delegation. The system architecture owns this channel-neutral boundary, while this document owns voice-specific media/events/playback behavior.
 
@@ -52,13 +52,13 @@ Selected client delegation: server owns transient transcripts/current task snaps
 
 The voice model requests a supported task; the server assembles observed caller details and current state for the reasoning backend. It does not receive `isWithinBusinessHours`, `decideBusinessHoursAction`, `TicketProvider`, or `TransferProvider` as callable tools. The coordinator maps validated reasoning proposals to the core's `updateDraft`, `requestConfirmation`, and `recordConfirmation` use cases. Only after the server verifies confirmation of the current draft revision may the coordinator call `executeRequest`. The core chooses the action from validated database configuration and trusted time, then returns a verified outcome for the coordinator to communicate through Live.
 
-The reasoning backend proposes one bounded intent using `gpt-5.6-luna` Structured Outputs. The server validates the proposal and invokes one of four application capabilities through the [tool boundary](../src/server/agent-tools.ts). Reviewed code, service, and event examples and both service-report drafts now have handlers; other requests return honest limited coverage. The proposal cannot select a destination, confirm a draft, or create a ticket. Two live synthetic intent-classification calls succeeded, including a location-only report follow-up, but no spoken delegated result has yet been verified.
+The reasoning backend proposes one bounded intent using `gpt-5.6-luna` Structured Outputs. The server validates the proposal and invokes one of four application capabilities through the [tool boundary](../src/server/agent-tools.ts). Reviewed code and service examples and both service-report drafts have handlers; other requests return honest limited coverage. A `capabilities` intent answers "what can you do" / "what can I ask" questions with a fixed server-owned options message that lists the supported topics, so callers always hear what the demo covers. The proposal cannot select a destination, confirm a draft, or create a ticket. Two live synthetic intent-classification calls succeeded, including a location-only report follow-up, but no spoken delegated result has yet been verified.
 
 | Agent tool | Model-supplied input | Application responsibility |
 | --- | --- | --- |
 | `lookupMunicipalCode` | Bounded question | Retrieve reviewed actual code text and qualifications through `retrieveEvidence`. |
 | `lookupCityInformation` | Bounded question | Retrieve reviewed city service/department website facts through `retrieveEvidence`. |
-| `findCityEvents` | Bounded question, optional ISO local-date range | Search dated official events with freshness, timezone, cancellation, and upcoming/past checks. |
+| `findCityEvents` | Bounded question, optional ISO local-date range | Fetch the official calendar through a daily-cached live provider, filter upcoming occurrences by the trusted server date and the requested range, and answer with bounded dated entries and official links. |
 | `prepareServiceReport` | Supported report type and candidate location/description | Validate untrusted details and update a draft; return needed fields or confirmation state, never submit a ticket or route directly. |
 
 Conversation/city scope, trusted time, observations, source allowlists, department mappings, and provider settings are supplied by the server. The model cannot pass URLs, source IDs, Linear destinations, permissions, confirmation booleans, or a business-hours outcome. Only the confirmed core `executeRequest` flow may cause a ticket or simulated route. Tool definitions are backend-owned in client delegation; GPT-Live delegates the conversation task rather than executing these application tools itself. The [knowledge spec](spec-data-knowledge.md) owns code/site evidence and event data rules.
@@ -90,7 +90,8 @@ Required capture rules are enforced through workflow contracts, not just this pr
 - AC-004: Given tool uncertainty/failure, agent does not speak success.
 - AC-005: Given denied mic, connection loss, or close, resources release and recoverable state is accurate.
 - AC-006: Given a delegated code, service-guidance, or event question, the corresponding tool returns only approved scoped evidence or an explicit limitation; a model-supplied URL or stale/unsupported claim cannot become a sourced answer.
-- AC-007: Given an unknown tool, invalid argument shape/report type, or model-supplied confirmation/destination, the tool boundary rejects the call without invoking a handler. Valid stubs return unavailable until their use cases are implemented. The event use case later validates calendar dates and allowed ranges before returning event data.
+- AC-007: Given an unknown tool, invalid argument shape/report type, or model-supplied confirmation/destination, the tool boundary rejects the call without invoking a handler. Valid stubs return unavailable until their use cases are implemented. The event use case validates calendar dates and allowed ranges before returning event data; live-fetch failures return an explicit limited-coverage outcome rather than stale or invented events.
+- AC-008: Given a "what can you do" or "what can I ask" utterance, the server speaks a fixed options overview covering the supported topics; the answer comes from the server, not a model-generated fact list.
 
 ## 6. Test automation strategy
 
@@ -110,7 +111,7 @@ GPT-Live browser WebRTC, server-held OpenAI key, `gpt-5.6-luna` intent proposals
 
 ## 10. Validation criteria
 
-M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. Model access and two paid synthetic intent calls passed on September 16, 2026; browser microphone and spoken tests have not passed yet.
+M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. Model access and two paid synthetic intent calls passed on September 16, 2026, and Dror personally used the live spoken browser path the same day with a positive report; formal recorded voice evidence and hosted browser verification remain pending.
 
 ## 11. Related specifications
 

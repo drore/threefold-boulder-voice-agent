@@ -59,6 +59,8 @@ export type LocalConfirmResult =
 const MAX_LOCAL_DELEGATIONS = 20;
 const SUPERSEDED_REPORT_SPEECH =
   "A new report was started. Please repeat your request.";
+const CAPABILITIES_SPEECH =
+  "Here is what you can ask me: the reviewed Boulder rule about glass containers in parks, how to report a pothole to the city, upcoming events from Boulder's official calendar, or report a nonurgent pothole or park-maintenance issue for review on screen. What would you like to do?";
 
 /**
  * Runs admitted visitor sessions through intake and DB-backed route simulation.
@@ -225,6 +227,9 @@ export function buildLocalApp(
           speech:
             "Could you clarify your Boulder question or describe the nonurgent issue you want to report?",
         };
+      }
+      if (intent === "capabilities") {
+        return { status: "completed", speech: CAPABILITIES_SPEECH };
       }
       if (intent === "out_of_scope") {
         return {

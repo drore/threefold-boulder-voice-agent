@@ -291,6 +291,16 @@ The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation and
 
 **Reconsider when:** The city publishes a machine-readable calendar feed, detail-page enrichment is needed for reviewer questions, or the listing markup changes in a way the parser tests flag.
 
+## 22. Why a fixed capabilities overview for "what can you do" questions?
+
+**Status:** Accepted and implemented; live model verification of the two new intent cases pending. **SPEC:** ADR-009; voice spec AC-008.
+
+**Why:** Dror observed that callers do not know what the demo supports, so "what can you do for me" or "what questions can I ask" must answer with the available options. The intent classifier recognizes a `capabilities` intent, and the server replies with one fixed, honest options message listing the reviewed code question, pothole guidance, live upcoming events, and nonurgent pothole/park reports. The wording is server-owned presentation copy, not model-generated facts.
+
+**Alternatives:** Letting GPT-Live improvise an options answer risks overstating coverage; routing the question through the city-information tool would return only the pothole example. A growing capability list could later come from a message catalog, but one fixed English message matches the current four-capability demo.
+
+**Tradeoff:** The fixed message must be updated when capabilities change; the eight-case intent evaluation includes two capability utterances so drift is caught by the opt-in paid eval.
+
 ## Keeping the rationale current
 
 When an accepted decision changes, update its SPEC entry/contracts/tests as appropriate and this rationale in the same coherent change. Record the new status, reason, evidence/date, and affected alternatives. Git preserves the historical rationale. After a prototype or benchmark, distinguish observed results from the earlier hypothesis and update reconsideration conditions. Use concise explanations that a human can defend during the walkthrough.

@@ -10,6 +10,7 @@ const INTENTS = [
   "city_information",
   "city_event",
   "service_report",
+  "capabilities",
   "unclear",
   "out_of_scope",
 ] as const;
@@ -62,6 +63,7 @@ const INTENT_SCHEMA = {
 const INTENT_INSTRUCTIONS = [
   "Classify the current caller utterance for a limited Boulder municipal demo.",
   "Supported: code, city information, dated events, nonurgent pothole and park-maintenance reports.",
+  "Questions about what the demo can do or what the caller can ask use the capabilities intent.",
   "Use unclear or out_of_scope when needed. Never propose a ticket, transfer, or confirmation.",
   "Extract report fields only from the current utterance. Active draft only hints request type and missing fields.",
   "Put information questions in query. Use null when absent; never invent details.",

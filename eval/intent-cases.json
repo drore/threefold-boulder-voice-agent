@@ -15,6 +15,16 @@
     "expected": { "intent": "city_event" }
   },
   {
+    "id": "capability-overview",
+    "utterance": "What can you do for me?",
+    "expected": { "intent": "capabilities" }
+  },
+  {
+    "id": "askable-questions",
+    "utterance": "What questions can I ask you?",
+    "expected": { "intent": "capabilities" }
+  },
+  {
     "id": "new-pothole-report",
     "utterance": "I need to report a deep pothole at 15th and Pine",
     "expected": { "intent": "service_report", "requestType": "pothole" }

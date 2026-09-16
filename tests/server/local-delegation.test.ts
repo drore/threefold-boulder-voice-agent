@@ -60,6 +60,13 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
       description: null,
       query: null,
     },
+    {
+      intent: "capabilities",
+      requestType: null,
+      location: null,
+      description: null,
+      query: null,
+    },
   ];
 
   beforeAll(async () => {
@@ -178,6 +185,36 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
       status: "simulated_route",
       department: { name: "Transportation & Mobility Department" },
     });
+  });
+
+  it("lists the supported options when the caller asks what the demo can do", async () => {
+    const draftsBefore = await pool.query(
+      "select id from app.request_drafts where conversation_id = $1",
+      [context.conversationId],
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/local/delegation",
+      headers: { origin: LOCAL_ORIGIN },
+      payload: { utterance: "What can you do for me?" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "completed",
+      speech: expect.stringContaining("glass"),
+    });
+    expect(response.json().speech).toContain("pothole");
+    expect(response.json().speech).toContain("official calendar");
+    const observations = await pool.query(
+      "select id from app.observations where conversation_id = $1",
+      [context.conversationId],
+    );
+    expect(observations.rowCount).toBe(4);
+    const draftsAfter = await pool.query(
+      "select id from app.request_drafts where conversation_id = $1",
+      [context.conversationId],
+    );
+    expect(draftsAfter.rowCount).toBe(draftsBefore.rowCount);
   });
 
   it("does not revive a voice report after a new report starts", async () => {
