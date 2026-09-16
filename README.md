@@ -74,7 +74,7 @@ To run the six opt-in paid intent checks with the development OpenAI key, use `n
 
 ## Git
 
-Repository history starts with one reviewed planning baseline. Subsequent implementation should use real incremental commits. No remote or CI is configured. Before implementation, follow the applicable personal Git/worktree guide and create an isolated worktree from the explicit `main` integration branch.
+Repository history starts with one reviewed planning baseline and continues in tested behavior commits. A GitHub Actions workflow now runs offline checks, build, and dependency audit without provider credentials; it has not run remotely because no Git remote is configured. Local database tests and opt-in live evaluations remain distinct gates. Before repository changes, follow the applicable personal Git/worktree guide and use an isolated worktree.
 
 Commit discipline (details and examples in the development plan):
 
