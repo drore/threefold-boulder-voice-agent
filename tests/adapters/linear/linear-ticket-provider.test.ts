@@ -3,7 +3,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   LinearTicketProvider,
   type LinearTicketProviderOptions,
@@ -155,10 +155,10 @@ describe("LinearTicketProvider", () => {
             },
           },
         });
-      }, 100);
+      }, 1_000);
     });
 
-    const provider = createProvider(activeServer, { timeoutMs: 10 });
+    const provider = createProvider(activeServer, { timeoutMs: 100 });
 
     expect(
       await provider.createTicket({
@@ -169,7 +169,9 @@ describe("LinearTicketProvider", () => {
       status: "uncertain",
       reason: "linear_request_timeout",
     });
-    expect(activeServer.requests).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(activeServer?.requests).toHaveLength(1);
+    });
   });
 
   it("returns uncertain for a create server error because commit status is unknown", async () => {
