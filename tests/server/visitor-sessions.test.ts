@@ -146,6 +146,25 @@ describe("visitor admission and isolation", () => {
     expect(providerCalls).toBe(0);
   });
 
+  it("guards encoded paths that Fastify resolves to application routes", async () => {
+    const { app, opened } = await makeApp();
+    const access = await app.inject({ method: "GET", url: "/%61pi/access" });
+    const report = await app.inject({
+      method: "GET",
+      url: "/%61pi/local/report",
+    });
+    const forgedAccess = await app.inject({
+      method: "POST",
+      url: "/%61pi/access",
+      headers: { origin: "https://foreign.example" },
+      payload: { code: CODE },
+    });
+    expect(access.statusCode).toBe(401);
+    expect(report.statusCode).toBe(401);
+    expect(forgedAccess.statusCode).toBe(403);
+    expect(opened()).toBe(0);
+  });
+
   it("requires the secret and exact origin before setting a secure cookie", async () => {
     const { app, opened } = await makeApp();
     const foreign = await app.inject({

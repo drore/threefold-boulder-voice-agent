@@ -126,7 +126,8 @@ export function registerVisitorSessions(
 
   app.decorateRequest("visitorSession", null);
   app.addHook("onRequest", async (request, reply) => {
-    if (!request.url.startsWith("/api/")) return;
+    const route = request.routeOptions.url;
+    if (!route?.startsWith("/api/")) return;
     if (
       request.method !== "GET" &&
       !access.allowedOrigins.includes(request.headers.origin ?? "") &&
@@ -136,7 +137,7 @@ export function registerVisitorSessions(
         .code(403)
         .send({ status: "blocked", reason: "origin_denied" });
     }
-    if (request.url === "/api/access" && request.method === "POST") return;
+    if (route === "/api/access" && request.method === "POST") return;
 
     const existing = findSession(request);
     if (existing) {
