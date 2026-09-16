@@ -104,17 +104,21 @@ export function registerLocalLiveSession(
       },
     },
     async (incoming, reply) => {
-      if (!isLocalVoiceOrigin(incoming.headers.origin)) {
+      const visitor = incoming.visitorSession;
+      if (!visitor && !isLocalVoiceOrigin(incoming.headers.origin)) {
         return reply
           .code(403)
           .send({ status: "blocked", reason: "origin_denied" });
       }
-      if (sessionsCreated >= MAX_LOCAL_SESSIONS) {
+      if (
+        (visitor?.liveSessionCount ?? sessionsCreated) >= MAX_LOCAL_SESSIONS
+      ) {
         return reply
           .code(429)
           .send({ status: "blocked", reason: "session_limit" });
       }
-      sessionsCreated += 1;
+      if (visitor) visitor.liveSessionCount += 1;
+      else sessionsCreated += 1;
       const result = await createLiveSession(
         incoming.body.sdp,
         apiKey,

@@ -40,8 +40,99 @@ const BLOCKED_MESSAGES: Record<string, string> = {
   policy_unavailable: "The city schedule is unavailable. No action was taken.",
 };
 
-/** Input: a visitor opens the page. Output: a pothole draft form and the latest server result. */
+/** Input: a local page or a reviewer code. Output: an admitted visitor's demo screen. */
 export function App() {
+  const [access, setAccess] = useState<
+    "checking" | "required" | "admitted" | "unavailable"
+  >("checking");
+  const [code, setCode] = useState("");
+  const [accessError, setAccessError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/access")
+      .then((response) => {
+        if (!active) return;
+        setAccess(
+          response.ok
+            ? "admitted"
+            : response.status === 401
+              ? "required"
+              : "unavailable",
+        );
+      })
+      .catch(() => {
+        if (active) setAccess("unavailable");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /** Input: the reviewer access code. Output: a private cookie and the existing demo screen. */
+  async function enterDemo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAccessError("");
+    try {
+      const response = await fetch("/api/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (!response.ok) {
+        setAccessError(
+          response.status === 401
+            ? "The code was not accepted. Check it and try again."
+            : "Demo access is temporarily unavailable. Please try again later.",
+        );
+        return;
+      }
+      setCode("");
+      setAccess("admitted");
+    } catch {
+      setAccessError("The demo server is unavailable. Please try again.");
+    }
+  }
+
+  if (access === "admitted") return <DemoApp />;
+  return (
+    <main className="page">
+      <header className="page-header">
+        <p className="eyebrow">
+          Independent developer demo · Boulder, Colorado
+        </p>
+        <h1>Boulder service demo</h1>
+      </header>
+      {access === "checking" ? (
+        <p role="status">Checking demo access…</p>
+      ) : access === "required" ? (
+        <form onSubmit={enterDemo}>
+          <label htmlFor="reviewer-code">Reviewer access code</label>
+          <input
+            id="reviewer-code"
+            type="password"
+            autoComplete="off"
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+          <button type="submit">Enter demo</button>
+        </form>
+      ) : (
+        <div role="alert">
+          <p>The demo server is unavailable.</p>
+          <button type="button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      )}
+      {accessError && <p role="alert">{accessError}</p>}
+    </main>
+  );
+}
+
+/** Input: an admitted visitor opens the page. Output: that visitor's draft and answer controls. */
+function DemoApp() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [requestType, setRequestType] =
@@ -259,6 +350,10 @@ export function App() {
           Ask a reviewed city question or report a nonurgent pothole or park
           maintenance issue. Confirm the saved details to see the business-hours
           decision.
+        </p>
+        <p className="intro">
+          Use fictional report details. This demo stores drafts and may create a
+          synthetic issue in its dedicated Linear project.
         </p>
       </header>
 

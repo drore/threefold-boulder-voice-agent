@@ -5,10 +5,12 @@ import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
 import { registerLocalLiveSession } from "./live-session.js";
 import { buildLocalApp } from "./local-app.js";
+import type { VisitorAccess } from "./visitor-sessions.js";
 
 const CITY_ID = "boulder-co";
 const LOCAL_API_PORT = 3001;
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+const LOCAL_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 /**
  * Starts the local-only report API against the local Supabase database.
@@ -20,6 +22,15 @@ async function startLocalApi(): Promise<void> {
   const linearApiKey = process.env.LINEAR_API_KEY;
   const linearTeamId = process.env.LINEAR_TEAM_ID;
   const linearProjectId = process.env.LINEAR_PROJECT_ID;
+  if (
+    process.env.APP_MODE &&
+    process.env.APP_MODE !== "reviewer" &&
+    process.env.APP_MODE !== "development"
+  ) {
+    throw new Error("APP_MODE must be development or reviewer");
+  }
+  const mode = process.env.APP_MODE === "reviewer" ? "reviewer" : "development";
+  const reviewerCode = process.env.REVIEWER_ACCESS_CODE;
   if (!databaseUrl || !LOOPBACK_HOSTS.has(new URL(databaseUrl).hostname)) {
     throw new Error("LOCAL_DATABASE_URL must point to a loopback database");
   }
@@ -34,14 +45,22 @@ async function startLocalApi(): Promise<void> {
 
   const pool = new pg.Pool({ connectionString: databaseUrl });
   try {
-    const store = new PostgresDraftStore(pool);
-    const opened = await store.openConversation(CITY_ID);
-    if (opened.status !== "created") {
-      throw new Error("Local database is unavailable or not migrated");
+    if (mode === "reviewer" && !reviewerCode) {
+      throw new Error("REVIEWER_ACCESS_CODE is required in reviewer mode");
     }
+    await pool.query("select 1 from app.conversations limit 1");
+    const store = new PostgresDraftStore(pool);
+    const access: VisitorAccess = {
+      mode,
+      cityId: CITY_ID,
+      openConversation: (cityId) => store.openConversation(cityId),
+      allowedOrigins:
+        mode === "reviewer" ? [process.env.PUBLIC_ORIGIN ?? ""] : LOCAL_ORIGINS,
+      ...(reviewerCode ? { accessCode: reviewerCode } : {}),
+    };
     const app = buildLocalApp(
       store,
-      opened.context,
+      null,
       new PostgresCityPolicyStore(pool),
       () => new Date(),
       linearApiKey && linearTeamId && linearProjectId
@@ -55,6 +74,7 @@ async function startLocalApi(): Promise<void> {
           }
         : undefined,
       { apiKey: process.env.OPENAI_API_KEY },
+      access,
     );
     registerLocalLiveSession(app, process.env.OPENAI_API_KEY);
     await app.listen({ host: "127.0.0.1", port: LOCAL_API_PORT });

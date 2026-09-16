@@ -26,6 +26,12 @@ import {
 import { proposeCitizenIntent } from "./intent-proposal.js";
 import { isLocalVoiceOrigin } from "./live-session.js";
 import { createReviewedKnowledgeToolHandlers } from "./reviewed-knowledge.js";
+import {
+  newVisitorSession,
+  registerVisitorSessions,
+  type VisitorAccess,
+  type VisitorSession,
+} from "./visitor-sessions.js";
 
 type ReportBody = {
   requestType?: SupportedReportType;
@@ -51,17 +57,18 @@ const SUPERSEDED_REPORT_SPEECH =
   "A new report was started. Please repeat your request.";
 
 /**
- * Runs one local developer session through intake and DB-backed route simulation.
+ * Runs admitted visitor sessions through intake and DB-backed route simulation.
  * Input: POST `/api/local/report` with `{description:"Large pothole"}`.
  * Output: `needs_input`, then a revision-bound `needs_confirmation` after location.
  */
 export function buildLocalApp(
   store: PostgresDraftStore,
-  context: ReportContext,
+  initialContext: ReportContext | null,
   policyStore: CityPolicyReader,
   clock: () => Date = () => new Date(),
   ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
   reasoning?: { apiKey: string | undefined; request?: typeof fetch },
+  access?: VisitorAccess,
 ) {
   const app = fastify({
     logger: false,
@@ -72,19 +79,28 @@ export function buildLocalApp(
     ...createReviewedKnowledgeToolHandlers(clock),
     prepareServiceReport: createReportToolHandler(store),
   };
-  let currentDraft: {
-    draftId: string;
-    revision: number;
-    requestType: SupportedReportType;
-  } | null = null;
-  let delegationCount = 0;
-  let reportGeneration = 0;
-  let reportWork: Promise<void> = Promise.resolve();
+  if (!initialContext && !access) {
+    throw new Error("A local context or visitor admission is required");
+  }
+  const developerSession = initialContext
+    ? newVisitorSession(initialContext)
+    : null;
+  if (access) registerVisitorSessions(app, access);
+
+  /** Input: an admitted request. Output: only that visitor's server-owned state. */
+  function sessionFor(request: FastifyRequest): VisitorSession {
+    const session = request.visitorSession ?? developerSession;
+    if (!session) throw new Error("Visitor session was not admitted");
+    return session;
+  }
 
   /** Input: a report write followed by reset. Output: reset runs after the write and clears its active pointer. */
-  function withReportLock<T>(work: () => Promise<T>): Promise<T> {
-    const result = reportWork.then(work, work);
-    reportWork = result.then(
+  function withReportLock<T>(
+    session: VisitorSession,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    const result = session.reportWork.then(work, work);
+    session.reportWork = result.then(
       () => {},
       () => {},
     );
@@ -93,17 +109,18 @@ export function buildLocalApp(
 
   /** Input: current-turn observation references. Output: a server-owned report tool context. */
   function reportToolContext(
+    session: VisitorSession,
     fieldObservationIds: { description?: string; location?: string },
     observationIds: string[],
   ): AgentToolContext {
     return {
-      ...context,
+      ...session.context,
       runId: randomUUID(),
       channel: "text",
       observationIds,
       report: {
-        draftId: currentDraft?.draftId ?? null,
-        expectedRevision: currentDraft?.revision ?? null,
+        draftId: session.currentDraft?.draftId ?? null,
+        expectedRevision: session.currentDraft?.revision ?? null,
         fieldObservationIds,
       },
     };
@@ -126,24 +143,25 @@ export function buildLocalApp(
       },
     },
     async (request, reply) => {
-      if (!isLocalVoiceOrigin(request.headers.origin)) {
+      if (!access && !isLocalVoiceOrigin(request.headers.origin)) {
         return reply.code(403).send({
           status: "unavailable",
           speech: "Voice access is unavailable.",
         });
       }
-      if (delegationCount >= MAX_LOCAL_DELEGATIONS) {
+      const session = sessionFor(request);
+      if (session.delegationCount >= MAX_LOCAL_DELEGATIONS) {
         return reply.code(429).send({
           status: "unavailable",
           speech: "This demo session has reached its voice request limit.",
         });
       }
-      delegationCount += 1;
-      const generation = reportGeneration;
+      session.delegationCount += 1;
+      const generation = session.reportGeneration;
 
       const utterance = request.body.utterance.trim();
       const observation = await store.recordObservation(
-        context,
+        session.context,
         "voice",
         utterance,
       );
@@ -154,18 +172,18 @@ export function buildLocalApp(
             "I could not save this conversation turn, so I cannot continue that request.",
         });
       }
-      if (generation !== reportGeneration) {
+      if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
           speech: SUPERSEDED_REPORT_SPEECH,
         };
       }
 
-      const current = currentDraft
+      const current = session.currentDraft
         ? await callAgentTool(
             "prepareServiceReport",
-            { requestType: currentDraft.requestType },
-            { ...reportToolContext({}, []), channel: "voice" },
+            { requestType: session.currentDraft.requestType },
+            { ...reportToolContext(session, {}, []), channel: "voice" },
             handlers,
           )
         : null;
@@ -181,7 +199,7 @@ export function buildLocalApp(
         reasoning?.request,
         activeDraft,
       );
-      if (generation !== reportGeneration) {
+      if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
           speech: SUPERSEDED_REPORT_SPEECH,
@@ -222,20 +240,20 @@ export function buildLocalApp(
             ? { description: observation.observationId }
             : {}),
         };
-        const result = await withReportLock(async () => {
-          if (generation !== reportGeneration) return null;
+        const result = await withReportLock(session, async () => {
+          if (generation !== session.reportGeneration) return null;
           const prepared = await callAgentTool(
             "prepareServiceReport",
             {
               requestType:
-                requestType ?? currentDraft?.requestType ?? "pothole",
+                requestType ?? session.currentDraft?.requestType ?? "pothole",
               ...(observedLocation ? { location: observedLocation } : {}),
               ...(observedDescription
                 ? { description: observedDescription }
                 : {}),
             },
             {
-              ...reportToolContext(fieldObservationIds, [
+              ...reportToolContext(session, fieldObservationIds, [
                 observation.observationId,
               ]),
               channel: "voice",
@@ -246,7 +264,7 @@ export function buildLocalApp(
             prepared.status === "needs_input" ||
             prepared.status === "needs_confirmation"
           ) {
-            currentDraft = {
+            session.currentDraft = {
               draftId: prepared.draftId,
               revision: prepared.revision,
               requestType:
@@ -257,7 +275,7 @@ export function buildLocalApp(
           }
           return prepared;
         });
-        if (result === null || generation !== reportGeneration) {
+        if (result === null || generation !== session.reportGeneration) {
           return {
             status: "unavailable",
             speech: SUPERSEDED_REPORT_SPEECH,
@@ -276,7 +294,7 @@ export function buildLocalApp(
         tool,
         { query: utterance },
         {
-          ...context,
+          ...session.context,
           runId: randomUUID(),
           channel: "voice",
           observationIds: [observation.observationId],
@@ -311,6 +329,7 @@ export function buildLocalApp(
       },
     },
     async (request) => {
+      const session = sessionFor(request);
       const { tool, query, startDate, endDate } = request.body;
       return callAgentTool(
         tool,
@@ -320,7 +339,7 @@ export function buildLocalApp(
           ...(endDate ? { endDate } : {}),
         },
         {
-          ...context,
+          ...session.context,
           runId: randomUUID(),
           channel: "text",
           observationIds: [],
@@ -329,22 +348,24 @@ export function buildLocalApp(
       );
     },
   );
-  app.get("/api/local/report", async () => {
-    if (!currentDraft) return { status: "empty" };
+  app.get("/api/local/report", async (request) => {
+    const session = sessionFor(request);
+    if (!session.currentDraft) return { status: "empty" };
     return callAgentTool(
       "prepareServiceReport",
-      { requestType: currentDraft.requestType },
-      reportToolContext({}, []),
+      { requestType: session.currentDraft.requestType },
+      reportToolContext(session, {}, []),
       handlers,
     );
   });
-  app.post("/api/local/report/new", () =>
-    withReportLock(async () => {
-      reportGeneration += 1;
-      currentDraft = null;
+  app.post("/api/local/report/new", (request) => {
+    const session = sessionFor(request);
+    return withReportLock(session, async () => {
+      session.reportGeneration += 1;
+      session.currentDraft = null;
       return { status: "empty" };
-    }),
-  );
+    });
+  });
   app.post<{ Body: ReportBody }>(
     "/api/local/report",
     {
@@ -364,6 +385,7 @@ export function buildLocalApp(
       },
     },
     async (request, reply) => {
+      const session = sessionFor(request);
       const fieldObservationIds: {
         description?: string;
         location?: string;
@@ -372,7 +394,11 @@ export function buildLocalApp(
       for (const field of ["description", "location"] as const) {
         const text = request.body[field];
         if (text === undefined) continue;
-        const recorded = await store.recordObservation(context, "text", text);
+        const recorded = await store.recordObservation(
+          session.context,
+          "text",
+          text,
+        );
         if (recorded.status !== "recorded") {
           const code =
             recorded.status === "invalid_input"
@@ -389,24 +415,24 @@ export function buildLocalApp(
         observationIds.push(recorded.observationId);
       }
 
-      return withReportLock(async () => {
+      return withReportLock(session, async () => {
         const result = await callAgentTool(
           "prepareServiceReport",
           {
             ...request.body,
             requestType:
               request.body.requestType ??
-              currentDraft?.requestType ??
+              session.currentDraft?.requestType ??
               "pothole",
           },
-          reportToolContext(fieldObservationIds, observationIds),
+          reportToolContext(session, fieldObservationIds, observationIds),
           handlers,
         );
         if (
           result.status === "needs_input" ||
           result.status === "needs_confirmation"
         ) {
-          currentDraft = {
+          session.currentDraft = {
             draftId: result.draftId,
             revision: result.revision,
             requestType:
@@ -425,15 +451,16 @@ export function buildLocalApp(
     request: FastifyRequest<{ Body: ConfirmBody }>,
     reply: FastifyReply,
   ) {
-    if (ticketing && currentDraft?.draftId === request.body.draftId) {
+    const session = sessionFor(request);
+    if (ticketing && session.currentDraft?.draftId === request.body.draftId) {
       const existing = await ticketing.operations.findByDraft(
-        context,
+        session.context,
         request.body.draftId,
         request.body.revision,
       );
       if (existing.status === "found") {
         return submitConfirmedTicket(
-          context,
+          session.context,
           request.body.draftId,
           request.body.revision,
           existing.operation.policyRevision,
@@ -451,11 +478,12 @@ export function buildLocalApp(
       }
     }
     const decision =
-      currentDraft && currentDraft.draftId !== request.body.draftId
+      session.currentDraft &&
+      session.currentDraft.draftId !== request.body.draftId
         ? ({ status: "blocked", code: "revision_conflict" } as const)
         : await confirmServiceReport(
-            context,
-            currentDraft?.draftId ?? null,
+            session.context,
+            session.currentDraft?.draftId ?? null,
             request.body.revision,
             store,
             policyStore,
@@ -466,7 +494,7 @@ export function buildLocalApp(
         ? decision
         : ticketing
           ? await submitConfirmedTicket(
-              context,
+              session.context,
               decision.draftId,
               decision.revision,
               decision.policyRevision,

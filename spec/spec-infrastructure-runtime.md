@@ -60,7 +60,7 @@ Environment contract:
 | Ticketing | Provider fake for core units; loopback Linear API mock for adapter tests; dedicated real Linear board for opt-in E2E | Real Linear in the explicitly approved reviewer/demo board; test mock excluded |
 | Knowledge | Reviewed local corpus and official read-only refresh | Deployed corpus with the same provenance/freshness contract |
 
-The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback-only development harness serves report, knowledge, voice-session, delegation, and `/health` routes for one developer session. Browser GPT-Live code is connected but spoken behavior is unverified. It has no browser authentication or process-restart session recovery and must not be exposed as the reviewer service. Local Postgres migration/adapter tests are implemented; production configuration and M6 cloud verification remain separate.
+The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback development harness serves report, knowledge, voice-session, delegation, and `/health` routes. A fresh local browser gets its own conversation and opaque HttpOnly cookie without a login. Reviewer mode requires a configured access code and exact HTTPS origin before issuing a Secure/SameSite cookie. All application API routes, including live-session creation and delegation, use the same admission hook; draft pointers and voice/model counts are per visitor. Browser GPT-Live code is connected but spoken behavior is unverified. Sessions and quotas live in one Node process and do not survive restart or coordinate multiple instances. Local Postgres migration/adapter tests are implemented; production database configuration and M6 cloud verification remain separate.
 
 Proposed HTTP surface:
 
@@ -68,7 +68,8 @@ Proposed HTTP surface:
 | --- | --- |
 | GET /health/live | Process health, no dependency or secret details |
 | GET /health/ready | Validated DB/config/provider setup status with safe codes; no credentials |
-| POST /api/access | Reviewer access method -> scoped secure session, if chosen |
+| GET /api/access | Return admission status; local mode creates a private visitor session automatically |
+| POST /api/access | Reviewer code -> server-owned conversation and scoped secure cookie |
 | POST /api/conversations | Authorized admission/quota -> persisted conversation and public voice-session setup |
 | GET /api/conversations/:id | Scoped public summary/sources/actions only |
 | GET /api/conversations/:id/events | Authorized event stream; SSE/WebSocket implementation selected in M0 |
@@ -76,7 +77,7 @@ Proposed HTTP surface:
 
 Session creation negotiates provider-specific WebRTC setup through VoiceSession/server adapter. Do not copy an incompatible Realtime endpoint/schema into GPT-Live. Runtime schemas validate requests, origin, size, and public responses; server authentication owns scope. Source URLs are evidence, not open redirect/proxy inputs.
 
-Recommended demo access: server-created short-lived session with HttpOnly/Secure/SameSite cookie, explicit ownership, origin/CSRF protection, capped attempts, and separate secrets for reviewer admission versus provider APIs. A reviewer code is an option, not selected yet. Avoid email/OAuth account workflow unless required. If published without an access code, maintain equivalent server admission/quotas and obtain agreement on abuse exposure.
+The implemented reviewer access gate uses an independent secret code (minimum 20 characters), a 30-minute opaque HttpOnly/Secure/SameSite=Strict cookie, exact Origin validation for writes, 30 failed code attempts per 10-minute process window, and a cap on active visitors. The cookie maps to a server-owned Supabase conversation; client-supplied IDs never select scope. Development admission needs no code and uses an HttpOnly SameSite cookie without Secure on loopback. The code must be delivered privately and independently of provider keys. A single process is required until admission and quotas are durable/shared; access-code disclosure and restart can reset in-memory usage bounds. Hosted access, origin/proxy behavior, and budget limits need M6 verification before a public link.
 
 Configuration: exact voice/reasoning model/provider capability, DB connection/role, approved Linear team/credential, app version, allowed origin, budget/retention limits, telemetry exporter. City schedules/mappings/flag read from DB. No secret values in prompts, logs, fixtures, repository, or front-end build variables.
 
@@ -110,7 +111,7 @@ Node runtime/support version verified at implementation; React build tool; hoste
 
 ## 9. Examples and edge cases
 
-Browser cannot reconnect its control socket to another instance and assume transient history exists. Server recovers durable operation state, but may require a new voice session with relevant restored context. In-memory rate limiting is only a single-instance safeguard; shared mutation quotas/admission records must be durable before claiming multi-instance enforcement.
+Browser cannot reconnect its control socket to another instance and assume transient history exists. Server recovers durable operation state, but may require a new voice session with relevant restored context. The current cookie no longer resolves after a Node restart, so a fresh admission opens a new conversation; old drafts remain in Supabase but are not recovered into that new browser session. In-memory rate limiting is only a single-instance safeguard; shared mutation quotas/admission records must be durable before claiming multi-instance enforcement.
 
 ## 10. Validation criteria
 

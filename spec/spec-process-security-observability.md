@@ -9,7 +9,7 @@ tags: [process, security, observability, voice-agent, boulder]
 
 # Introduction
 
-This specification defines the security and observability process for the Boulder browser voice agent. It is planning-only and describes requirements for a future TypeScript React and Node implementation that uses provider-neutral application contracts, Supabase persistence, Linear demo tickets, official Boulder sources, and observable simulated department routing.
+This specification defines the security and observability process for the Boulder browser voice agent. Local application and visitor admission paths are implemented; hosted verification and broader observability remain planned. The TypeScript React and Node implementation uses provider-neutral application contracts, Supabase persistence, Linear demo tickets, official Boulder sources, and observable simulated department routing.
 
 ## 1. Purpose & Scope
 
@@ -42,6 +42,7 @@ Scope includes application security boundaries, credential handling, action auth
 - **SEC-010**: The app shall not claim hallucinations are impossible. It shall reduce risk with source grounding, constraints, tests, and honest unsupported-answer behavior.
 - **SEC-011**: The local Linear API mock shall be reachable only from test composition on loopback/in-process transport, contain no provider credentials or real caller data, and accept only known test operations/fixtures. Production and E2E configuration cannot select it or fall back to it.
 - **SEC-012**: Local/deployed E2E shall target only the approved dedicated Linear demo board with bounded synthetic data, verified team/project identifiers, unique run markers, and server-held credentials. Runs are opt-in; retention/archive cleanup is defined before repetition and is never inferred from test completion.
+- **SEC-013**: Reviewer mode shall reject unauthenticated direct API calls before persistence or provider work, establish conversation scope on the server after code admission, and isolate draft pointers and paid-work limits per visitor. Exact Origin validation supplements an HttpOnly/Secure/SameSite cookie for writes. Development mode admits local visitors without a code.
 - **OBS-001**: Every conversation, including information-only conversations, shall be recorded in Supabase.
 - **OBS-002**: Durable records shall be authoritative when telemetry is sampled, delayed, unavailable, or fails to export.
 - **OBS-003**: Logs and spans shall correlate `conversationId`, `runId`, `traceId`, and applicable `sessionId`, `draftId`, integer `revision`, `operationId`, `sourceSetId`, and `configRevision` from the authoritative contracts.
@@ -78,6 +79,7 @@ type ObservationPayload = {
 - **AC-SEC-002**: Given source text contains instructions to ignore policy, When it is retrieved, Then the app treats it as evidence text only and preserves tool and source restrictions.
 - **AC-SEC-003**: Given a caller correction wins before atomic authorization, When ticket creation is requested, Then the app requires confirmation for the new draft revision. Test the opposite race winner against the workflow's post-authorization outcome contract.
 - **AC-SEC-004**: Given a cross-session ID is supplied by another browser session, When conversation state or context is requested, Then access is denied and no other conversation context is returned. The separate representative view is P1.
+- **AC-SEC-005**: Given two admitted visitors, one visitor's saved draft and quota use do not appear in the other's API state; a missing cookie, wrong code, or foreign write origin cannot start model/provider work.
 - **AC-OBS-001**: Given an information-only code answer completes, When the session ends, Then Supabase contains a conversation record and no Linear ticket action.
 - **AC-OBS-002**: Given Linear returns an ambiguous timeout, When retries run, Then idempotency prevents blind duplicate tickets and the spoken response does not claim success before reconciliation.
 - **AC-OBS-003**: Given telemetry export fails, When an action succeeds, Then the durable Supabase action record still contains the authoritative outcome.

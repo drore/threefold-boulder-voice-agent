@@ -255,7 +255,7 @@ The first core slice uses native `Date` and `Intl` for trusted instants and Boul
 
 ## Decisions still open
 
-The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation is selected; hosting vendor/region/plan, reviewer access, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not authorize external mutations or publication.
+The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation and the reviewer code gate are selected; hosting vendor/region/plan, secure code delivery, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not authorize external mutations or publication.
 
 ## 19. Why propose one hosted Node service for the reviewer demo?
 
@@ -268,6 +268,16 @@ The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation is 
 **Tradeoff:** Hosting and a public access gate add setup and verification work. [Supabase Free can pause after low activity](https://supabase.com/docs/guides/platform/free-project-pausing), so a longer-lived demo needs an availability decision. No host choice, cost, or static-serving code proves the spoken and Linear journeys; those still require fresh deployed checks.
 
 **Reconsider when:** Dror chooses a spending/access envelope or a candidate host cannot support the documented same-origin, database, microphone, and environment requirements. Keep hosting-specific configuration at the runtime edge rather than in the application core.
+
+## 20. Why a small reviewer code gate?
+
+**Status:** Implemented locally; hosted verification and code delivery pending. **SPEC:** Q3; SEC-013.
+
+**Why:** A shared page URL alone would let anyone trigger paid model calls and read a process-global draft. A separately delivered access code admits a browser into its own server-created conversation. An opaque HttpOnly/Secure/SameSite cookie carries only the admission token; the server owns draft state, scope, and quotas. Exact Origin checks protect write routes. Local development remains code-free while still isolating separate browsers.
+
+**Alternatives:** Full accounts/OAuth add account and callback setup beyond the interview task. Origin checks alone do not authenticate a visitor. Stateless signed cookies cannot hold mutable per-visitor quota safely without another shared state store.
+
+**Tradeoff:** The current map and limits apply to one Node process and reset on restart. A disclosed code can be reused until rotated; the small process-wide visitor cap bounds abuse but does not replace durable multi-instance budgeting. Code delivery and deployed browser behavior must be verified before sharing the link.
 
 ## Keeping the rationale current
 
