@@ -60,7 +60,7 @@ const MAX_LOCAL_DELEGATIONS = 20;
 const SUPERSEDED_REPORT_SPEECH =
   "A new report was started. Please repeat your request.";
 const CAPABILITIES_SPEECH =
-  "Here is what you can ask me: the reviewed Boulder rule about glass containers in parks, how to report a pothole to the city, upcoming events from Boulder's official calendar, or report a nonurgent pothole or park-maintenance issue for review on screen. What would you like to do?";
+  "I can help with a few things: the city rule on glass containers in parks, how to report a pothole, what's coming up on the city's events calendar, and nonurgent pothole or park reports.";
 
 /**
  * Runs admitted visitor sessions through intake and DB-backed route simulation.
@@ -161,7 +161,7 @@ export function buildLocalApp(
       if (session.delegationCount >= MAX_LOCAL_DELEGATIONS) {
         return reply.code(429).send({
           status: "unavailable",
-          speech: "This demo session has reached its voice request limit.",
+          speech: "I've reached my limit for this session — please try again in a little while.",
         });
       }
       session.delegationCount += 1;
@@ -224,8 +224,7 @@ export function buildLocalApp(
       if (intent === "unclear") {
         return {
           status: "unavailable",
-          speech:
-            "Could you clarify your Boulder question or describe the nonurgent issue you want to report?",
+          speech: "Could you say that again — what question do you have?",
         };
       }
       if (intent === "capabilities") {
@@ -235,7 +234,7 @@ export function buildLocalApp(
         return {
           status: "unavailable",
           speech:
-            "This demo covers a small set of Boulder code, city information, events, and nonurgent pothole or park maintenance reports.",
+            "I can only help with a few things: the glass-container rule, pothole reporting, upcoming events, and nonurgent pothole or park reports.",
         };
       }
       if (intent === "service_report") {
@@ -556,14 +555,14 @@ function isSpokenField(utterance: string, field: string): boolean {
 function speechForResult(result: AgentToolResult): string {
   switch (result.status) {
     case "answered":
-      return `${result.answer} Reviewed source: ${result.sources.map((source) => source.title).join(", ")}.`;
+      return result.answer;
     case "limited_coverage":
-      return "I do not have a current reviewed answer for that question in this demo. Please consult the official Boulder source.";
+      return "I don't have an answer for that. I only know a few specific topics, so the city's website would be the better place to check.";
     case "needs_input":
-      return `I saved a draft. Please tell me the ${result.fields.join(" and ")}.`;
+      return `I saved that. What's the ${result.fields.join(" and ")}?`;
     case "needs_confirmation":
-      return `I have ${result.summary.description} at ${result.summary.location}. Please review and confirm the details on screen before I route or create a ticket.`;
+      return `I've got ${result.summary.description} at ${result.summary.location}. Please confirm it on the screen before I send it.`;
     default:
-      return "I could not complete that request. Please review the details on screen or try again.";
+      return "I couldn't finish that. Please check the screen or try again.";
   }
 }

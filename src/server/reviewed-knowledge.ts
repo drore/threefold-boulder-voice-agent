@@ -32,7 +32,7 @@ const SUPPORTED_TOPICS = [
 ] as const;
 
 const EVENTS_WINDOW_DAYS = 14;
-const MAX_EVENT_ANSWERS = 5;
+const MAX_EVENT_ANSWERS = 3;
 const BOULDER_TIME_ZONE = "America/Denver";
 
 const GLASS_CONTAINER_SOURCE: AgentSourceCard = {
@@ -151,13 +151,13 @@ export function createReviewedKnowledgeToolHandlers(
       }
       const lines = shown.map(formatEventLine);
       return answered(
-        `Upcoming Boulder events per the official calendar: ${lines.join(" ")}`,
+        `Upcoming events on the city calendar: ${lines.join(" ")}`,
         shown.map((occurrence) =>
           eventSourceCard(occurrence, result.fetchedAtUtc),
         ),
         [
           "Times and cancellations may appear only on each event's official detail page.",
-          "This answer covers a bounded window of the official calendar, not every Boulder event.",
+          "This answer covers a bounded window of the official calendar, not every city event.",
         ],
         "live_official_source",
       );

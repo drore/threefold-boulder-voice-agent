@@ -204,7 +204,7 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
       speech: expect.stringContaining("glass"),
     });
     expect(response.json().speech).toContain("pothole");
-    expect(response.json().speech).toContain("official calendar");
+    expect(response.json().speech).toContain("events calendar");
     const observations = await pool.query(
       "select id from app.observations where conversation_id = $1",
       [context.conversationId],

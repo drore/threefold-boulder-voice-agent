@@ -30,17 +30,17 @@ const MAX_TRANSCRIPT_LENGTH = 1_500;
 function speechForAction(action: LocalConfirmResult): string {
   switch (action.status) {
     case "simulated_route":
-      return `The confirmed report would route to ${action.department.name} at mock number ${action.department.mockDestination}. No real phone call was placed.`;
+      return `Since it's during business hours, this would go to ${action.department.name}. This is a demo, so no call is actually made.`;
     case "linear_ticket_created":
       return action.currentDetails === "unavailable"
-        ? `A demo ticket was previously created and verified in Linear. Its issue ID is ${action.issueId}, but I could not refresh its current details.`
-        : `The demo ticket was created in Linear and read back. Its issue ID is ${action.issueId}.`;
+        ? `I filed this as a test ticket in Linear. Its ID is ${action.issueId}, but I can't check its current status right now.`
+        : `I filed this as a test ticket in Linear and verified it. Its ID is ${action.issueId}.`;
     case "ticket_path_unavailable":
-      return "The office is closed, but Linear is not configured. No ticket was created.";
+      return "The office is closed and the ticket system isn't set up right now, so nothing was filed.";
     case "ticket_uncertain":
-      return `The Linear ticket outcome is uncertain. I will not create a duplicate. The operation reference is ${action.operationId}.`;
+      return `I'm not sure the ticket went through, so I won't file a second one. The reference is ${action.operationId}.`;
     case "ticket_failed":
-      return "Linear rejected the demo ticket. No ticket was confirmed.";
+      return "The ticket system rejected it, so nothing was filed.";
     default:
       return "I could not confirm that report. Please review the details on screen.";
   }
