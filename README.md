@@ -14,6 +14,7 @@ Workspace for the Threefold take-home assignment: a municipal voice agent for Bo
 - [Application Core responsibilities, use cases, and ports](spec/spec-architecture-application-core.md)
 - [Simple responsive UI concept — selected P0 direction](design/README.md)
 - [Component specifications](spec/)
+- [Versioned live intent evaluation and last result](eval/README.md)
 - [Agent engineering instructions](AGENTS.md)
 
 ## Working approach
@@ -63,6 +64,8 @@ npm run build
 npm run audit:dependencies
 npm run test:db
 ```
+
+To run the six opt-in paid intent checks with the development OpenAI key, use `npm run eval:intents`. Its cases and last observed result are in [eval/README.md](eval/README.md); text classification does not substitute for a spoken browser evaluation.
 
 `npm run check` performs formatting, lint (including the core import boundary), type, and offline test checks. `npm run test:db` adds real local Postgres adapter and API checks; it requires `.env.local` and the migrated local database. `npm run check:architecture` runs the focused Biome boundary rules; `npm run test:core` isolates the deterministic policy tests. `isWithinBusinessHours` receives a validated schedule and trusted server time and returns `true`, `false`, or `undefined` when indeterminate. `decideBusinessHoursAction` maps that result to `route`, `create_ticket`, or `unavailable`; neither function performs an external action. `src/server/agent-tools.ts` validates arguments and dispatches the four agent capabilities. The tested runtime policy row is seeded by a migration; the schedule in pure unit tests is only a fixture.
 

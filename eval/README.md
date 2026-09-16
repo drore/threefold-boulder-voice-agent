@@ -1,0 +1,7 @@
+# Intent evaluation
+
+`npm run eval:intents` is an opt-in, paid check of the `gpt-5.6-luna` intent proposal. It reads six synthetic, versioned cases from [intent-cases.json](intent-cases.json), calls OpenAI once per case, checks only the specified fields, and exits nonzero on a mismatch. Put `OPENAI_API_KEY` in ignored `.env.dev` first. The ordinary `npm run check` suite makes no paid model calls.
+
+On 2026-09-16 at about 11:40 UTC, all six cases passed: municipal code, city service guidance, dated event, new pothole report, active-draft location follow-up, and unrelated request. The evaluated proposal code SHA-256 was `14dda7f751cb3821c8793f71d0819876ab5912464e2de5e510348a5e46ce9b96`; the case file SHA-256 was `68c18f834c2ed47f1cd0b9d6c4228f368584466278ca0743b597615de79937e9`. The run used the configured development OpenAI account and only synthetic text. Exact provider model revision and cost were not exposed by this runner.
+
+This is a small classification smoke evaluation, not proof of factual answer quality, stable accuracy, or spoken behavior. The server separately validates proposals and deterministic policy before acting. Before delivery, exercise actual microphone input/output and check the cited answer content and source freshness in a fresh browser session.

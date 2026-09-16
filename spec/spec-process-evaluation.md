@@ -2,7 +2,7 @@
 title: Evaluation Process Specification
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [process, evaluation, testing, voice-agent, boulder]
 ---
@@ -13,7 +13,7 @@ This specification defines the evaluation process for the Boulder browser voice 
 
 ## 1. Purpose & Scope
 
-The purpose is to provide a compact, repeatable evaluation plan for assignment requirements V0, R1-R6, and deliverables D1-D3, while preserving optional later paths for richer live-model evaluation. Scope includes scenario IDs, acceptance checks, failure cases, data fixtures, provider-neutral adapter tests, and future command targets. It excludes implementing the harness, running tests, provisioning providers, creating Linear tickets, or deploying the app.
+The purpose is to provide a compact, repeatable evaluation plan for assignment requirements V0, R1-R6, and deliverables D1-D3, while preserving optional later paths for richer live-model evaluation. The current local suite has deterministic offline and database checks plus six versioned, opt-in live intent cases. Spoken, live Linear, and deployment checks remain open.
 
 ## 2. Definitions
 
@@ -49,7 +49,7 @@ The purpose is to provide a compact, repeatable evaluation plan for assignment r
 - **EVAL-020**: Required deterministic regression checks shall block integration. Quarantined/flaky, skipped, or planned checks shall be explicit gaps with a cause/owner and shall not count as satisfying mandatory gates.
 - **EVAL-021**: Accepted behavior changes shall update SPEC, checks, and fixtures together. Refactors preserve observable expectations; failing assertions shall not be weakened solely to obtain a passing suite.
 - **EVAL-022**: Dependency introduction/updates shall follow ADR-016 with advisory checks and relevant regressions. Audit the full direct/transitive tree including dev tools; check runtime/container advisories separately and record unavailable scans as gaps.
-- **CON-001**: Proposed commands in this document are future targets only. They are not present or executed at planning time.
+- **CON-001**: Confirm a command exists before documenting it as runnable. Current local checks and `npm run eval:intents` are listed in README; other command targets below remain proposals.
 
 ## 4. Interfaces & Data Contracts
 
@@ -96,7 +96,7 @@ type EvaluationResult = {
 ## 6. Test Automation Strategy
 
 - **Test Levels**: Unit tests for policy, confirmation, source selection, prompt-injection handling, and state transitions using provider fakes; integration tests for Supabase, the real Linear adapter against its narrow API mock, retrieval adapters, and transfer simulator; end-to-end browser voice checks using the dedicated real Linear board for V0/D2; empirical text and spoken evals for agent quality.
-- **Frameworks**: Recommended TypeScript/Node targets: Vitest for unit/contracts, Playwright for controlled browser journeys, an OpenTelemetry test exporter, and a small eval runner that records `EvaluationResult` JSON. Biome checks lint/format and the TypeScript compiler checks types. [Runtime spec](spec-infrastructure-runtime.md) owns the modern toolkit/version-selection rules.
+- **Frameworks**: Current checks use Vitest for unit/contracts, Biome for lint/format, TypeScript for types/builds, and a small opt-in live intent runner with versioned cases and a recorded result. Playwright browser journeys and an OpenTelemetry test exporter remain possible later tools, added only if they protect a demonstrated need. [Runtime spec](spec-infrastructure-runtime.md) owns the toolkit/version-selection rules.
 - **Test Data Management**: Version scenario fixtures in Git. Seed Supabase test configuration for city hours, closure exceptions, departments, `alwaysOpenTicket=false`, and optional `true` extension.
 - **CI/CD Integration**: Future credential-free targets: `npm run test:core`, `npm run test:contracts`, `npm run check:architecture`, `npm run check:spec`, `npm run check:dependencies`, `npm run test:integration`, `npm run test:browser`, and `npm run knowledge:validate`. `npm run test:e2e`, `npm run eval:text`, and `npm run eval:voice` are opt-in; E2E requires the approved dedicated real Linear board and external mutations.
 - **Coverage Requirements**: Mandatory scenario matrix coverage for V0, R1-R6, D1-D3 before submission; optional L scenarios may be skipped without blocking.
