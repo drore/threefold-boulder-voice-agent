@@ -2,7 +2,7 @@
 
 Workspace for the Threefold take-home assignment: a municipal voice agent for Boulder, Colorado.
 
-**Status: the first local pothole draft path works through a small React text form, Node report tool, Application Core, and Supabase Postgres. The municipal-code, city-information, and events tools remain unavailable stubs. Browser voice, caller confirmation, routing, Linear ticket creation, and deployment remain unimplemented.**
+**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. Municipal-code, city-information, and events tools remain unavailable stubs. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
 
 **Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
 
@@ -30,9 +30,9 @@ Environment requirement: first verify local React/Node and local Supabase. Core 
 
 Tests accompany each behavior slice and map to SPEC scenarios; bug fixes retain regression cases, with deterministic checks and empirical voice/model evidence distinguished. Keep dependencies minimal, maintained, pinned, and reviewed for known advisories. Required regression/advisory checks guard integration and release; exact versions and scripts are established during implementation.
 
-The first slices use pinned Node 24, TypeScript, Vitest, Vite, Biome, React, Fastify, and direct `pg` access to local Supabase Postgres. Native `Date` and `Intl` handle current time and Boulder timezone conversion. Playwright and DB-row configuration validation enter only when their slices need them. The runtime spec defines their responsibilities.
+The first slices use pinned Node 24, TypeScript, Vitest, Vite, Biome, React, Fastify, and direct `pg` access to local Supabase Postgres. Native `Date` and `Intl` handle current time and Boulder timezone conversion. The policy adapter validates the DB row before the pure hours rule sees it. Playwright remains uninstalled. The runtime spec defines tool responsibilities.
 
-## Run the local draft path
+## Run the local report path
 
 Install Node 24.21.0 and npm 11.19.0 (`fnm use 24.21.0`), Docker, and the Supabase CLI. From this worktree:
 
@@ -40,13 +40,13 @@ Install Node 24.21.0 and npm 11.19.0 (`fnm use 24.21.0`), Docker, and the Supaba
 npm ci
 cp .env.example .env.local
 supabase db start
-supabase db reset --local --no-seed
+supabase migration up --local
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Enter a pothole description, save, add a location, and review the persisted summary. Refreshing the page reloads the current draft. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. `.env.local` is Git-ignored; keep hosted credentials separate.
+Open `http://127.0.0.1:5173`. Enter a pothole description and location, save, review the persisted summary, then confirm it. The server checks the current draft revision, Boulder policy row, and actual server time. If open, the page names the configured fictional Transportation number and says no call was placed. If closed, it says the Linear ticket path is pending and no ticket was created. Refreshing the page reloads the draft; the decision itself is not persisted. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. `.env.local` is Git-ignored; keep hosted credentials separate.
 
-This is a single-developer, loopback-only intake harness. It does not submit a service request, call OpenAI or Linear, authorize actions, or provide multi-user browser sessions. These are explicit later P0 gates, not claims of a completed assignment.
+This is a single-developer, loopback-only harness. It does not submit a real service request, call OpenAI or Linear, place a phone call, or provide multi-user browser sessions. These are explicit later P0 gates, not claims of a completed assignment.
 
 ## Local checks
 
@@ -60,7 +60,7 @@ npm run audit:dependencies
 npm run test:db
 ```
 
-`npm run check` performs formatting, lint (including the core import boundary), type, and offline test checks. `npm run test:db` adds real local Postgres adapter and API checks; it requires `.env.local` and the migrated local database. `npm run check:architecture` runs the focused Biome boundary rules; `npm run test:core` isolates the deterministic policy tests. `isWithinBusinessHours` receives a validated schedule and trusted server time and returns `true`, `false`, or `undefined` when indeterminate. For a confirmed staff request, `decideBusinessHoursAction` maps that result to `route`, `create_ticket`, or `unavailable`; neither function performs the action. The future configuration adapter must validate raw DB rows before calling the hours check. `src/server/agent-tools.ts` defines four agent capabilities, validates model arguments, and dispatches to handlers. Only the local pothole draft handler is implemented; no GPT-Live call is wired. The example Boulder schedule in the tests is a fixture, not an approved runtime seed or evidence of official hours.
+`npm run check` performs formatting, lint (including the core import boundary), type, and offline test checks. `npm run test:db` adds real local Postgres adapter and API checks; it requires `.env.local` and the migrated local database. `npm run check:architecture` runs the focused Biome boundary rules; `npm run test:core` isolates the deterministic policy tests. `isWithinBusinessHours` receives a validated schedule and trusted server time and returns `true`, `false`, or `undefined` when indeterminate. `decideBusinessHoursAction` maps that result to `route`, `create_ticket`, or `unavailable`; neither function performs an external action. `src/server/agent-tools.ts` defines four agent capabilities, validates model arguments, and dispatches to handlers. The local pothole draft handler and a separate explicit UI confirmation path are implemented; no GPT-Live call is wired. The tested runtime policy row is seeded by a migration; the schedule in the pure unit tests is only a fixture.
 
 ## Git
 

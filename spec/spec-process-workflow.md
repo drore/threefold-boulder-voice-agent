@@ -96,6 +96,7 @@ Authorization checks: session scope, supported intent, current revision/confirma
 - AC-006: Given information during any office status, then record it without staff actions.
 - AC-007: Given the seeded Boulder row and a fixed open/closed/holiday instant, a real local database read supplies the schedule and correct distinct department/mock destination; the pure policy chooses route/ticket accordingly, without creating either effect yet.
 - AC-008: Given a missing row, malformed required field, unsupported ticket-always flag, or time beyond reviewed validity, the local decision is unavailable and has no fallback schedule or destination in code.
+- AC-009: Given a complete pothole draft and an explicit browser confirmation of its current revision during office hours, the server reloads that draft and the DB policy, then displays an honestly labeled simulated route to Transportation's configured mock number. A stale revision or unavailable policy produces no route. Outside office hours, the local slice must say the Linear ticket path is pending; it must not claim a ticket exists.
 
 ## 6. Test automation strategy
 

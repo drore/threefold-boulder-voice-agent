@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Detailed development plan
 
-Status: the first local pothole intake path runs through a small React form, the server tool boundary, provider-neutral core, and local Supabase Postgres. A separate DB-backed Boulder policy read and pure route-or-ticket decision are tested, but no action is authorized or executed. The assignment's voice, information, event, confirmation, action, and delivery gates remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
+Status: the local React form now saves and confirms a pothole draft; the server reads the DB-backed Boulder policy and displays a simulated route when open or an honest no-ticket result when closed. No external action occurs. Voice, information, events, real Linear tickets, a second mock department, and delivery remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
 
 ## 1. Outcome and delivery boundary
 
@@ -26,6 +26,8 @@ Initial baseline: TypeScript/React/Node, one long-lived service, Supabase/Linear
 Local-first environment requirement (SPEC ADR-014): M0–M5 run the application and Supabase locally before M6 cloud deployment. Core units use provider-free functions and port fakes where needed; Linear-adapter tests use a narrow loopback mock of the consumed GraphQL API; local E2E and the deployed demo use a dedicated real Linear board. GPT-Live/hosted reasoning remain cloud APIs with separate approved development/demo settings. Offline, mock-adapter, and live external evidence remain distinct. Local Application Core work is authorized; external mutations and release gates are separate.
 
 Development discipline follows ADR-015/ADR-016: tests protect SPEC-linked behavior in every slice, defects retain regression cases, and minimal maintained dependencies have reviewed pinned versions, a lockfile, advisory checks, and focused tested updates. M5 consolidates evidence rather than starting testing.
+
+**Immediate working path:** finish one confirmed pothole report through the local UI, DB policy, and honestly labeled simulated open-hours route. Use an injected clock only in tests. The closed-hours branch stays visibly incomplete until a real Linear adapter and approved demo team are connected. Then add the narrow code, website, and dated-event answers and the single reviewer voice path. This order keeps the interview demonstration usable while exposing cuts plainly.
 
 Delivery loop for each small slice: choose one user-observable scenario and its failure case; record the expected behavior in the affected SPEC; implement only the needed path with automated checks; have an evaluator other than the implementer attempt the scenario against the runnable local system or a clearly labeled test harness; feed observed failures back into the same slice and repeat until the scenario passes. Record which parts were exercised with fakes, real local dependencies, or external providers. Do not count stubs, green unit tests, or a diagram as a working path, and do not begin optional expansion while a basic P0 path still fails.
 
@@ -48,6 +50,8 @@ Provider identity/access and costs are finite prerequisites, not open architectu
 ## 3. Implementation sequence
 
 Estimates are provisional focused engineering effort, excluding this planning conversation, guided review, account access delays, and provider surprises. The earlier 12–20-hour P0 estimate exposed an overbroad implementation plan relative to Threefold's 4–6-hour exercise. Treat the times below as warnings about scope, not a budget to consume. Prefer a working, explainable demonstration and honest cuts over completing every listed subtask. Report actual effort. The desired 48-hour elapsed window is not reset by this plan.
+
+Active sequence is the smallest local report path first (M2/M3), then three narrow sourced answers (M4), then one browser voice path (M1), integrated checks (M5), and delivery (M6/M7). Milestone numbers preserve the original planning references; they are not execution priority. The detailed failure lists below are review prompts. Implement only cases that protect the demonstrated behavior, and record any deferred cases in the final writeup rather than expanding the take-home into a platform.
 
 ### M0 — foundation and operational shape (0.5–1.5 hours)
 

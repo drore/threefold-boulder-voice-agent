@@ -1,4 +1,5 @@
 import pg from "pg";
+import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { buildLocalApp } from "./local-app.js";
 
@@ -24,7 +25,11 @@ async function startLocalApi(): Promise<void> {
     if (opened.status !== "created") {
       throw new Error("Local database is unavailable or not migrated");
     }
-    const app = buildLocalApp(store, opened.context);
+    const app = buildLocalApp(
+      store,
+      opened.context,
+      new PostgresCityPolicyStore(pool),
+    );
     await app.listen({ host: "127.0.0.1", port: LOCAL_API_PORT });
     process.stdout.write(
       `Local API ready at http://127.0.0.1:${LOCAL_API_PORT}\n`,

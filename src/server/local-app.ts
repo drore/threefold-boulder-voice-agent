@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import fastify from "fastify";
+import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
+import {
+  confirmPotholeRoute,
+  type CityPolicyReader,
+} from "../core/confirm-pothole-route.js";
 import type { ReportContext } from "../core/prepare-service-report.js";
 import {
   callAgentTool,
@@ -10,15 +14,18 @@ import {
 } from "./agent-tools.js";
 
 type ReportBody = { description?: string; location?: string };
+type ConfirmBody = { draftId: string; revision: number };
 
 /**
- * Runs one local developer session through the real report tool and draft store.
+ * Runs one local developer session through intake and DB-backed route simulation.
  * Input: POST `/api/local/report` with `{description:"Large pothole"}`.
  * Output: `needs_input`, then a revision-bound `needs_confirmation` after location.
  */
 export function buildLocalApp(
   store: PostgresDraftStore,
   context: ReportContext,
+  policyStore: CityPolicyReader,
+  clock: () => Date = () => new Date(),
 ) {
   const app = fastify({
     logger: false,
@@ -112,6 +119,51 @@ export function buildLocalApp(
       }
       return result;
     },
+  );
+
+  /** Input: `{draftId: "saved-id", revision: 2}` from a review button. Output: a simulated route or an honest unavailable result. */
+  async function confirmReport(
+    request: FastifyRequest<{ Body: ConfirmBody }>,
+    reply: FastifyReply,
+  ) {
+    const result =
+      currentDraft && currentDraft.draftId !== request.body.draftId
+        ? ({ status: "blocked", code: "revision_conflict" } as const)
+        : await confirmPotholeRoute(
+            context,
+            currentDraft?.draftId ?? null,
+            request.body.revision,
+            store,
+            policyStore,
+            clock,
+          );
+    if (result.status !== "blocked") return result;
+    const statusCode =
+      result.code === "revision_conflict"
+        ? 409
+        : result.code === "store_unavailable" ||
+            result.code === "policy_unavailable"
+          ? 503
+          : 400;
+    return reply.code(statusCode).send(result);
+  }
+
+  app.post<{ Body: ConfirmBody }>(
+    "/api/local/report/confirm",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["draftId", "revision"],
+          properties: {
+            draftId: { type: "string", minLength: 1 },
+            revision: { type: "integer", minimum: 1 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    confirmReport,
   );
 
   return app;

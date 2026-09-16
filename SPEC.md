@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Boulder municipal voice agent — specification
 
-Status: a local text intake slice runs from the browser through the server and Application Core to Supabase Postgres. The pure business-hours policy and a separate Postgres read of seeded Boulder hours/departments are tested. The DB policy is not yet wired into action authorization. Voice, live information, confirmation, Linear, routing, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
+Status: the local browser text path saves and confirms a pothole draft, reads the seeded Boulder policy from Supabase Postgres, and displays the resulting simulated open-hours route or honest closed-hours no-ticket result. The simulation places no call and does not persist an action. Voice, live information, real Linear tickets, a second department route, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
 
 ## 1. Purpose and priorities
 
@@ -33,8 +33,8 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | R1 | Answer municipal-code and website questions | Separate spoken examples use actual code and official service guidance, preserving qualifications and exposing relevant sources. Website summaries alone do not establish code coverage. | BRC 8-3-9 acquired; answer path pending |
 | R2 | Answer current city-event questions | Dated official news/events support current answers, including freshness, past/upcoming status, times, and cancellations. | Sources investigated |
 | R3 | Open a ticket in a selected platform | Confirmed spoken report creates a real Linear issue in the approved demo team; a real API readback verifies ID and fields. | Linear selected |
-| R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Departments selected |
-| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Pure policy and DB policy read tested; action/spoken proof pending |
+| R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Pothole routing decision simulated in local text path; second route/voice pending |
+| R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Local open/closed decisions tested; no ticket execution or spoken proof yet |
 | R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | First offline checks pass; full evaluation pending |
 | D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local planning and first intake slice committed; reviewer access pending |
 | D2 | Link reviewers can try | Fresh session verifies the deployed revision's voice, sources, real demo tickets, and simulated routing; access steps documented. | No deployment |
@@ -115,9 +115,9 @@ Policy, workflow, intake, retrieval, adapters, and voice have explicit contracts
 
 One modular application; core defines contracts and adapters translate SDK types. Capabilities expose provider differences. No arbitrary shell, SQL, or URL-fetch tool is exposed to AI.
 
-AI interprets requests and handles dialogue. Code enforces fields, confirmed revisions, state transitions, hours, permissions, deadlines, bounded retries, and duplicate protection. Department conversation guidance is separate from enforceable rules. Speech updates follow actual workflow events.
+AI interprets requests and handles dialogue. Code enforces fields, confirmed revisions, state transitions, hours, permissions, deadlines, bounded retries, and duplicate protection as each action path is implemented. Department conversation guidance is separate from enforceable rules. Speech updates follow actual workflow events.
 
-The P0 reasoning backend has four agent-facing capabilities: municipal-code lookup, city service/department information lookup, dated city-event search, and preparation of a supported service report. Event search is separate from general city information because date range, timezone, current status, and freshness determine its answers. `isWithinBusinessHours` and action mapping remain internal core policy, never agent tools. The pothole report tool now prepares a durable local draft through the server and core; the other three capabilities still return unavailable. No voice/model call, caller confirmation, ticket, or transfer is implemented by this slice, so R1–R5 remain open.
+The P0 reasoning backend has four agent-facing capabilities: municipal-code lookup, city service/department information lookup, dated city-event search, and preparation of a supported service report. Event search is separate from general city information because date range, timezone, current status, and freshness determine its answers. `isWithinBusinessHours` and action mapping remain internal core policy, never agent tools. The pothole report tool prepares a durable local draft; the separate local browser confirmation path reads the current draft and DB policy to simulate a route. The other three agent capabilities still return unavailable. No voice/model call, real ticket, or phone transfer is implemented, so R1–R5 are not fully satisfied.
 
 ### ADR-010 — Observability and later comparison
 

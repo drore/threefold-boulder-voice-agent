@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import type { ConfirmPotholeResult } from "../core/confirm-pothole-route.js";
 import type { PrepareReportResult } from "../core/prepare-service-report.js";
 
 type SavedReport = { status: "empty" } | PrepareReportResult;
@@ -10,6 +11,9 @@ const BLOCKED_MESSAGES: Record<string, string> = {
   scope_mismatch: "This draft is no longer available in this session.",
   revision_conflict: "The draft changed. Reload this page before editing.",
   store_unavailable: "The draft could not be saved. Please try again later.",
+  missing_draft: "Save the report details before confirming.",
+  incomplete_draft: "Add both the issue and location before confirming.",
+  policy_unavailable: "The city schedule is unavailable. No action was taken.",
 };
 
 /** Input: a visitor opens the page. Output: a pothole draft form and the latest server result. */
@@ -19,6 +23,8 @@ export function App() {
   const [result, setResult] = useState<PrepareReportResult | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [action, setAction] = useState<ConfirmPotholeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -68,6 +74,7 @@ export function App() {
 
     setSaving(true);
     setError("");
+    setAction(null);
     try {
       const response = await fetch("/api/local/report", {
         method: "POST",
@@ -98,6 +105,37 @@ export function App() {
     }
   }
 
+  /** Input: a click on revision 2's review button. Output: the server's route simulation or ticket limitation. */
+  async function confirmReport() {
+    if (result?.status !== "needs_confirmation") return;
+    setConfirming(true);
+    setError("");
+    try {
+      const response = await fetch("/api/local/report/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: result.draftId,
+          revision: result.revision,
+        }),
+      });
+      const nextAction = (await response.json()) as ConfirmPotholeResult;
+      if (nextAction.status === "blocked") {
+        setError(
+          BLOCKED_MESSAGES[nextAction.code] ??
+            "The report could not be confirmed. Reload and review the latest details.",
+        );
+        return;
+      }
+      if (!response.ok) throw new Error("The local service did not respond.");
+      setAction(nextAction);
+    } catch {
+      setError("Could not reach the local service. Please try again.");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   const missingFields =
     result?.status === "needs_input" ? result.fields.join(" and ") : "";
 
@@ -109,8 +147,8 @@ export function App() {
         </p>
         <h1>Report a pothole</h1>
         <p className="intro">
-          Describe the issue and its location. This first local step saves a
-          draft for review.
+          Describe the issue and its location, then confirm the saved details to
+          see the local business-hours decision.
         </p>
       </header>
 
@@ -152,6 +190,37 @@ export function App() {
               </div>
             </dl>
             <p>No service request has been submitted.</p>
+            <button
+              type="button"
+              disabled={confirming || saving || action !== null}
+              onClick={confirmReport}
+            >
+              {confirming
+                ? "Checking…"
+                : action
+                  ? "Decision shown"
+                  : "Confirm details and check action"}
+            </button>
+          </div>
+        )}
+
+        {action?.status === "simulated_route" && (
+          <div className="notice" role="status">
+            <strong>Routing simulated during office hours</strong>
+            <p>
+              This report would route to {action.department.name} at mock number{" "}
+              {action.department.mockDestination}. No phone call was placed.
+            </p>
+          </div>
+        )}
+
+        {action?.status === "ticket_path_unavailable" && (
+          <div className="notice" role="status">
+            <strong>Office is closed</strong>
+            <p>
+              This report would follow the Linear ticket path. That path is not
+              connected in this local demo; no ticket was created.
+            </p>
           </div>
         )}
 
@@ -194,7 +263,11 @@ export function App() {
             )}
             <button
               type="submit"
-              disabled={saving || (!description.trim() && !location.trim())}
+              disabled={
+                saving ||
+                confirming ||
+                (!description.trim() && !location.trim())
+              }
             >
               {saving ? "Saving…" : result ? "Update draft" : "Save draft"}
             </button>
