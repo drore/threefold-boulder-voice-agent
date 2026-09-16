@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { ConfirmPotholeResult } from "../core/confirm-pothole-route.js";
 import type { PrepareReportResult } from "../core/prepare-service-report.js";
 import type { AgentToolResult } from "../server/agent-tools.js";
+import type { LocalConfirmResult } from "../server/local-app.js";
 
 type SavedReport = { status: "empty" } | PrepareReportResult;
 
@@ -43,7 +43,7 @@ export function App() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [action, setAction] = useState<ConfirmPotholeResult | null>(null);
+  const [action, setAction] = useState<LocalConfirmResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [knowledge, setKnowledge] = useState<AgentToolResult | null>(null);
@@ -141,7 +141,7 @@ export function App() {
           revision: result.revision,
         }),
       });
-      const nextAction = (await response.json()) as ConfirmPotholeResult;
+      const nextAction = (await response.json()) as LocalConfirmResult;
       if (nextAction.status === "blocked") {
         setError(
           BLOCKED_MESSAGES[nextAction.code] ??
@@ -267,6 +267,44 @@ export function App() {
               This report would follow the Linear ticket path. That path is not
               connected in this local demo; no ticket was created.
             </p>
+          </div>
+        )}
+
+        {action?.status === "linear_ticket_created" && (
+          <div className="notice" role="status">
+            <strong>Demo ticket created in Linear</strong>
+            <p>
+              Issue ID: {action.issueId}. Operation: {action.operationId}.
+              {action.currentDetails === "fresh"
+                ? " Details were read back from Linear."
+                : action.currentDetails === "changed"
+                  ? " The issue was updated in Linear."
+                  : " The latest Linear details could not be fetched; the saved creation receipt remains available."}
+            </p>
+            <button type="button" disabled={confirming} onClick={confirmReport}>
+              {confirming ? "Checking Linear…" : "Check Linear again"}
+            </button>
+          </div>
+        )}
+
+        {action?.status === "ticket_uncertain" && (
+          <div className="notice" role="status">
+            <strong>Ticket outcome uncertain</strong>
+            <p>
+              The operation may have reached Linear. Reference{" "}
+              {action.operationId}
+              before trying again; this page will not create a duplicate.
+            </p>
+            <button type="button" disabled={confirming} onClick={confirmReport}>
+              {confirming ? "Checking Linear…" : "Check Linear again"}
+            </button>
+          </div>
+        )}
+
+        {action?.status === "ticket_failed" && (
+          <div className="notice" role="status">
+            <strong>Ticket was not created</strong>
+            <p>Linear rejected operation {action.operationId}.</p>
           </div>
         )}
 

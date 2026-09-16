@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 describe("LinearTicketProvider", () => {
-  it("creates an issue with the configured team without automatic readback", async () => {
+  it("creates an issue in the configured team and project without automatic readback", async () => {
     activeServer = await startMockLinearServer((request, response) => {
       expect(request.body.operationName).toBe("CreateIssue");
       respondJson(response, {
@@ -67,6 +67,7 @@ describe("LinearTicketProvider", () => {
           title: "Pothole report",
           description: "Location: 13th and Pearl\nDescription: deep pothole",
           teamId: "team-123",
+          projectId: "project-123",
         },
       },
     });
@@ -412,6 +413,7 @@ function createProvider(
   return new LinearTicketProvider({
     apiKey: "linear-test-key",
     teamId: "team-123",
+    projectId: "project-123",
     endpoint: server.endpoint,
     ...overrides,
   });

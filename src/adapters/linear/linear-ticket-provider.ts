@@ -59,6 +59,7 @@ export type LinearReadTicketResult =
 export type LinearTicketProviderOptions = Readonly<{
   apiKey: string;
   teamId: string;
+  projectId: string;
   endpoint?: string;
   timeoutMs?: number;
 }>;
@@ -76,13 +77,13 @@ type GraphQlResponse =
 
 /**
  * Creates and reads Boulder service tickets through the narrow Linear GraphQL API.
- * Input: `{apiKey: "lin_api_...", teamId: "team-uuid"}`. Output: adapter with server-held credentials.
+ * Input: `{apiKey: "lin_api_...", teamId: "team-uuid", projectId: "project-uuid"}`. Output: adapter with server-held credentials.
  */
 export class LinearTicketProvider {
   private readonly endpoint: string;
   private readonly timeoutMs: number;
 
-  /** Input: Linear key/team configuration. Output: provider ready for explicit create/read calls. */
+  /** Input: Linear key/team/project configuration. Output: provider ready for explicit create/read calls. */
   constructor(private readonly options: LinearTicketProviderOptions) {
     this.endpoint = options.endpoint ?? LINEAR_GRAPHQL_ENDPOINT;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -108,6 +109,7 @@ export class LinearTicketProvider {
           title: input.title,
           description: input.description,
           teamId: this.options.teamId,
+          projectId: this.options.projectId,
         },
       },
     });
@@ -149,7 +151,8 @@ export class LinearTicketProvider {
   }): Promise<GraphQlResponse> {
     if (
       !isUsableText(this.options.apiKey) ||
-      !isUsableText(this.options.teamId)
+      !isUsableText(this.options.teamId) ||
+      !isUsableText(this.options.projectId)
     ) {
       return { status: "rejected", reason: "missing_linear_configuration" };
     }

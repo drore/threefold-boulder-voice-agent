@@ -27,7 +27,7 @@ export interface CityPolicyReader {
   >;
 }
 
-export type ConfirmPotholeResult =
+export type ConfirmPotholeDecision =
   | {
       status: "simulated_route";
       draftId: string;
@@ -35,7 +35,12 @@ export type ConfirmPotholeResult =
       policyRevision: number;
       department: RouteDestination;
     }
-  | { status: "ticket_path_unavailable"; reason: "outside_business_hours" }
+  | {
+      status: "ticket_required";
+      draftId: string;
+      revision: number;
+      policyRevision: number;
+    }
   | {
       status: "blocked";
       code:
@@ -50,7 +55,7 @@ export type ConfirmPotholeResult =
 /**
  * Chooses the local demo outcome from a freshly loaded draft and DB policy.
  * Input: a scoped draft ID, revision 2, and a server clock returning an open-hours time.
- * Output: an honestly simulated route when open, or an unavailable ticket path when closed.
+ * Output: an honestly simulated route when open, or a ticket decision when closed.
  */
 export async function confirmPotholeRoute(
   context: ReportContext,
@@ -59,7 +64,7 @@ export async function confirmPotholeRoute(
   draftStore: Pick<DraftStore, "load">,
   policyStore: CityPolicyReader,
   clock: () => Date,
-): Promise<ConfirmPotholeResult> {
+): Promise<ConfirmPotholeDecision> {
   if (!draftId) return { status: "blocked", code: "missing_draft" };
 
   const loaded = await draftStore.load(context, draftId);
@@ -115,8 +120,10 @@ export async function confirmPotholeRoute(
   }
   if (action === "create_ticket") {
     return {
-      status: "ticket_path_unavailable",
-      reason: "outside_business_hours",
+      status: "ticket_required",
+      draftId: draft.draftId,
+      revision: draft.revision,
+      policyRevision: policy.revision,
     };
   }
   return { status: "blocked", code: "policy_unavailable" };

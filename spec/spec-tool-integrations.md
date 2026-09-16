@@ -11,7 +11,7 @@ tags: [tool, persistence, integrations]
 
 ## 1. Purpose and scope
 
-Implement first ConversationStore/CityConfigStore on Supabase, TicketProvider on Linear, and TransferProvider as explicit simulation. P0 requires actual demo ticket creation; no mock-only ticket substitution. No external resources/actions are authorized by this document.
+Implement the first draft/configuration stores on Supabase Postgres, TicketProvider on Linear, and TransferProvider as explicit simulation. P0 requires actual demo ticket creation; mock-only ticket substitution is insufficient. Dror authorized a dedicated Linear project and synthetic demo tickets; a live API credential and first ticket readback are still pending.
 
 ## 2. Definitions
 
@@ -22,16 +22,16 @@ Implement first ConversationStore/CityConfigStore on Supabase, TicketProvider on
 - INT-001: Persist conversation before initiating voice work and persist operation intent before mutation. Failure returns unavailable/blocked, not unrecorded successful execution.
 - INT-002: Scope state queries by server-authorized conversation/city, not caller-supplied IDs. Configuration mutation is not an agent tool.
 - INT-003: Use DB atomic transitions/unique constraints for revisions, confirmation, operation creation, and quota accounting. In-memory mutex alone is insufficient across restart/instances.
-- INT-004: Linear team/destination is server-configured and approved. Ticket text is bounded untrusted content, never an instruction to another executor.
+- INT-004: Linear team and dedicated project are server-configured. Ticket text is bounded untrusted content, never an instruction to another executor.
 - INT-005: Store actual receipt and display it only after provider success. Transport HTTP success alone is not GraphQL mutation success.
 - INT-006: Writes that may have committed become uncertain and enter reconciliation; no blind recreate loop. Do not promise cross-system exactly-once delivery without provider proof.
-- INT-007: Classify errors by operation kind/provider semantics. Safe read retry recommendation: <=3 total attempts, bounded deadline, backoff/jitter, honor provider retry hints when available. Writes retry only after authoritative no-commit evidence or verified native idempotency.
+- INT-007: Classify errors by operation kind/provider semantics. The first slice makes one bounded read attempt per user request; an explicit repeat may read again. Writes do not retry without authoritative no-commit evidence or verified native idempotency.
 - INT-008: Transfer simulation has an observable lifecycle and distinct configured department. Never dial fictional numbers or claim real Boulder staff answered.
 - INT-009: All adapters propagate correlation/timing/error events and implement capability metadata. Provider specifics stay outside core.
 - INT-010: Linear is the real external ticket system. Create, readback, authorized detail/status retrieval, and reconciliation use its API in approved local E2E/deployed operation. Supabase references/receipts/snapshots do not replace current provider reads. Fakes and the local API mock provide no real Linear evidence.
-- INT-011: Ticket reads require a server-authorized operation/conversation-to-provider reference and approved team. Reject unrelated references before calling Linear; validate returned identity/team and bounded fields. Treat remote ticket text as untrusted data and enforce the existing read deadline/attempt/session budgets.
+- INT-011: Ticket reads require a server-authorized operation/conversation-to-provider reference. Reject unrelated references before calling Linear; validate returned issue ID and bounded fields. Treat remote ticket text as untrusted data and enforce the read deadline. Team/project identity is enforced on create; current read-by-ID response does not expose team/project fields, so live E2E must inspect project membership before claiming it.
 - INT-012: The Linear test harness exposes only the GraphQL-over-HTTP operations the real adapter consumes. Reuse the production operation documents and runtime response schemas; validate operation name/variables and return realistic data/errors, HTTP status, and relevant rate-limit headers for success, rejection, partial/GraphQL error, rate limit, timeout-after-commit, not-found, and read-unavailable fixtures. Do not implement a generic GraphQL engine, local board UI, or provider capabilities we have not verified.
-- INT-013: Before each provider mutation/read attempt, atomically persist and consume a unique started attempt number under the operation budget. Completion updates that attempt. A started attempt without a terminal result after interruption is potentially committed for writes and must enter recovery/reconciliation rather than blind retry.
+- INT-013: The P0 ticket operation has one atomic `ready -> attempting` claim before a create call. A nonterminal `attempting` operation after interruption is potentially committed and must not be blindly retried. A separate attempt ledger is deferred until a demonstrated need for multiple attempts.
 
 ## 4. Interfaces and data contracts
 
@@ -44,10 +44,9 @@ Proposed DB entities (schema/migration implementation in M2):
 | conversations | server ID, city, scope/owner binding, created/closed UTC, mode, status, prompt/model/config versions; minimal summary/context |
 | request_drafts | conversation FK, request type, current revision, bounded location/description, state |
 | confirmation_evidence | draft/revision, pending-summary reference, observed explicit response/provenance/time; invalidated on correction |
-| operations | conversation/draft revision, action kind, unique correlation/idempotency key, authorized config/time, state/deadline, receipt/ref |
-| operation_attempts | operation FK, attempt number, timing, provider/status/error classification; unique attempt identity |
+| ticket_operations | one row per draft, authorized revision/policy, immutable report details, state, provider issue ID/readback or uncertainty |
 
-Ownership FKs and unique constraints are required. Atomic prepare-operation transition rechecks admission scope/revision/confirmation/blocked state/quota and records execution intent in one DB transaction. Before each provider call, persist a unique started attempt and consume its budget; the initial attempt may be part of preparation. Network work is outside database transactions. Receipt update checks operation state and retains evidence if caller disconnected. Recovery treats an unterminated started write attempt as potentially committed.
+The first implementation uses a unique `draft_id` and scoped ownership FK. Authorization rechecks admission, revision, complete details, and policy revision in a transaction; a separate atomic `ready -> attempting` update permits one create call. Draft corrections and authorization serialize on the same draft row. Network work is outside database transactions. Receipt update checks operation state and retains evidence if caller disconnected. Recovery treats an unterminated started write attempt as potentially committed.
 
 DB access recommendation: private application tables with a restricted server role and encrypted pooled connection; alternatively a server-only Supabase client with tightly reviewed grants/RLS and explicit app authorization. Select credential/access mode at M0/M2. Never expose secret/service-role credentials; service-role bypasses RLS and therefore cannot substitute for authorization. RLS must be enabled on exposed tables with deliberate grants/policies; revoke unnecessary browser-role access. Do not casually introduce SECURITY DEFINER functions.
 
@@ -61,7 +60,7 @@ Linear reconciliation: prefer provider-supported stable create ID/idempotency me
 
 Linear API mock: run in the test process or on a loopback ephemeral port using existing Node/server tooling, with no new infrastructure service. It stores only isolated synthetic fixture state needed for a test. Keep mock provider state separate from application operation/receipt state so timeout-after-commit and application-restart cases preserve the cross-system boundary. Reset explicitly between cases. Production configuration cannot select the mock endpoint; tests inject the mock transport/endpoint through a test-only composition boundary.
 
-Real E2E board: local and deployed end-to-end cases use an approved dedicated Linear demo team/project/board resolved to verified provider IDs. Use bounded synthetic tickets with clear E2E/run/operation markers and no real caller data. Serialize or uniquely isolate mutations, verify created fields through real readback, and retain issue URLs/identifiers as evidence. Define retention/archive cleanup before running repeated tests; no automatic external cleanup is implied. General workspace browsing remains outside P0.
+Real E2E project: local and deployed end-to-end cases use the dedicated Linear demo project created on September 16, 2026. Use bounded synthetic tickets with clear demo/operation markers and no real caller data. Verify created fields through real readback and confirm project membership in Linear; retain issue identifiers as evidence. Avoid repeated unnecessary external creations; no automatic external cleanup is implied. General workspace browsing remains outside P0.
 
 Transfer input: allowed department/destination/config revision/operation ID. Simulation result: pending -> answered|failed|cancelled with timestamps and `simulated:true`. Answer means simulation completed, not actual staff. P0 uses a small deliberate simulation delay; exact duration is a configuration default to review. Controlled test fixtures can force failure/cancel. Optional tone/representative view attaches in P1 to these states.
 
@@ -76,7 +75,7 @@ Transfer input: allowed department/destination/config revision/operation ID. Sim
 - AC-007: Given a created authorized ticket, actual Linear readback returns matching provider identity/location/description and a timestamped state snapshot; needed refresh reads the provider rather than a local placeholder.
 - AC-008: Given an unrelated reference, provider read is blocked; given auth/GraphQL/rate-limit/not-found/unavailable outcomes, no private ticket is exposed, current status is not invented, and no create is triggered by a read failure.
 - AC-009: Given the Linear API mock, the real adapter emits the expected GraphQL operations and classifies response/error/rate-limit/timeout fixtures correctly without network credentials. Given local E2E, the app creates and reads back a real synthetic issue in the dedicated board; mock endpoints/configuration cannot satisfy or intercept that run.
-- AC-010 (first Linear slice): The adapter uses a server-held key and configured team to issue only the documented create and issue-by-ID GraphQL operations. A loopback mock verifies create payload and separate readback, including HTTP and GraphQL errors. An ambiguous create result is `uncertain` and never retried by the adapter. This slice makes no live Linear call and does not claim a ticket exists until an approved real run verifies it.
+- AC-010 (first Linear slice): The adapter uses a server-held key and configured team/project to issue only the documented create and issue-by-ID GraphQL operations. A loopback mock verifies create payload and separate readback, including HTTP and GraphQL errors. An ambiguous create result is `uncertain` and never retried by the adapter. The local closed-hours workflow has only fixture evidence; it does not claim live integration until a real run verifies it.
 
 ## 6. Test automation strategy
 
@@ -98,7 +97,7 @@ Provider created ticket, local receipt save failed -> preserve uncertain operati
 
 ## 10. Validation criteria
 
-M2 local DB/schema/access/concurrency checks; M3 real bounded Linear operation and reconciliation tests; M6 deployed fresh-session proof. Record provider schema/permission evidence and test revision. The narrow create/read adapter has been exercised only against a loopback GraphQL mock; no real Linear query or ticket has executed.
+M2 local DB/schema/access/concurrency checks; M3 real bounded Linear operation and reconciliation tests; M6 deployed fresh-session proof. Record provider schema/permission evidence and test revision. The create/read adapter has been exercised against a loopback GraphQL mock and the closed-hours workflow against a fixture provider with a real local database. No real Linear query or ticket has executed.
 
 ## 11. Related specifications
 

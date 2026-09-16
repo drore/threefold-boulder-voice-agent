@@ -1,8 +1,18 @@
 import { Pool } from "pg";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
+import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
 import type { ReportContext } from "../../src/core/prepare-service-report.js";
+import type { TicketProvider } from "../../src/server/confirmed-ticket.js";
 import { buildLocalApp } from "../../src/server/local-app.js";
 
 const localDatabaseUrl = process.env.LOCAL_DATABASE_URL;
@@ -141,6 +151,10 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     for (const session of sessions.splice(0)) {
       await session.app.close();
       await pool.query(
+        "delete from app.ticket_operations where conversation_id = $1",
+        [session.context.conversationId],
+      );
+      await pool.query(
         "delete from app.request_drafts where conversation_id = $1",
         [session.context.conversationId],
       );
@@ -158,8 +172,12 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     await pool?.end();
   });
 
-  /** Input: Boulder and `2026-09-16T16:00:00Z`. Output: an isolated local API with a fixed clock. */
-  async function openSession(cityId: string, time: string) {
+  /** Input: Boulder and a fixed time or clock. Output: an isolated local API for that time. */
+  async function openSession(
+    cityId: string,
+    time: string | (() => Date),
+    ticketing?: Parameters<typeof buildLocalApp>[4],
+  ) {
     const store = new PostgresDraftStore(pool);
     const opened = await store.openConversation(cityId);
     if (opened.status !== "created") throw new Error("Local DB unavailable");
@@ -167,7 +185,8 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
       store,
       opened.context,
       new PostgresCityPolicyStore(pool),
-      () => new Date(time),
+      typeof time === "string" ? () => new Date(time) : time,
+      ticketing,
     );
     await app.ready();
     sessions.push({ app, context: opened.context });
@@ -300,8 +319,93 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     expect(confirmed.statusCode).toBe(200);
     expect(confirmed.json()).toEqual({
       status: "ticket_path_unavailable",
-      reason: "outside_business_hours",
+      reason: "not_configured",
     });
+  });
+
+  it("creates one closed-hours ticket after confirmation and reads it from the provider", async () => {
+    let now = new Date("2026-09-17T00:00:00Z");
+    let createdDescription = "";
+    const createTicket = vi.fn(
+      async (input: { title: string; description: string }) => {
+        createdDescription = input.description;
+        return {
+          status: "created" as const,
+          ticket: {
+            provider: "linear" as const,
+            id: "issue-1",
+            title: input.title,
+          },
+        };
+      },
+    );
+    const readTicket = vi.fn(async (id: string) => ({
+      status: "found" as const,
+      ticket: {
+        provider: "linear" as const,
+        id,
+        title: "Boulder demo: pothole report",
+        description: createdDescription,
+        fetchedAt: "2026-09-17T00:00:00.000Z",
+      },
+    }));
+    const provider: TicketProvider = { createTicket, readTicket };
+    const app = await openSession("boulder-co", () => now, {
+      operations: new PostgresTicketOperationStore(pool),
+      provider,
+    });
+    const draft = await saveReport(app);
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: draft,
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({
+      status: "linear_ticket_created",
+      issueId: "issue-1",
+      currentDetails: "fresh",
+    });
+    expect(createdDescription).toContain("Location: 15th and Pine");
+    expect(createdDescription).toContain(
+      "Issue: Large pothole in driving lane",
+    );
+
+    now = new Date("2026-09-17T16:00:00Z");
+    const repeated = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: draft,
+    });
+    expect(repeated.json()).toMatchObject({
+      status: "linear_ticket_created",
+      currentDetails: "fresh",
+    });
+    expect(createTicket).toHaveBeenCalledTimes(1);
+    expect(readTicket).toHaveBeenCalledTimes(2);
+
+    const correction = await app.inject({
+      method: "POST",
+      url: "/api/local/report",
+      payload: { location: "16th and Pine" },
+    });
+    expect(correction.json()).toEqual({
+      status: "blocked",
+      code: "revision_conflict",
+    });
+    expect(createTicket).toHaveBeenCalledTimes(1);
+
+    const operation = await pool.query<{
+      state: string;
+      provider_issue_id: string;
+    }>(
+      "select state, provider_issue_id from app.ticket_operations where draft_id = $1",
+      [draft.draftId],
+    );
+    expect(operation.rows).toEqual([
+      { state: "created", provider_issue_id: "issue-1" },
+    ]);
   });
 
   it("rejects an old revision after a correction and reloads the latest draft", async () => {

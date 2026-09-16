@@ -2,7 +2,7 @@
 
 Workspace for the Threefold take-home assignment: a municipal voice agent for Boulder, Colorado.
 
-**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. Three reviewed, source-linked information examples work through the local agent-tool boundary and browser buttons. The separate Linear adapter passes loopback create/read tests but is not connected to the report path. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
+**Status: the local text form saves and confirms a pothole draft against DB-backed Boulder hours. Open hours show a simulated route; closed hours create and read back one issue through the Linear adapter when a dedicated demo project and API key are configured. Without that configuration, the UI explicitly says no ticket was created. Local fixture/mock tests pass, but a live Linear ticket has not been verified. Three reviewed information examples work in text. Browser voice, a second department route, and deployment remain unimplemented.**
 
 **Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
 
@@ -44,11 +44,11 @@ supabase migration up --local
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Enter a pothole description and location, save, review the persisted summary, then confirm it. The server checks the current draft revision, Boulder policy row, and actual server time. If open, the page names the configured fictional Transportation number and says no call was placed. If closed, it says the Linear ticket path is pending and no ticket was created. Refreshing the page reloads the draft; the decision itself is not persisted. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. `.env.local` is Git-ignored; keep hosted credentials separate.
+Open `http://127.0.0.1:5173`. Enter a pothole description and location, save, review the persisted summary, then confirm it. The server checks the current draft revision, Boulder policy row, and actual server time. If open, the page names the configured fictional Transportation number and says no call was placed. If closed, it creates a Linear issue only when `LINEAR_API_KEY`, `LINEAR_TEAM_ID`, and `LINEAR_PROJECT_ID` are all set in the ignored `.env.local`; otherwise it says no ticket was created. A confirmed ticket operation freezes the draft, permits one create attempt, and stores the readback or uncertainty without blind retries. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. Keep hosted credentials separate.
 
 The same page has three buttons for reviewed code, pothole guidance, and one City Council event. These call the server's agent-tool handlers without an OpenAI call. The event example is verified only through September 16, 2026 UTC; after its freshness horizon, it returns limited coverage until the source and checked-in record are reviewed again. The browser buttons prove only these examples, not general city search or spoken behavior.
 
-This is a single-developer, loopback-only harness. It does not submit a real service request, call OpenAI or Linear, place a phone call, or provide multi-user browser sessions. These are explicit later P0 gates, not claims of a completed assignment.
+This is a single-developer, loopback-only harness. It does not submit a real Boulder service request or place a phone call. With a real Linear key, it can create synthetic tickets in the dedicated demo project, but that live path still needs verification. OpenAI voice and multi-user browser sessions are not connected yet. These are explicit later P0 gates, not claims of a completed assignment.
 
 ## Local checks
 
@@ -79,4 +79,4 @@ Commit discipline (details and examples in the development plan):
 - Create the planned stack-specific scripts in M0; verify the final candidate commit before delivery.
 - Record local verification, remote CI, deployment, and live demo results separately.
 
-These commands cover only the current provider-free slice. Deployed access, provider checks, current source/configuration evidence, and the one-page writeup remain mandatory submission work.
+These commands cover the current local slice. Deployed access, live provider checks, current source/configuration evidence, and the one-page writeup remain mandatory submission work.

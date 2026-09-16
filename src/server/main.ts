@@ -1,6 +1,8 @@
 import pg from "pg";
+import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
 import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
+import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
 import { buildLocalApp } from "./local-app.js";
 
 const CITY_ID = "boulder-co";
@@ -14,8 +16,19 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
  */
 async function startLocalApi(): Promise<void> {
   const databaseUrl = process.env.LOCAL_DATABASE_URL;
+  const linearApiKey = process.env.LINEAR_API_KEY;
+  const linearTeamId = process.env.LINEAR_TEAM_ID;
+  const linearProjectId = process.env.LINEAR_PROJECT_ID;
   if (!databaseUrl || !LOOPBACK_HOSTS.has(new URL(databaseUrl).hostname)) {
     throw new Error("LOCAL_DATABASE_URL must point to a loopback database");
+  }
+  if (
+    [linearApiKey, linearTeamId, linearProjectId].some(Boolean) &&
+    ![linearApiKey, linearTeamId, linearProjectId].every(Boolean)
+  ) {
+    throw new Error(
+      "LINEAR_API_KEY, LINEAR_TEAM_ID, and LINEAR_PROJECT_ID must be set together",
+    );
   }
 
   const pool = new pg.Pool({ connectionString: databaseUrl });
@@ -29,6 +42,17 @@ async function startLocalApi(): Promise<void> {
       store,
       opened.context,
       new PostgresCityPolicyStore(pool),
+      () => new Date(),
+      linearApiKey && linearTeamId && linearProjectId
+        ? {
+            operations: new PostgresTicketOperationStore(pool),
+            provider: new LinearTicketProvider({
+              apiKey: linearApiKey,
+              teamId: linearTeamId,
+              projectId: linearProjectId,
+            }),
+          }
+        : undefined,
     );
     await app.listen({ host: "127.0.0.1", port: LOCAL_API_PORT });
     process.stdout.write(

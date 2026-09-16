@@ -4,14 +4,21 @@ import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import {
   confirmPotholeRoute,
   type CityPolicyReader,
+  type ConfirmPotholeDecision,
 } from "../core/confirm-pothole-route.js";
 import type { ReportContext } from "../core/prepare-service-report.js";
+import type { TicketOperationStore } from "../core/ticket-operation.js";
 import {
   callAgentTool,
   createAgentToolStubs,
   createReportToolHandler,
   type AgentToolContext,
 } from "./agent-tools.js";
+import {
+  submitConfirmedTicket,
+  type ConfirmedTicketResult,
+  type TicketProvider,
+} from "./confirmed-ticket.js";
 import { createReviewedKnowledgeToolHandlers } from "./reviewed-knowledge.js";
 
 type ReportBody = { description?: string; location?: string };
@@ -23,6 +30,11 @@ type KnowledgeBody = {
   endDate?: string;
 };
 
+export type LocalConfirmResult =
+  | Exclude<ConfirmPotholeDecision, { status: "ticket_required" }>
+  | ConfirmedTicketResult
+  | { status: "ticket_path_unavailable"; reason: "not_configured" };
+
 /**
  * Runs one local developer session through intake and DB-backed route simulation.
  * Input: POST `/api/local/report` with `{description:"Large pothole"}`.
@@ -33,6 +45,7 @@ export function buildLocalApp(
   context: ReportContext,
   policyStore: CityPolicyReader,
   clock: () => Date = () => new Date(),
+  ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
 ) {
   const app = fastify({
     logger: false,
@@ -177,7 +190,32 @@ export function buildLocalApp(
     request: FastifyRequest<{ Body: ConfirmBody }>,
     reply: FastifyReply,
   ) {
-    const result =
+    if (ticketing && currentDraft?.draftId === request.body.draftId) {
+      const existing = await ticketing.operations.findByDraft(
+        context,
+        request.body.draftId,
+        request.body.revision,
+      );
+      if (existing.status === "found") {
+        return submitConfirmedTicket(
+          context,
+          request.body.draftId,
+          request.body.revision,
+          existing.operation.policyRevision,
+          ticketing.operations,
+          ticketing.provider,
+        );
+      }
+      if (existing.status === "unavailable") {
+        return reply
+          .code(503)
+          .send({ status: "blocked", code: "store_unavailable" });
+      }
+      if (existing.status === "blocked") {
+        return reply.code(409).send(existing);
+      }
+    }
+    const decision =
       currentDraft && currentDraft.draftId !== request.body.draftId
         ? ({ status: "blocked", code: "revision_conflict" } as const)
         : await confirmPotholeRoute(
@@ -188,6 +226,19 @@ export function buildLocalApp(
             policyStore,
             clock,
           );
+    const result: LocalConfirmResult =
+      decision.status !== "ticket_required"
+        ? decision
+        : ticketing
+          ? await submitConfirmedTicket(
+              context,
+              decision.draftId,
+              decision.revision,
+              decision.policyRevision,
+              ticketing.operations,
+              ticketing.provider,
+            )
+          : { status: "ticket_path_unavailable", reason: "not_configured" };
     if (result.status !== "blocked") return result;
     const statusCode =
       result.code === "revision_conflict"

@@ -137,11 +137,10 @@ export class PostgresDraftStore implements DraftStore {
       await client.query("begin");
       transactionStarted = true;
 
-      // Serialize saves within this conversation, then recheck admission scope.
+      // Check admission scope; the draft update below uses its revision as a guard.
       const scope = await client.query(
         `select id from app.conversations
-         where id = $1 and city_id = $2 and admission_id = $3
-         for update`,
+         where id = $1 and city_id = $2 and admission_id = $3`,
         [context.conversationId, context.cityId, context.admissionId],
       );
       if (scope.rowCount !== 1) {
@@ -191,6 +190,32 @@ export class PostgresDraftStore implements DraftStore {
           [...values, randomUUID()],
         );
       } else if (draftId !== null && expectedRevision !== null) {
+        // Authorization locks this same row. Check for its operation only after
+        // the lock is acquired, using a fresh statement snapshot.
+        const locked = await client.query(
+          `select id from app.request_drafts
+           where id = $1 and conversation_id = $2 and request_type = $3
+             and revision = $4
+           for update`,
+          [
+            draftId,
+            context.conversationId,
+            fields.requestType,
+            expectedRevision,
+          ],
+        );
+        if (locked.rowCount !== 1) {
+          await client.query("rollback");
+          return { status: "conflict" as const };
+        }
+        const ticket = await client.query(
+          "select 1 from app.ticket_operations where draft_id = $1",
+          [draftId],
+        );
+        if (ticket.rowCount) {
+          await client.query("rollback");
+          return { status: "conflict" as const };
+        }
         result = await client.query<DraftRow>(
           `update app.request_drafts
            set revision = revision + 1,
