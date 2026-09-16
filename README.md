@@ -54,7 +54,25 @@ The same page has three buttons for reviewed code, pothole guidance, and one Cit
 
 For the local voice path, put the approved development `OPENAI_API_KEY` in ignored `.env.dev` and click **Start voice**. The browser asks for microphone access and exchanges a WebRTC offer through the local Node server; the key stays server-side. GPT-Live delegates a caller turn to a bounded `gpt-5.6-luna` intent proposal, then the server validates it and calls the same application tools as the text page. A report still needs on-screen review and confirmation before routing or ticketing. Live voice costs apply; the local server limits session attempts and delegations. Without the key, the text path remains usable.
 
-This is a loopback-only harness. It does not submit a real Boulder service request or place a phone call. With a real Linear key, it can create synthetic tickets in the dedicated [Linear demo project](https://linear.app/hamaarag/project/96d0aa81-ab4c-48c1-996a-9c1c1bc45780/overview), but that live path still needs verification. `APP_MODE=reviewer` enables code admission using `REVIEWER_ACCESS_CODE` (at least 20 characters) and one exact HTTPS `PUBLIC_ORIGIN`; the code stays on the server. Every application API requires the resulting private cookie, and writes require that origin. Hosted database/static serving and real browser admission remain deployment gates. Sessions and quotas are held in one Node process and expire after 30 minutes; a restart requires reentry. Microphone/spoken behavior and deployment remain P0 gates; local API tests do not prove those paths.
+The local harness does not submit a real Boulder service request or place a phone call. With a real Linear key, it can create synthetic tickets in the dedicated [Linear demo project](https://linear.app/hamaarag/project/96d0aa81-ab4c-48c1-996a-9c1c1bc45780/overview), but that live path still needs verification. Sessions and quotas are held in one Node process and expire after 30 minutes; a restart requires reentry. Microphone/spoken behavior and deployment remain P0 gates; local API tests do not prove those paths.
+
+## Reviewer runtime candidate
+
+The production build can run as one HTTPS Node service with a separate hosted Supabase database. Its startup validates configuration, serves `dist/web`, and binds `0.0.0.0:$PORT`. The hosting platform terminates HTTPS. This candidate has not been deployed or checked in a hosted browser.
+
+Run `npm ci && npm run build` in the build step and `npm start` in the service step. Set these server-only environment variables in the host; never put their values in Vite variables or Git:
+
+| Variable | Required reviewer value |
+| --- | --- |
+| `APP_MODE` | `reviewer` |
+| `PORT` | Host-provided listening port |
+| `PUBLIC_ORIGIN` | Exact HTTPS origin of this service, with no path |
+| `DATABASE_URL` | Separate hosted Postgres direct or session-pooler URL, without URL options |
+| `REVIEWER_ACCESS_CODE` | Privately delivered code of at least 20 characters |
+| `OPENAI_API_KEY` | Approved server-side OpenAI key |
+| `LINEAR_API_KEY`, `LINEAR_TEAM_ID`, `LINEAR_PROJECT_ID` | Complete dedicated real Linear demo destination |
+
+The Node Postgres pool requires TLS with certificate validation in reviewer mode; a connection string `sslmode` option is rejected because node-postgres would override the verified-TLS setting. If the database certificate is not trusted by Node's default CA set, configure `NODE_EXTRA_CA_CERTS` with the trusted certificate file supplied by the host; do not disable verification. [Supabase connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres) distinguishes direct IPv6 and IPv4 session pooling. [node-postgres TLS guidance](https://node-postgres.com/features/ssl) documents the connection-string override. Apply the versioned migrations and verify the hosted policy seed before starting the service. The code gate issues an HttpOnly/Secure/SameSite cookie, and every application API needs that server-owned session; writes also require the exact origin. A single process is required while admissions and quotas remain in memory. Real browser admission, voice, and ticketing are release checks.
 
 ## Local checks
 

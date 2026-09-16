@@ -11,7 +11,7 @@ tags: [infrastructure, delivery]
 
 ## 1. Purpose and scope
 
-Define a deployable P0 Node/React application and verification boundaries. The current implementation is a loopback-only local harness; no hosting account, Git remote, CI workflow, cloud resource, or release has been created. Final service/cost/access choices are Q2/Q3/Q8/Q9.
+Define a deployable P0 Node/React application and verification boundaries. A local harness and a hosted runtime candidate are implemented. No hosting account, Git remote, cloud resource, or release has been created; the credential-free CI workflow has not run remotely. Final service/cost/access choices are Q2/Q3/Q8/Q9.
 
 ## 2. Definitions
 
@@ -19,7 +19,7 @@ Define a deployable P0 Node/React application and verification boundaries. The c
 
 ## 3. Requirements, constraints, and guidelines
 
-- INF-001: TypeScript/React/Node selected. The React/Vite build is served by a Fastify Node service in the hosted candidate; `@fastify/static` provides the tested file-serving module, while production registration and admission remain pending. Dependency versions are pinned with a committed lockfile.
+- INF-001: TypeScript/React/Node selected. The React/Vite build is served by a Fastify Node service in reviewer mode; `@fastify/static` provides bounded file serving. Hosted admission and static registration are implemented locally but require deployment proof. Dependency versions are pinned with a committed lockfile.
 - INF-002: The local browser uses WebRTC directly with GPT-Live and sends delegated text to the Node backend. A deployed Node service must serve the UI, session exchange, and delegated application work together; a server-side voice control WebSocket is not part of the current implementation.
 - INF-003: Same-origin browser/API simplifies auth and credentials. Secret values exist only server-side; validate environment/config at startup without echoing them.
 - INF-004: Reviewer access establishes server scope before session/model/mutation work. Rate limits/quotas apply to direct endpoints. Access method/costs approved before publication.
@@ -60,7 +60,7 @@ Environment contract:
 | Ticketing | Provider fake for core units; loopback Linear API mock for adapter tests; dedicated real Linear board for opt-in E2E | Real Linear in the explicitly approved reviewer/demo board; test mock excluded |
 | Knowledge | Reviewed local corpus and official read-only refresh | Deployed corpus with the same provenance/freshness contract |
 
-The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback development harness serves report, knowledge, voice-session, delegation, and `/health` routes. A fresh local browser gets its own conversation and opaque HttpOnly cookie without a login. Reviewer mode requires a configured access code and exact HTTPS origin before issuing a Secure/SameSite cookie. All application API routes, including live-session creation and delegation, use the same admission hook; draft pointers and voice/model counts are per visitor. Browser GPT-Live code is connected but spoken behavior is unverified. Sessions and quotas live in one Node process and do not survive restart or coordinate multiple instances. Local Postgres migration/adapter tests are implemented; production database configuration and M6 cloud verification remain separate.
+The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback development harness serves report, knowledge, voice-session, delegation, and `/health` routes. A fresh local browser gets its own conversation and opaque HttpOnly cookie without a login. Reviewer mode requires a configured access code, complete OpenAI and Linear credentials, hosted Postgres URL, exact HTTPS origin, and host-provided port before startup. It binds on the host port, serves the built UI, and uses certificate-validated TLS for Postgres; URL options are rejected so they cannot override the TLS setting. All application API routes, including live-session creation and delegation, use the same admission hook; draft pointers and voice/model counts are per visitor. Browser GPT-Live code is connected but spoken behavior is unverified. Sessions and quotas live in one Node process and do not survive restart or coordinate multiple instances. Local Postgres migration/adapter tests are implemented; M6 cloud verification remains separate.
 
 Proposed HTTP surface:
 

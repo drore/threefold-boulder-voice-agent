@@ -22,6 +22,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
+    "start": "node dist/server/main.js",
     "test": "vitest run",
     "test:db": "node --env-file=.env.local node_modules/vitest/vitest.mjs run",
     "test:core": "vitest run tests/core",
