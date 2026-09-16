@@ -19,4 +19,4 @@ flowchart LR
 
 **Cuts and current gaps.** This is one city, two report types, browser voice rather than telephony, and simulated transfers rather than real calls. Event answers come from calendar listing cards, so they defer times and cancellation status to the linked official detail pages. Hosted reviewer access and cloud deployment still require verification, as does formal recorded spoken evidence (interruption, correction, browser versions). The reviewer runtime uses one Node process; its in-memory sessions and quotas do not survive a restart.
 
-**Next.** Run the updated paid intent evaluation, complete a fresh recorded spoken browser journey, then deploy the same checked revision with managed Supabase and bounded reviewer access. Re-run the source and failure checks on that revision and rehearse debugging a failed Linear operation or expired schedule.
+**Next.** Complete a fresh recorded spoken browser journey, then deploy the same checked revision with managed Supabase and bounded reviewer access. Re-run the source and failure checks on that revision and rehearse debugging a failed Linear operation or expired schedule.
