@@ -1,0 +1,163 @@
+---
+title: System architecture and provider-neutral contracts
+version: 1.0-review
+date_created: 2026-09-15
+last_updated: 2026-09-15
+owner: Dror Elovits
+tags: [architecture, contracts]
+---
+
+# System architecture
+
+## 1. Purpose and scope
+
+Define the boundaries of the P0 modular application and the seams for P1 providers/comparison. Root [SPEC](../SPEC.md) defines scope and decisions. These are specification examples, not existing TypeScript implementations.
+
+## 2. Definitions
+
+**Port:** application-owned interface. **Adapter:** provider-specific implementation of a port. **Core:** policy and workflow code independent of providers. **Run:** one reasoning/workflow execution. **Operation:** tracked external action. **Revision:** immutable identity of the current collected request details. **Capability:** explicitly supported provider behavior.
+
+## 3. Requirements, constraints, and guidelines
+
+- ARC-001: One Node service and React UI initially; no microservices or dependency-injection framework required.
+- ARC-002: Core defines contracts; adapters depend on core. Core imports no OpenAI/Linear/Supabase/browser SDK types.
+- ARC-003: Presentation, conversation, reasoning, application, and adapters are responsibilities, not a fixed network chain.
+- ARC-004: Runtime validation at browser/model/provider boundaries; reject unknown action names and oversized input. Enumerations/JSON validity do not establish semantics or authority.
+- ARC-005: Workflow owns side effects, state, deadlines, and retry policy. Reasoning returns proposals; it never acquires mutation credentials.
+- ARC-006: Explicit provider capabilities and unsupported outcomes; avoid a lowest-common-denominator interface that silently changes behavior.
+- ARC-007: Stable provider-neutral operational events and trace propagation across asynchronous work.
+- ARC-008: Maintain cohesive responsibility-based folders and a concise `AGENTS.md` in every maintained folder, including nested folders. Exclude generated/vendor/runtime content and Git internals; local notes inherit ancestor instructions. Create folders as needed rather than generating empty layers.
+
+```mermaid
+flowchart TD
+  Browser[React: microphone, speaker, sources, action status]
+  Voice[Voice adapter: GPT-Live]
+  Session[Node session coordinator]
+  Reason[ReasoningBackend adapter]
+  Core[Application core: validation, confirmation, policy, operations]
+  Stores[CityConfigStore and ConversationStore: Supabase]
+  Know[KnowledgeProvider: reviewed official corpus]
+  Ticket[TicketProvider: Linear demo team]
+  Transfer[TransferProvider: simulation]
+  Trace[Operational events and OpenTelemetry]
+  Browser <-->|audio via WebRTC| Voice
+  Browser <-->|authenticated API and UI events| Session
+  Voice <-->|server control and normalized events| Session
+  Session --> Reason
+  Reason -->|typed proposals and evidence requests| Core
+  Core --> Stores
+  Core --> Know
+  Core --> Ticket
+  Core --> Transfer
+  Core -->|verified outcomes| Session
+  Session -->|speakable updates| Voice
+  Session --> Trace
+  Reason --> Trace
+  Core --> Trace
+```
+
+Arrows show runtime communication. Code dependency direction points toward the core contracts. Browser audio may bypass Node while private tool execution remains server-owned. Exact delegation/transport is subject to Q1/M1.
+
+## 4. Interfaces and data contracts
+
+| Port | Input / output | Ownership and failure contract |
+| --- | --- | --- |
+| Clock | `now(): UTC instant` | Production server time; fixed fake in tests. No model/browser-selected production time. |
+| CityConfigStore | city ID -> validated versioned configuration or unavailable | Supabase adapter; fresh read for action authorization in P0. |
+| ConversationStore | scoped drafts/evidence/operations and atomic transitions | Compare expected revision/state; return conflict/unavailable. |
+| KnowledgeProvider | topic/query + city/time -> evidence bundle | Restricts sources, records freshness, returns insufficient/conflicting explicitly. |
+| ReasoningBackend | scoped history/state/tool definitions -> typed answer/intake/action proposals | Cancellable bounded work; no direct application mutations. |
+| TicketProvider | prepared ticket + server operation ID -> receipt/retryable failure/uncertain; authorized linked reference -> provider snapshot/not-found/unavailable | Simple port fake for core units; real Linear adapter against narrow API mock for adapter tests and actual Linear for E2E/cloud. Scoped references and timestamped snapshots follow the integration contract. |
+| TransferProvider | allowed destination + operation ID -> lifecycle result | Simulation initial adapter; no arbitrary number argument from model. |
+| VoiceSession | connect/close, context/guidance/update commands, normalized events | Reports capabilities; wraps provider details and failure/playback observations. |
+| OperationalEvents | typed domain events and trace context | Replaceable observer/exporter; no authorization decisions. |
+
+Shared shapes:
+
+```typescript
+// Specification only; runtime schemas must implement and validate these contracts.
+type ExecutionContext = {
+  conversationId: string; cityId: string; runId: string; traceId: string;
+  mode: 'live' | 'replay' | 'shadow'; deadlineUtc: string;
+}; // Created by server; never accepted verbatim from model or caller.
+type Outcome<T> =
+  | { status: 'completed'; value: T }
+  | { status: 'needs_input'; fields: string[] }
+  | { status: 'needs_confirmation'; draftId: string; revision: number }
+  | { status: 'pending'; operationId: string }
+  | { status: 'uncertain'; operationId: string; reason: string }
+  | { status: 'blocked' | 'failed'; code: string; retryable: boolean };
+type DomainEvent = {
+  schemaVersion: 1; eventId: string; conversationId: string;
+  runId: string; operationId?: string; revision?: number;
+  type: string; occurredAtUtc: string; traceId: string;
+  data: Record<string, unknown>; // Allowlisted, event-specific validated payload.
+};
+```
+
+`retryable` is a classified result, not permission for a model to repeat a write. Workflow enforces operation-wide attempts/deadlines. Public outcomes omit credentials, internal history, and other-session data.
+
+Events include draft_updated, confirmation_requested/recorded/invalidated, evidence_selected, policy_decided, operation_started/attempted/completed/uncertain/failed, conversation_closed, and request_blocked. Keep enum definitions central. Event delivery and API retries can repeat; consumers deduplicate by event/operation ID.
+
+Maintained layout target follows the existing responsibility boundaries. The root, `spec/`, and `design/` currently hold planning documents/concepts; application folders below are created during authorized implementation when they first contain maintained files. Every maintained folder has its own `AGENTS.md`; repeated note files are omitted from the tree for readability.
+
+```text
+/
+├── AGENTS.md               # Global engineering instructions
+├── README.md               # Entry point and actual setup/check commands
+├── SPEC.md                 # Normative scope, decisions, acceptance
+├── DECISIONS.md            # Rationale and alternatives
+├── DEVELOPMENT_PLAN.md     # Milestones, verification, commits
+├── spec/                   # Component contracts and acceptance criteria
+├── design/                 # Reviewable UI proposals, assets, generation prompts
+├── src/
+│   ├── core/               # Provider-neutral contracts, policy, workflow
+│   ├── adapters/           # Provider-specific implementations
+│   ├── server/             # Composition, auth, configuration, sessions
+│   └── web/                # React UI, browser interaction, presentation
+├── tests/                  # Core, contract, DB, browser checks and fixtures
+├── eval/                   # Model/voice scenarios, rubrics, safe evidence
+├── prompts/                # Versioned model instructions/procedures
+├── knowledge/              # Reviewed corpus and provenance manifests
+└── supabase/               # Versioned DB configuration, migrations, seeds
+```
+
+Keep module constants and message catalogs near their consumers; introduce a shared location only for demonstrated reuse. Provider-specific subfolders and test-suite subfolders are added when actual files justify them, with their own notes. Avoid miscellaneous utility folders, unnecessary package/workspace splits, and directory trees that mirror every conceptual layer as a service. Source moves update imports, tooling paths, notes, and SPEC references together. Select libraries/pinned versions in M0, not in core contracts.
+
+Local `AGENTS.md` notes contain the folder's purpose, authoritative SPEC links, allowed dependencies/boundaries, relevant checks, and local pitfalls. They inherit ancestor instructions rather than duplicating root policy. They are repository maintenance instructions, separate from runtime agent prompts in `prompts/`. Check references/commands after changes; unavailable or future checks are labelled accordingly.
+
+Readability/DRY follow root ADR-013. Share one policy, intake/workflow implementation, and schema definition where the same rule is used. Keep adapter interfaces small and code control flow explicit. Avoid unnecessary factories, inheritance, generic registries, and layers; a new abstraction needs demonstrated reuse or a meaningful external boundary.
+
+## 5. Acceptance criteria
+
+- AC-001: Given fake ports and a fixed clock, when a service request runs, then policy and resulting state are verified without provider/network access.
+- AC-002: Given a replacement TicketProvider substitute, when the same contract cases run, then required outcomes preserve their meaning.
+- AC-003: Given unsupported capability/configuration, when composed, then startup/action authorization rejects it explicitly.
+- AC-004: Given a forged context/destination in a tool argument, when validated, then server authority is retained and no unauthorized mutation occurs.
+- AC-005: Given a new maintained folder or a file move, when architecture checks run, then every maintained folder has a local note, references/imports remain valid, and prohibited core dependencies are rejected. Generated/vendor/runtime folders are explicitly excluded.
+
+## 6. Test automation strategy
+
+Planned targets: `npm run test:core`, `npm run test:contracts`, `npm run check:architecture`. The architecture check must detect prohibited SDK imports in core and missing `AGENTS.md` files in maintained folders, using explicit generated/vendor/runtime exclusions. Contract checks exercise success, classified error, uncertain outcome, cancellation, and repeated event delivery. Verify real adapters separately; substitutes alone do not establish compatibility.
+
+## 7. Rationale and context
+
+Ports/adapters supports independent tests and changing tools. One service limits delivery overhead. Stable application contracts coexist with provider-specific media capabilities. Prefer straightforward functions/composition over a universal agent abstraction.
+
+## 8. Dependencies and integrations
+
+TypeScript/Node/React selected. Supabase/Linear/GPT-Live are initial adapters. No additional agent framework selected. Shared schema validation and OpenTelemetry are recommended supporting capabilities. Hosted connection/access must pass M1.
+
+## 9. Examples and edge cases
+
+New caller address -> increment revision -> invalidate confirmation -> reject old submit command. Repeated submit -> existing operation result, not a second mutation. Provider timeout -> uncertain outcome, not a fabricated receipt. Live transcript fragment -> partial observation, not a finished caller turn.
+
+## 10. Validation criteria
+
+Review diagram/ownership with Dror. Implement central runtime schemas before integration. Record contract checks against exact candidate revision. This documentation proves no provider has been swapped or measured at scale.
+
+## 11. Related specifications
+
+[Workflow](spec-process-workflow.md), [voice](spec-design-voice.md), [integrations](spec-tool-integrations.md), [security/observability](spec-process-security-observability.md), [plan](../DEVELOPMENT_PLAN.md).
+
+Primary references: [ports/adapters](https://alistair.cockburn.us/hexagonal-architecture), [LiveKit workflows](https://docs.livekit.io/agents/logic/workflows/), [Pipecat typed frames](https://docs.pipecat.ai/api-reference/server/frames/overview).
