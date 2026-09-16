@@ -15,6 +15,7 @@ Workspace for the Threefold take-home assignment: a municipal voice agent for Bo
 - [Simple responsive UI concept — selected P0 direction](design/README.md)
 - [Component specifications](spec/)
 - [Versioned live intent evaluation and last result](eval/README.md)
+- [One-page reviewer writeup draft](WRITEUP.md)
 - [Agent engineering instructions](AGENTS.md)
 
 ## Working approach

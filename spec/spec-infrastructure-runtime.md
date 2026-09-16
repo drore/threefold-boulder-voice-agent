@@ -2,7 +2,7 @@
 title: Runtime composition, reviewer access, and delivery infrastructure
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [infrastructure, delivery]
 ---
@@ -11,7 +11,7 @@ tags: [infrastructure, delivery]
 
 ## 1. Purpose and scope
 
-Define a deployable P0 Node/React application and verification boundaries. No hosting account, remote, CI workflow, resource, or release is created by this planning document. Final service/cost/access choices are Q2/Q3/Q8/Q9.
+Define a deployable P0 Node/React application and verification boundaries. The current implementation is a loopback-only local harness; no hosting account, Git remote, CI workflow, cloud resource, or release has been created. Final service/cost/access choices are Q2/Q3/Q8/Q9.
 
 ## 2. Definitions
 
@@ -20,7 +20,7 @@ Define a deployable P0 Node/React application and verification boundaries. No ho
 ## 3. Requirements, constraints, and guidelines
 
 - INF-001: TypeScript/React/Node selected. Recommend React/Vite browser build served by a Fastify Node service; dependency versions pinned after M0 verification with committed lockfile.
-- INF-002: Long-lived server supports outbound voice control WebSocket and authenticated UI status delivery. Browser primary audio can use WebRTC to provider. Do not assume short-lived serverless handlers maintain control sessions.
+- INF-002: The local browser uses WebRTC directly with GPT-Live and sends delegated text to the Node backend. A deployed Node service must serve the UI, session exchange, and delegated application work together; a server-side voice control WebSocket is not part of the current implementation.
 - INF-003: Same-origin browser/API simplifies auth and credentials. Secret values exist only server-side; validate environment/config at startup without echoing them.
 - INF-004: Reviewer access establishes server scope before session/model/mutation work. Rate limits/quotas apply to direct endpoints. Access method/costs approved before publication.
 - INF-005: Save durable workflow state in Supabase. Live connection history may be transient and instance-owned; restarts do not promise seamless audio continuation.
@@ -60,7 +60,7 @@ Environment contract:
 | Ticketing | Provider fake for core units; loopback Linear API mock for adapter tests; dedicated real Linear board for opt-in E2E | Real Linear in the explicitly approved reviewer/demo board; test mock excluded |
 | Knowledge | Reviewed local corpus and official read-only refresh | Deployed corpus with the same provenance/freshness contract |
 
-The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback-only development harness serves `GET/POST /api/local/report` and `/health` for one developer session; it has no browser authentication, voice connection, or process-restart session recovery and must not be exposed as the reviewer service. The local Postgres migration/adapter tests are implemented; production configuration and M6 cloud verification remain separate.
+The take-home's deployed environment remains a municipal demo. Version migrations and synthetic seeds; inject environment-specific credentials/endpoints outside Git. Keep dev/prod state isolated. The current loopback-only development harness serves report, knowledge, voice-session, delegation, and `/health` routes for one developer session. Browser GPT-Live code is connected but spoken behavior is unverified. It has no browser authentication or process-restart session recovery and must not be exposed as the reviewer service. Local Postgres migration/adapter tests are implemented; production configuration and M6 cloud verification remain separate.
 
 Proposed HTTP surface:
 
@@ -98,7 +98,7 @@ Candidate hosting: one long-lived container/web service. Render documentation su
 
 ## 6. Test automation strategy
 
-The first slice implements `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`, `npm run check:architecture`, `npm run test:core`, `npm run check`, and `npm run audit:dependencies`. The core boundary uses Biome rules for prohibited SDK imports and CommonJS `require`; time conversion uses native `Date`/`Intl`. Raw DB-row validation and its dependency choice belong to the configuration-adapter slice. `npm run check:spec`, contracts, browser, E2E, and local DB commands remain planned. Routine browser/component checks may use controlled boundaries; `test:e2e` always requires the dedicated real Linear board and is opt-in. Real microphone/device/provider evals remain explicit. Verify DB migrations from fresh local reset and deployed schema separately. Dependency audit needs registry access but no paid provider credentials; behavioral offline checks remain runnable when the registry is unavailable.
+The local implementation provides `npm run typecheck`, `lint`, `format:check`, `build`, `check:architecture`, `test:core`, `check`, `test:db`, `audit:dependencies`, and opt-in `eval:intents`. The core boundary uses Biome rules for prohibited SDK imports and CommonJS `require`; time conversion uses native `Date`/`Intl`. Database tests require local Supabase, and the live intent evaluation uses paid OpenAI calls only when explicitly run. `check:spec`, browser automation, and real-provider E2E remain planned. Actual microphone/device evaluation and live Linear readback are separate mandatory evidence. Verify DB migrations from fresh local reset and deployed schema separately. Dependency audit needs registry access but no paid provider credentials; behavioral offline checks remain runnable when the registry is unavailable.
 
 ## 7. Rationale and context
 

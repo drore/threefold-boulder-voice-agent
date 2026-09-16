@@ -11,7 +11,7 @@ tags: [architecture, contracts]
 
 ## 1. Purpose and scope
 
-Define the boundaries of the P0 modular application and the seams for P1 providers/comparison. Root [SPEC](../SPEC.md) defines scope and decisions; the [Application Core specification](spec-architecture-application-core.md) refines core authority, use cases, and port semantics. These are specification examples, not existing TypeScript implementations.
+Define the boundaries of the P0 modular application and the seams for P1 providers/comparison. Root [SPEC](../SPEC.md) defines scope and decisions; the [Application Core specification](spec-architecture-application-core.md) refines core authority, use cases, and port semantics. The diagram below maps the implemented local slice; the port table and type sketches also describe planned boundaries that are not all implemented.
 
 ## 2. Definitions
 
@@ -32,33 +32,25 @@ Define the boundaries of the P0 modular application and the seams for P1 provide
 
 ```mermaid
 flowchart TD
-  Browser[React: voice or text, sources, action status]
-  Voice[Voice adapter: GPT-Live]
-  Session[Node session coordinator]
-  Reason[ReasoningBackend adapter]
-  Core[Application core: validation, confirmation, policy, operations]
-  Stores[CityConfigStore and ConversationStore: Supabase]
-  Know[KnowledgeProvider: reviewed official corpus]
-  Ticket[TicketProvider: Linear demo team]
-  Transfer[TransferProvider: simulation]
-  Trace[Operational events and OpenTelemetry]
-  Browser <-->|audio via WebRTC| Voice
-  Browser <-->|authenticated text, controls, and UI events| Session
-  Voice <-->|server control and normalized events| Session
-  Session --> Reason
-  Reason -->|typed proposals and evidence requests| Core
+  Browser[React UI and browser voice adapter]
+  Voice[GPT-Live cloud]
+  Server[Fastify local coordinator and tool boundary]
+  Reason[Responses intent proposal]
+  Core[Report intake and hours policy]
+  Stores[Supabase Postgres: policy, drafts, operations]
+  Know[Reviewed code, service, event examples]
+  Ticket[Linear adapter: dedicated demo project]
+  Browser <-->|WebRTC audio and delegation events| Voice
+  Browser <-->|observed text, confirmation, verified results| Server
+  Browser -->|verified commentary| Voice
+  Server <-->|bounded intent request and proposal| Reason
+  Server --> Core
+  Server --> Know
   Core --> Stores
-  Core --> Know
-  Core --> Ticket
-  Core --> Transfer
-  Core -->|verified outcomes| Session
-  Session -->|speakable updates| Voice
-  Session --> Trace
-  Reason --> Trace
-  Core --> Trace
+  Server -->|after durable authorization| Ticket
 ```
 
-Arrows show runtime communication. Code dependency direction points toward the core contracts. Browser audio may bypass Node while private tool execution remains server-owned. Text messages reach the same coordinator through the authenticated application API, without a VoiceSession. Client delegation is selected for the P0 voice channel; exact transport and event behavior remain subject to M1.
+Arrows show the current local runtime, not a deployed multi-user service. The browser receives GPT-Live's delegation event, sends its observed caller text to Fastify, and appends the server's verified reply to the voice session. The model's proposal cannot select a destination, confirm a report, or create a ticket. Fastify checks the current draft and database policy before simulating a route or authorizing a Linear attempt. Text UI actions use the same application tools without WebRTC. Actual microphone playback/event ordering, public admission, telemetry export, and a real Linear ticket remain verification or deployment work; they are not implied by this diagram.
 
 ## 4. Interfaces and data contracts
 

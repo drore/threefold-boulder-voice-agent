@@ -36,9 +36,9 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Both distinct routes pass local DB/API tests; spoken proof pending |
 | R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Local open/closed and two-department paths pass; spoken and live Linear proof pending |
 | R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | 139 local DB tests and six opt-in live intent cases pass; spoken, live Linear, and delivery evidence pending |
-| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Local planning and first intake slice committed; reviewer access pending |
+| D1 | Repository with real commit history | Reviewer access, incremental commits, setup instructions, and exact candidate checks. | Incremental local commits and setup instructions exist; reviewer access pending |
 | D2 | Link reviewers can try | Fresh session verifies the deployed revision's voice, sources, real demo tickets, and simulated routing; access steps documented. | No deployment |
-| D3 | Writeup at most one page | Rendered writeup includes cuts, decisions, component diagram, limitations, and next steps. | Planned |
+| D3 | Writeup at most one page | Rendered writeup includes cuts, decisions, component diagram, limitations, and next steps. | Honest draft exists; final proof and page-length check pending |
 
 Record date, revision, commands/evidence, and pass/fail per gate. Local tests do not establish deployment or live audio. No gate passes because it appears in a diagram. Prepare a deliberate-failure/debugging rehearsal for the follow-up.
 
@@ -89,7 +89,7 @@ First ConversationStore and CityConfigStore: conversations, current request/conf
 
 ### ADR-005 — Mock handoff and later representative experience
 
-P0 requires observable mock handoff pending/answered/failed/cancelled outcomes and an explicit simulation label. Proposed DB destinations: Transportation & Mobility `+1 303-555-0101`, Parks & Recreation `+1 303-555-0102`. Never dial fictional numbers.
+P0 selects the correct department and its database-configured mock number after confirmation, and presents the outcome as a simulation in text and voice. Proposed destinations: Transportation & Mobility `+1 303-555-0101`, Parks & Recreation `+1 303-555-0102`. Never dial fictional numbers. A multi-state transfer simulation (pending/answered/failed/cancelled) can be added later if it serves a concrete demo need; the assignment explicitly permits a mock number.
 
 The previously accepted tone and representative view move to P1 under Dror's assignment-first scope instruction. P0 already stores context needed later. Tone alone is not transfer completion. Actual telephony/contact-center integration is P2.
 
