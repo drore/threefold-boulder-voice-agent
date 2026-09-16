@@ -19,7 +19,7 @@ Define a deployable P0 Node/React application and verification boundaries. The c
 
 ## 3. Requirements, constraints, and guidelines
 
-- INF-001: TypeScript/React/Node selected. Recommend React/Vite browser build served by a Fastify Node service; dependency versions pinned after M0 verification with committed lockfile.
+- INF-001: TypeScript/React/Node selected. The React/Vite build is served by a Fastify Node service in the hosted candidate; `@fastify/static` provides the tested file-serving module, while production registration and admission remain pending. Dependency versions are pinned with a committed lockfile.
 - INF-002: The local browser uses WebRTC directly with GPT-Live and sends delegated text to the Node backend. A deployed Node service must serve the UI, session exchange, and delegated application work together; a server-side voice control WebSocket is not part of the current implementation.
 - INF-003: Same-origin browser/API simplifies auth and credentials. Secret values exist only server-side; validate environment/config at startup without echoing them.
 - INF-004: Reviewer access establishes server scope before session/model/mutation work. Rate limits/quotas apply to direct endpoints. Access method/costs approved before publication.

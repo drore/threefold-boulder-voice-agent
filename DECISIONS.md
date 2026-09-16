@@ -163,7 +163,7 @@ Event search has its own agent tool and provider contract because an occurrence 
 
 ## 12. Why TypeScript, React, Node, and this toolkit?
 
-**Status:** TypeScript/React/Node selected; first offline toolkit slice installed and verified locally, remaining UI/server tools pending their slices. **SPEC:** ADR-011, ADR-016; runtime spec.
+**Status:** TypeScript/React/Node selected; local toolkit and a tested built-file serving module installed, production registration pending. **SPEC:** ADR-011, ADR-016; runtime spec.
 
 **Why:** Shared TypeScript contracts reduce browser/server translation work while runtime schemas validate external data. React supplies the selected reviewer UI. One long-lived Node service can serve built assets and own conversation control/state composition. The lean toolkit assigns distinct responsibilities: Vite browser development/bundling, TypeScript type checks/backend output, Fastify HTTP, Vitest unit/contracts, Playwright browser journeys, and Biome lint/format. npm scripts/lockfile keep project orchestration simple.
 
@@ -172,6 +172,8 @@ Event search has its own agent tool and provider contract because an occurrence 
 **Tradeoff:** TypeScript still needs runtime validation. Vite transpilation/Biome do not replace type checks. Playwright does not replace actual speech/device evaluation. Biome may lack a future required rule; modern tools also need compatibility/support/advisory review. Long-lived hosting must be verified; the vendor is unselected.
 
 **Reconsider when:** M0 compatibility or required rules/features favor an alternative. The first slice pins Node 24.21.0, npm 11.19.0, TypeScript 7.0.2, Vitest 5.0.1, Vite 8.3.0 as Vitest's required peer, Biome 2.5.13, and Node type definitions 24.13.5. `npm audit --audit-level=high` reported zero known advisories at introduction; this does not guarantee future safety. Keep dependencies justified and adopt extra build/task infrastructure only for actual needs.
+
+The hosted UI needs safe static-file serving. `@fastify/static` 10.1.3 is used for that narrow job rather than writing path handling ourselves; it supports Fastify 5 and is newer than the [10.1.2 fix for non-canonical path authorization](https://github.com/fastify/fastify-static/security/advisories/GHSA-8pvw-jcv7-9cmj). The tested module serves only an explicit build directory. It is not yet registered in the local-only entry point, so it does not make the app deployable by itself.
 
 Tool references: [Vite](https://vite.dev/guide/), [Vitest](https://vitest.dev/guide/), [Playwright](https://playwright.dev/docs/intro), [Biome](https://biomejs.dev/guides/getting-started/).
 
