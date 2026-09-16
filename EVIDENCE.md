@@ -24,7 +24,6 @@ Recording date, revision, commands/evidence, and result per gate. Local tests do
 
 ## Remaining before submission
 
-- Formal recorded spoken browser journey (mic/playback, interruption/correction, target browsers) — needs Dror.
-- Deployment (D2): host, managed Supabase, reviewer access code delivery — needs Dror approval and accounts.
-- Git remote/reviewer access (D1) — needs Dror approval.
+- Formal recorded spoken browser journey (mic/playback, interruption/correction, target browsers) — checklist in `VOICE_CHECKLIST.md`; run later by Dror.
+- Deployment (D2) and Git remote/reviewer access (D1) — deferred by Dror on 2026-09-16 ("skip for now" / "not yet"); not dropped, to be revisited before submission if desired.
 - Final writeup page-length check and debugging rehearsal (T70/T73) — planned.
