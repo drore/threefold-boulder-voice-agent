@@ -75,6 +75,8 @@ Dror explicitly confirmed real creation and retrieval. Linear owns current ticke
 
 Dror refined local testing: core units use a simple port fake; Linear-adapter tests use a narrow GraphQL-over-HTTP mock of only the operations we consume, reusing production documents/schemas. End-to-end tests, including local runs, use the dedicated real Linear demo board. This tests deterministic failures cheaply while making E2E genuine. A local board/inspector or full Linear replica would add scope without improving the adapter boundary.
 
+**Current adapter choice:** Use Node's built-in `fetch` and two explicit GraphQL operations for issue creation and issue-by-ID readback. This avoids an SDK dependency for the small interview scope and keeps HTTP, GraphQL errors, and uncertain writes visible in tests. The local mock proves our request/response handling, not the live Linear schema or permissions. Revisit the official SDK or generated types if the integration grows beyond this narrow surface. [Linear API guide](https://linear.app/developers/graphql).
+
 **Alternatives:** Jira, another ticket platform, or a municipal work-order system can fit TicketProvider later. A purely local ticket substitute is useful for tests but cannot satisfy real platform compatibility/submission evidence.
 
 **Tradeoff:** Permissions, limits, GraphQL failures, and uncertain writes require handling. We cannot assume native idempotency or authoritative search consistency; M3 must verify the chosen reconciliation strategy. Local operation uniqueness alone does not prove exactly-once external effects.

@@ -98,7 +98,7 @@ Provider created ticket, local receipt save failed -> preserve uncertain operati
 
 ## 10. Validation criteria
 
-M2 local DB/schema/access/concurrency checks; M3 real bounded Linear operation and reconciliation tests; M6 deployed fresh-session proof. Record provider schema/permission evidence and test revision. No schema migration/query/ticket has executed yet.
+M2 local DB/schema/access/concurrency checks; M3 real bounded Linear operation and reconciliation tests; M6 deployed fresh-session proof. Record provider schema/permission evidence and test revision. The narrow create/read adapter has been exercised only against a loopback GraphQL mock; no real Linear query or ticket has executed.
 
 ## 11. Related specifications
 

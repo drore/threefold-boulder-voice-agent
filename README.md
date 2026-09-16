@@ -2,7 +2,7 @@
 
 Workspace for the Threefold take-home assignment: a municipal voice agent for Boulder, Colorado.
 
-**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. Municipal-code, city-information, and events tools remain unavailable stubs. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
+**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. The separate Linear adapter passes loopback create/read tests but is not connected to this path. Municipal-code, city-information, and events tools remain unavailable stubs. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
 
 **Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
 

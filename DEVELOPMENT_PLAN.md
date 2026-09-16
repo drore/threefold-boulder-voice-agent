@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Detailed development plan
 
-Status: the local React form now saves and confirms a pothole draft; the server reads the DB-backed Boulder policy and displays a simulated route when open or an honest no-ticket result when closed. No external action occurs. Voice, information, events, real Linear tickets, a second mock department, and delivery remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
+Status: the local React form saves and confirms a pothole draft; the server reads the DB-backed Boulder policy and displays a simulated route when open or an honest no-ticket result when closed. A narrow Linear create/read adapter passes loopback mock tests but is not wired into the report workflow; no external action occurs. Voice, information, events, real Linear tickets, a second mock department, and delivery remain incomplete. [SPEC](SPEC.md) is the source of truth for behavior/scope; component specs own contracts. This plan owns task sequencing, evidence, and commits. Existing commands are documented in README; unimplemented commands below remain future targets.
 
 ## 1. Outcome and delivery boundary
 

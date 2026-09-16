@@ -7,7 +7,7 @@ owner: Dror Elovits
 
 # Boulder municipal voice agent — specification
 
-Status: the local browser text path saves and confirms a pothole draft, reads the seeded Boulder policy from Supabase Postgres, and displays the resulting simulated open-hours route or honest closed-hours no-ticket result. The simulation places no call and does not persist an action. Voice, live information, real Linear tickets, a second department route, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
+Status: the local browser text path saves and confirms a pothole draft, reads the seeded Boulder policy from Supabase Postgres, and displays the resulting simulated open-hours route or honest closed-hours no-ticket result. The simulation places no call and does not persist an action. A narrow Linear create/read adapter is tested only against a loopback mock and is not wired into the workflow. Voice, live information, real Linear tickets, a second department route, and deployment remain unimplemented. Accepted principles, proposed defaults, and release prerequisites are distinguished below. Local implementation is authorized; paid calls, provisioning, external mutations, and publication retain their applicable gates.
 
 ## 1. Purpose and priorities
 
@@ -32,7 +32,7 @@ Evidence criteria are our engineering interpretation, not additional verbatim Th
 | V0 | Voice agent for a US city | Fresh reviewer speaks/hears relevant responses through the delivered link; Boulder and demo limitations are clear. | Planned |
 | R1 | Answer municipal-code and website questions | Separate spoken examples use actual code and official service guidance, preserving qualifications and exposing relevant sources. Website summaries alone do not establish code coverage. | BRC 8-3-9 acquired; answer path pending |
 | R2 | Answer current city-event questions | Dated official news/events support current answers, including freshness, past/upcoming status, times, and cancellations. | Sources investigated |
-| R3 | Open a ticket in a selected platform | Confirmed spoken report creates a real Linear issue in the approved demo team; a real API readback verifies ID and fields. | Linear selected |
+| R3 | Open a ticket in a selected platform | Confirmed spoken report creates a real Linear issue in the approved demo team; a real API readback verifies ID and fields. | Create/read adapter passes loopback tests; workflow/live proof pending |
 | R4 | Route to correct department; mock number allowed | Two supported intents invoke observable routing to distinct allowed mock destinations. Simulation never implies real staff answered. | Pothole routing decision simulated in local text path; second route/voice pending |
 | R5 | Deterministically route or ticket according to city hours | DB-backed schedules and server code determine actions; repeatable boundary/timezone/closure tests and spoken open/closed scenarios prove enforcement. | Local open/closed decisions tested; no ticket execution or spoken proof yet |
 | R6 | Evaluation/testing setup | Runnable commands, versioned cases/results, and meaningful failures cover R1–R5. Application, provider, model, and voice verification are distinguished. | First offline checks pass; full evaluation pending |
