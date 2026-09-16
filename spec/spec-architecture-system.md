@@ -2,7 +2,7 @@
 title: System architecture and provider-neutral contracts
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [architecture, contracts]
 ---
@@ -11,7 +11,7 @@ tags: [architecture, contracts]
 
 ## 1. Purpose and scope
 
-Define the boundaries of the P0 modular application and the seams for P1 providers/comparison. Root [SPEC](../SPEC.md) defines scope and decisions. These are specification examples, not existing TypeScript implementations.
+Define the boundaries of the P0 modular application and the seams for P1 providers/comparison. Root [SPEC](../SPEC.md) defines scope and decisions; the [Application Core specification](spec-architecture-application-core.md) refines core authority, use cases, and port semantics. These are specification examples, not existing TypeScript implementations.
 
 ## 2. Definitions
 
@@ -27,6 +27,7 @@ Define the boundaries of the P0 modular application and the seams for P1 provide
 - ARC-006: Explicit provider capabilities and unsupported outcomes; avoid a lowest-common-denominator interface that silently changes behavior.
 - ARC-007: Stable provider-neutral operational events and trace propagation across asynchronous work.
 - ARC-008: Maintain cohesive responsibility-based folders and a concise `AGENTS.md` in every maintained folder, including nested folders. Exclude generated/vendor/runtime content and Git internals; local notes inherit ancestor instructions. Create folders as needed rather than generating empty layers.
+- ARC-009: Presentation/session layers invoke named Application Core use cases and consume bounded views. They do not read provider/storage adapters directly. Reasoning proposals pass through core validation and cannot invoke effect adapters.
 
 ```mermaid
 flowchart TD
@@ -60,6 +61,8 @@ Arrows show runtime communication. Code dependency direction points toward the c
 
 ## 4. Interfaces and data contracts
 
+The table below identifies whole-system ports. The [Application Core specification](spec-architecture-application-core.md) owns which ports the core invokes, the inbound use cases, authorization/effect order, and bounded presentation views.
+
 | Port | Input / output | Ownership and failure contract |
 | --- | --- | --- |
 | Clock | `now(): UTC instant` | Production server time; fixed fake in tests. No model/browser-selected production time. |
@@ -77,9 +80,11 @@ Shared shapes:
 ```typescript
 // Specification only; runtime schemas must implement and validate these contracts.
 type ExecutionContext = {
-  conversationId: string; cityId: string; runId: string; traceId: string;
+  conversationId: string; cityId: string; admissionId: string;
+  runId: string; traceId: string;
   mode: 'live' | 'replay' | 'shadow'; deadlineUtc: string;
-}; // Created by server; never accepted verbatim from model or caller.
+}; // Created/resolved by server; admissionId is an opaque authorization scope.
+   // The context is never accepted verbatim from model, browser, or caller.
 type Outcome<T> =
   | { status: 'completed'; value: T }
   | { status: 'needs_input'; fields: string[] }
@@ -158,6 +163,6 @@ Review diagram/ownership with Dror. Implement central runtime schemas before int
 
 ## 11. Related specifications
 
-[Workflow](spec-process-workflow.md), [voice](spec-design-voice.md), [integrations](spec-tool-integrations.md), [security/observability](spec-process-security-observability.md), [plan](../DEVELOPMENT_PLAN.md).
+[Application Core](spec-architecture-application-core.md), [workflow](spec-process-workflow.md), [voice](spec-design-voice.md), [integrations](spec-tool-integrations.md), [security/observability](spec-process-security-observability.md), [plan](../DEVELOPMENT_PLAN.md).
 
 Primary references: [ports/adapters](https://alistair.cockburn.us/hexagonal-architecture), [LiveKit workflows](https://docs.livekit.io/agents/logic/workflows/), [Pipecat typed frames](https://docs.pipecat.ai/api-reference/server/frames/overview).

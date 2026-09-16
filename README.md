@@ -11,6 +11,7 @@ Planning workspace for the Threefold take-home assignment: a municipal voice age
 - [Decision rationale: why Boulder, OpenAI, and this design](DECISIONS.md)
 - [Detailed development plan, milestones, checks, and commits](DEVELOPMENT_PLAN.md)
 - [Architecture diagram and shared interfaces](spec/spec-architecture-system.md)
+- [Application Core responsibilities, use cases, and ports](spec/spec-architecture-application-core.md)
 - [Simple responsive UI concept — selected P0 direction](design/README.md)
 - [Component specifications](spec/)
 - [Agent engineering instructions](AGENTS.md)

@@ -1,7 +1,7 @@
 ---
 title: Assignment-first development and delivery plan
 version: 1.0-review
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 ---
 
@@ -50,8 +50,8 @@ Estimates are provisional focused engineering effort, excluding this planning co
 Dependencies: G0.
 
 - T00: Create isolated implementation worktree from clean current `main`; read root and affected ancestor/local `AGENTS.md` instructions and keep planning docs available.
-- T01: Initialize selected runtime, pinned dependencies/lockfile, core/adapters/server/web/test layout; shared runtime schemas. Document local React/Node and Supabase/container prerequisites and a reproducible dev startup path, with dev/prod config isolation. Establish ADR-013 value ownership: cohesive named constants/shared codes, validated configuration boundaries, small English message catalogs with typed placeholders, and versioned prompt/procedure files as needed. Avoid a global miscellaneous constants file or speculative translation framework.
-- T02: Wire composition root, provider-neutral fakes/fixed Clock, normalized event/trace context, config validation, safe health endpoints. Keep the Linear API mock behind test-only composition; local/deployed E2E and production require verified real endpoint/board configuration with no fallback.
+- T01: Initialize selected runtime, pinned dependencies/lockfile, core/adapters/server/web/test layout; shared runtime schemas. Establish the [Application Core](spec/spec-architecture-application-core.md) dependency boundary and conceptual contract shapes without implementing speculative ports or empty layer trees. Document local React/Node and Supabase/container prerequisites and a reproducible dev startup path, with dev/prod config isolation. Establish ADR-013 value ownership: cohesive named constants/shared codes, validated configuration boundaries, small English message catalogs with typed placeholders, and versioned prompt/procedure files as needed. Avoid a global miscellaneous constants file or speculative translation framework.
+- T02: Wire composition root, named core use-case boundaries, provider-neutral fakes/fixed Clock, normalized event/trace context, config validation, and safe health endpoints. Keep UI/session reads behind bounded application views and keep the Linear API mock behind test-only composition; local/deployed E2E and production require verified real endpoint/board configuration with no fallback.
 - T03: Add package scripts and CI definition for typecheck/lint/format/build/core/contracts/architecture, SPEC traceability, and dependency checks using the recommended modern toolkit. Architecture checks enforce core dependency boundaries and `AGENTS.md` coverage in every maintained folder with explicit generated/vendor/runtime exclusions. Create local notes alongside each folder's first maintained files; follow the architecture layout without empty scaffolding. Define the scenario-to-check manifest with honest planned/implemented states. Verify supported compatible stable dependencies/Node LTS, direct-package rationale, pinning/lockfile and reproducible installs. CI must not require paid models.
 - T04: Implement initial session admission/ownership and bounded local-development settings; no unsafe public endpoint used in M1.
 - T05: Record model/hosting/provider prerequisites and secrets checklist without secret values. Resolve Q2/Q3/Q6/Q7/Q9 sufficiently for local design; external values needed by G2/G3.
@@ -78,6 +78,8 @@ Commits: `feat: connect browser voice to a controlled backend`; `data: add revie
 ### M2 — core workflow and durable state (2–3 hours)
 
 Dependencies: M0/G1; local Supabase prerequisites for real DB checks. Cloud project provisioning belongs to release preparation.
+
+Implement the provider-free domain/use-case slice before its Supabase adapter. The core tests establish behavioral meaning; database tests then prove the atomic persistence contract. M1 is an early provider feasibility spike, not the foundation of core authority.
 
 - T20: Implement pure DB-config policy with server Clock, interval/weekday/holiday/DST/validity validation, and unsupported ticket-always setting rejection.
 - T21: Implement draft intake schemas, current-revision confirmation request/evidence, correction invalidation, and explicit transition/result types.

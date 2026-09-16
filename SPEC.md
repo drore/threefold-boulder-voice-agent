@@ -1,7 +1,7 @@
 ---
 title: Boulder municipal voice agent
 version: 1.0-review
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 ---
 
@@ -249,6 +249,7 @@ P0 scenarios gate submission. P1 scenarios define later behavior.
 ## 9. Detailed specifications and development plan
 
 - [Architecture/contracts](spec/spec-architecture-system.md)
+- [Application Core/use-case contracts](spec/spec-architecture-application-core.md) — review proposal; finalize before implementation.
 - [Workflow/intake/configuration](spec/spec-process-workflow.md)
 - [Knowledge/freshness](spec/spec-data-knowledge.md)
 - [Voice/reasoning](spec/spec-design-voice.md)

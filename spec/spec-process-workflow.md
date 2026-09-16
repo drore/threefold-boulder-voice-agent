@@ -2,7 +2,7 @@
 title: Intake, confirmation, deterministic routing, and workflow control
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [process, policy, configuration]
 ---
@@ -11,7 +11,7 @@ tags: [process, policy, configuration]
 
 ## 1. Purpose and scope
 
-Define P0 information and nonurgent service-report behavior, DB configuration, and action safety. P1 ticket-always execution is a later extension. [Root SPEC](../SPEC.md) owns scope; [architecture](spec-architecture-system.md) owns shared contracts.
+Define P0 information and nonurgent service-report behavior, DB configuration, and action safety. P1 ticket-always execution is a later extension. [Root SPEC](../SPEC.md) owns scope; [system architecture](spec-architecture-system.md) owns shared envelopes and the [Application Core specification](spec-architecture-application-core.md) owns core use-case/port semantics.
 
 ## 2. Definitions
 
@@ -22,7 +22,7 @@ Define P0 information and nonurgent service-report behavior, DB configuration, a
 - WFL-001: Information bypasses staff-action policy and persists a conversation; no tickets/transfer.
 - WFL-002: Pothole requires location (address/intersection) and issue description. Park maintenance requires park/location and issue description. Optional landmark narrows ambiguous location. Names/phone/email are not required in P0.
 - WFL-003: Confirm critical collected details before staff action. Do not assert verified/geocoded address from mere caller confirmation.
-- WFL-004: Use actual observed caller evidence, not model `confirmed:true`. Bind evidence to draft ID/revision and a pending confirmation request. Clear ambiguous yes/no references by asking again.
+- WFL-004: Use actual observed caller evidence, not model `confirmed:true`. Bind evidence to draft ID/revision and a pending confirmation request. Evidence must belong to the same admission/channel scope, be complete/final, occur after that confirmation prompt was issued, reference its prompt/summary, and be consumed at most once. Clear ambiguous yes/no references by asking again.
 - WFL-005: Read validated DB configuration and server time at authorization; pure policy returns route/ticket/unavailable with explanation.
 - WFL-006: Serialize competing transitions for the same draft via DB atomic compare-and-set. Persist operation before external mutation.
 - WFL-007: Repeated calls/reconnects return tracked operation state. An unclear timeout is not permission to recreate.
@@ -44,7 +44,7 @@ Request contract:
 | requestType | `pothole` or `park_maintenance`, chosen from supported enums then validated against context. |
 | location | `{kind: address|intersection|park, text, landmark?}`; nonempty bounded text, caller-provided provenance. |
 | description | Bounded caller issue text, retained separately from trusted prompts. |
-| confirmation | Pending summary/revision and evidence ref; timestamp/provenance; invalidated on correction. |
+| confirmation | Pending prompt/summary ID, revision and issued time; evidence ref with same admission/channel scope, complete/final status, observed time and provenance; single-use consumption; invalidated on correction. |
 | state | collecting, awaiting_confirmation, ready, executing, completed, uncertain, failed, cancelled. |
 
 Application entry points (specification signatures):
@@ -68,6 +68,7 @@ stateDiagram-v2
   executing --> completed: verified provider receipt
   executing --> uncertain: commit status unknown
   executing --> failed: known failure
+  executing --> cancelled: verified simulated-transfer cancellation
   collecting --> cancelled: caller cancels
   awaiting_confirmation --> cancelled: caller cancels
   ready --> cancelled: caller cancels before execution
@@ -112,6 +113,6 @@ Map checks to A4–A7/A12–A14/A18/A23/A24. Record current config source and va
 
 ## 11. Related specifications
 
-[Voice](spec-design-voice.md), [integrations](spec-tool-integrations.md), [knowledge](spec-data-knowledge.md), [evaluation](spec-process-evaluation.md).
+[Application Core](spec-architecture-application-core.md), [voice](spec-design-voice.md), [integrations](spec-tool-integrations.md), [knowledge](spec-data-knowledge.md), [evaluation](spec-process-evaluation.md).
 
 Sources: [city hours](https://bouldercolorado.gov/contact-us), [pothole intake](https://bouldercolorado.gov/services/transportation-maintenance), [Live task state](https://developers.openai.com/api/docs/guides/live-delegation).

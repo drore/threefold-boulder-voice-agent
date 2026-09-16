@@ -2,7 +2,7 @@
 title: Persistence, Linear tickets, and simulated transfer adapters
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [tool, persistence, integrations]
 ---
@@ -31,6 +31,7 @@ Implement first ConversationStore/CityConfigStore on Supabase, TicketProvider on
 - INT-010: Linear is the real external ticket system. Create, readback, authorized detail/status retrieval, and reconciliation use its API in approved local E2E/deployed operation. Supabase references/receipts/snapshots do not replace current provider reads. Fakes and the local API mock provide no real Linear evidence.
 - INT-011: Ticket reads require a server-authorized operation/conversation-to-provider reference and approved team. Reject unrelated references before calling Linear; validate returned identity/team and bounded fields. Treat remote ticket text as untrusted data and enforce the existing read deadline/attempt/session budgets.
 - INT-012: The Linear test harness exposes only the GraphQL-over-HTTP operations the real adapter consumes. Reuse the production operation documents and runtime response schemas; validate operation name/variables and return realistic data/errors, HTTP status, and relevant rate-limit headers for success, rejection, partial/GraphQL error, rate limit, timeout-after-commit, not-found, and read-unavailable fixtures. Do not implement a generic GraphQL engine, local board UI, or provider capabilities we have not verified.
+- INT-013: Before each provider mutation/read attempt, atomically persist and consume a unique started attempt number under the operation budget. Completion updates that attempt. A started attempt without a terminal result after interruption is potentially committed for writes and must enter recovery/reconciliation rather than blind retry.
 
 ## 4. Interfaces and data contracts
 
@@ -46,7 +47,7 @@ Proposed DB entities (schema/migration implementation in M2):
 | operations | conversation/draft revision, action kind, unique correlation/idempotency key, authorized config/time, state/deadline, receipt/ref |
 | operation_attempts | operation FK, attempt number, timing, provider/status/error classification; unique attempt identity |
 
-Ownership FKs and unique constraints are required. Atomic prepare-operation transition rechecks scope/revision/confirmation/blocked state/quota and records execution intent in one DB transaction. Network mutation is outside that transaction. Receipt update checks operation state and retains evidence if caller disconnected.
+Ownership FKs and unique constraints are required. Atomic prepare-operation transition rechecks admission scope/revision/confirmation/blocked state/quota and records execution intent in one DB transaction. Before each provider call, persist a unique started attempt and consume its budget; the initial attempt may be part of preparation. Network work is outside database transactions. Receipt update checks operation state and retains evidence if caller disconnected. Recovery treats an unterminated started write attempt as potentially committed.
 
 DB access recommendation: private application tables with a restricted server role and encrypted pooled connection; alternatively a server-only Supabase client with tightly reviewed grants/RLS and explicit app authorization. Select credential/access mode at M0/M2. Never expose secret/service-role credentials; service-role bypasses RLS and therefore cannot substitute for authorization. RLS must be enabled on exposed tables with deliberate grants/policies; revoke unnecessary browser-role access. Do not casually introduce SECURITY DEFINER functions.
 
