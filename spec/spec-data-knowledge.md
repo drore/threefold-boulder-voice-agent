@@ -2,7 +2,7 @@
 title: Official knowledge, evidence contracts, and freshness
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 owner: Dror Elovits
 tags: [data, grounding]
 ---
@@ -56,7 +56,8 @@ Initial source manifest targets:
 | Pothole intake | official transportation maintenance | Website inspected; reviewed corpus not built |
 | Park maintenance | park regulations/information | Website inspected |
 | Park/shelter guidance | general park rules; shelter reservations | Relevant pages identified; recheck restrictions/details at ingestion |
-| Glass containers / park hours | actual BRC 8-3-9 and relevant 8-3-3.G(11) text | Code acquisition and amendment review mandatory M1 gate |
+| Glass containers | [actual BRC 8-3-9](https://library.municode.com/co/boulder/codes/municipal_code?nodeId=TIT8PAOPSPSTPUWA_CH3PAREPESPMOPA_8-3-9GLBOPR) | Inspected September 16 in Supplement 167 Update 3; prescription-medication exception and applicability recorded; pre-delivery amendment check pending |
+| Park closure hours | [city park-rules guidance](https://bouldercolorado.gov/general-park-rules-and-regulations) | Website guidance inspected; BRC 8-3-3 authorizes city-manager rules, while the 11 p.m.–5 a.m. detail is published as rule guidance, not that code section's verbatim text |
 | Current events | official calendar plus selected detail pages | Listings inspected; individual details required |
 | Current news | official news plus selected details | Listings inspected; current details required |
 
@@ -92,7 +93,7 @@ Park guidance hours do not define city office hours. Missing event time -> say s
 
 ## 10. Validation criteria
 
-M1 acquires and verifies at least one code answer with actual text and one separate website answer. M4 builds the bounded dated event index and reviewed news documents with a refresh path. M6 refreshes before submission and records manifest/revision/date against A1–A3/A11/A19. No corpus/eval exists yet.
+One actual code section and its applicability/exception have now been inspected; the reviewed runtime corpus, answer behavior, and separate website-answer check remain M1/M4 work. M4 builds the bounded dated event index and reviewed news documents with a refresh path. M6 refreshes before submission and records manifest/revision/date against A1–A3/A11/A19. No corpus/eval exists yet.
 
 ## 11. Related specifications
 

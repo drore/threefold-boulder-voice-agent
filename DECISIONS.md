@@ -23,7 +23,7 @@ This is repository engineering documentation. The separate D3 submission writeup
 
 **Alternatives:** Evanston and Palo Alto were considered in the September 14 planning discussion. Boulder was chosen for the balance of understandable source material and manageable workflows. This is a fit judgment for our assignment, not a measured ranking of city data quality.
 
-**Tradeoff:** The code library's acquisition path is still a risk. A website that cites a code section is insufficient evidence of actual-code coverage. Two departments also leave legitimate city requests outside our supported scope.
+**Tradeoff:** The current Municode BRC 8-3-9 text is now accessible in a browser, but the application still needs a reviewed passage, amendment refresh, and an answer path. The city's short glass-container guidance omits the code's prescription-medication exception, so website text cannot substitute for actual-code evidence. Two departments also leave legitimate city requests outside our supported scope.
 
 **Reconsider when:** M1 cannot acquire usable actual code or the selected workflows cannot be verified. First investigate another accessible code topic within Boulder; a city/scope change goes to Dror and must retain all mandatory capabilities.
 
