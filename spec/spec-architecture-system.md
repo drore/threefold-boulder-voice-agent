@@ -26,7 +26,7 @@ Define the boundaries of the P0 modular application and the seams for P1 provide
 - ARC-005: Workflow owns side effects, state, deadlines, and retry policy. Reasoning returns proposals; it never acquires mutation credentials.
 - ARC-006: Explicit provider capabilities and unsupported outcomes; avoid a lowest-common-denominator interface that silently changes behavior.
 - ARC-007: Stable provider-neutral operational events and trace propagation across asynchronous work.
-- ARC-008: Maintain cohesive responsibility-based folders and a concise `AGENTS.md` in every maintained folder, including nested folders. Exclude generated/vendor/runtime content and Git internals; local notes inherit ancestor instructions. Create folders as needed rather than generating empty layers.
+- ARC-008: Maintain cohesive responsibility-based folders. Root instructions apply repository-wide; add a nested `AGENTS.md` only for non-obvious local responsibility, dependency/safety boundaries, conventions, specialized checks, or pitfalls. Do not generate empty layers or instruction files for structural symmetry.
 - ARC-009: Presentation/session layers invoke named Application Core use cases and consume bounded views. They do not read provider/storage adapters directly. Reasoning proposals pass through core validation and cannot invoke effect adapters.
 
 ```mermaid
@@ -104,7 +104,7 @@ type DomainEvent = {
 
 Events include draft_updated, confirmation_requested/recorded/invalidated, evidence_selected, policy_decided, operation_started/attempted/completed/uncertain/failed, conversation_closed, and request_blocked. Keep enum definitions central. Event delivery and API retries can repeat; consumers deduplicate by event/operation ID.
 
-Maintained layout target follows the existing responsibility boundaries. The root, `spec/`, and `design/` currently hold planning documents/concepts; application folders below are created during authorized implementation when they first contain maintained files. Every maintained folder has its own `AGENTS.md`; repeated note files are omitted from the tree for readability.
+Maintained layout target follows the existing responsibility boundaries. The root, `spec/`, and `design/` currently hold planning documents/concepts; application folders below are created during authorized implementation when they first contain maintained files. Nested `AGENTS.md` files are added only where local guidance is materially different; they are omitted from the tree for readability.
 
 ```text
 /
@@ -129,7 +129,7 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 
 Keep module constants and message catalogs near their consumers; introduce a shared location only for demonstrated reuse. Provider-specific subfolders and test-suite subfolders are added when actual files justify them, with their own notes. Avoid miscellaneous utility folders, unnecessary package/workspace splits, and directory trees that mirror every conceptual layer as a service. Source moves update imports, tooling paths, notes, and SPEC references together. Select libraries/pinned versions in M0, not in core contracts.
 
-Local `AGENTS.md` notes contain the folder's purpose, authoritative SPEC links, allowed dependencies/boundaries, relevant checks, and local pitfalls. They inherit ancestor instructions rather than duplicating root policy. They are repository maintenance instructions, separate from runtime agent prompts in `prompts/`. Check references/commands after changes; unavailable or future checks are labelled accordingly.
+When a nested `AGENTS.md` is justified, it contains only the non-obvious local purpose, authoritative SPEC links, allowed dependencies/boundaries, relevant checks, and pitfalls. It inherits root instructions without copying them and remains separate from runtime prompts in `prompts/`. A directory's existence alone is not justification.
 
 Readability/DRY follow root ADR-013. Share one policy, intake/workflow implementation, and schema definition where the same rule is used. Keep adapter interfaces small and code control flow explicit. Avoid unnecessary factories, inheritance, generic registries, and layers; a new abstraction needs demonstrated reuse or a meaningful external boundary.
 
@@ -139,11 +139,11 @@ Readability/DRY follow root ADR-013. Share one policy, intake/workflow implement
 - AC-002: Given a replacement TicketProvider substitute, when the same contract cases run, then required outcomes preserve their meaning.
 - AC-003: Given unsupported capability/configuration, when composed, then startup/action authorization rejects it explicitly.
 - AC-004: Given a forged context/destination in a tool argument, when validated, then server authority is retained and no unauthorized mutation occurs.
-- AC-005: Given a new maintained folder or a file move, when architecture checks run, then every maintained folder has a local note, references/imports remain valid, and prohibited core dependencies are rejected. Generated/vendor/runtime folders are explicitly excluded.
+- AC-005: Given a new folder or file move, when architecture/documentation checks run, then references/imports remain valid, prohibited core dependencies are rejected, and any nested `AGENTS.md` that exists has valid links and non-duplicative local guidance. Missing notes are reviewed by the non-triviality rule rather than blanket directory coverage.
 
 ## 6. Test automation strategy
 
-Planned targets: `npm run test:core`, `npm run test:contracts`, `npm run check:architecture`. The architecture check must detect prohibited SDK imports in core and missing `AGENTS.md` files in maintained folders, using explicit generated/vendor/runtime exclusions. Contract checks exercise success, classified error, uncertain outcome, cancellation, and repeated event delivery. Verify real adapters separately; substitutes alone do not establish compatibility.
+Planned targets: `npm run test:core`, `npm run test:contracts`, `npm run check:architecture`. The architecture check must detect prohibited SDK imports and dependency-direction violations in core. Documentation validation checks links/structure in root and any justified nested `AGENTS.md`; it does not require directory-wide coverage. Contract checks exercise success, classified error, uncertain outcome, cancellation, and repeated event delivery. Verify real adapters separately; substitutes alone do not establish compatibility.
 
 ## 7. Rationale and context
 

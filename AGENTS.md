@@ -41,10 +41,10 @@ This project is the Threefold Boulder municipal voice-agent assignment. Work wit
 ## Folder structure and local agent notes
 
 - Follow the maintained layout in `spec/spec-architecture-system.md`. Organize by cohesive responsibility, keep related files together, and add nested folders only when they improve navigation. Avoid miscellaneous `utils`/`helpers` dumping grounds, empty scaffolding, and one package per logical layer.
-- Every maintained project folder, including nested source, test, documentation, prompt, knowledge, migration, and configuration folders, must contain a concise `AGENTS.md`. Create/update it in the same commit as the folder's first maintained files or a responsibility change. Exclude Git internals, installed dependencies, vendor content, generated outputs, caches, and local runtime data.
-- Each local note states the folder's purpose, authoritative SPEC references, allowed dependencies/boundaries, relevant checks, and any local pitfalls. Inherit ancestor instructions; document local differences without copying the entire root policy or granting additional authorization.
-- Keep notes accurate: distinguish available commands from planned targets, avoid secrets/caller data, and update paths/references when moving files. Read applicable ancestor and local notes before changing a folder.
-- M0's architecture check must enforce maintained-folder note coverage and dependency boundaries. Keep its exclusions explicit; an `AGENTS.md` file alone does not prove the folder's implementation follows its instructions.
+- The root `AGENTS.md` applies repository-wide. Add a nested `AGENTS.md` only when a folder has non-obvious responsibility, safety constraints, dependency rules, format conventions, specialized checks, or pitfalls that are not clear enough from the root instructions and authoritative SPEC. A new folder does not automatically need one.
+- A useful nested note states only the local differences: purpose, authoritative SPEC references, allowed dependencies/boundaries, relevant checks, and pitfalls. Do not duplicate the root policy, create notes solely for structural symmetry, or use them to grant additional authorization.
+- Keep existing local notes accurate and remove them when their remaining guidance becomes trivial or moves to an authoritative document. Distinguish available commands from planned targets and never include secrets/caller data.
+- M0's architecture check enforces code dependency boundaries. Documentation validation checks links and structure in any `AGENTS.md` files that exist; it does not require one in every directory.
 
 ## Dependencies and versions
 
