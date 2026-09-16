@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import {
+  createBoulderEventsProvider,
+  type CityEventsProvider,
+} from "../adapters/boulder/events.js";
 import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import {
   confirmServiceReport,
@@ -69,14 +73,16 @@ export function buildLocalApp(
   ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
   reasoning?: { apiKey: string | undefined; request?: typeof fetch },
   access?: VisitorAccess,
+  events?: CityEventsProvider,
 ) {
   const app = fastify({
     logger: false,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
+  const eventsProvider = events ?? createBoulderEventsProvider({ clock });
   const handlers = {
     ...createAgentToolStubs(),
-    ...createReviewedKnowledgeToolHandlers(clock),
+    ...createReviewedKnowledgeToolHandlers(clock, eventsProvider),
     prepareServiceReport: createReportToolHandler(store),
   };
   if (!initialContext && !access) {

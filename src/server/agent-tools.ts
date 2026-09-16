@@ -92,7 +92,7 @@ export type AgentToolResult =
   | { status: "unavailable"; reason: "not_implemented" }
   | {
       status: "answered";
-      coverage: "reviewed_example";
+      coverage: "reviewed_example" | "live_official_source";
       answer: string;
       sources: readonly AgentSourceCard[];
       limitations: readonly string[];
@@ -100,7 +100,7 @@ export type AgentToolResult =
   | {
       status: "limited_coverage";
       coverage: "reviewed_examples_only";
-      reason: "unsupported_query" | "past_or_stale_event";
+      reason: "unsupported_query" | "source_unavailable";
       supportedTopics: readonly string[];
     }
   | {

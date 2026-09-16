@@ -279,6 +279,18 @@ The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation and
 
 **Tradeoff:** The current map and limits apply to one Node process and reset on restart. A disclosed code can be reused until rotated; the small process-wide visitor cap bounds abuse but does not replace durable multi-instance budgeting. Code delivery and deployed browser behavior must be verified before sharing the link.
 
+## 21. Why live-fetch and cache the official event calendar?
+
+**Status:** Accepted and implemented; live verification recorded 2026-09-16. **SPEC:** R2; ADR-009; knowledge spec.
+
+**Why:** Dror noted that events change constantly, so checked-in event records go stale between manual refreshes. The event provider now fetches the official Boulder calendar listing on demand, parses the dated event cards into bounded occurrences, and serves a 24-hour cache. Within the TTL the demo answers without refetching; on expiry it refetches and fails closed to limited coverage when the source is unreachable or unparsable. No event is invented, and stale cached events are never served after expiry.
+
+**Alternatives:** A checked-in event record is simpler but expires and needs manual re-verification before every demo. Detail-page enrichment would add times and verified statuses at the cost of one fetch per event; the current answer honestly defers those details to the linked official pages. A crawler/vector pipeline is unnecessary for one city's official listing.
+
+**Tradeoff:** The official listing is HTML without a published feed; parsing it depends on the city's current markup and needs the bounded-parser tests retained here. Listing cards do not state times or cancellation status, so answers say less than a reviewed detail page would. The provider adds one small maintained dependency (`cheerio`) for correct HTML parsing.
+
+**Reconsider when:** The city publishes a machine-readable calendar feed, detail-page enrichment is needed for reviewer questions, or the listing markup changes in a way the parser tests flag.
+
 ## Keeping the rationale current
 
 When an accepted decision changes, update its SPEC entry/contracts/tests as appropriate and this rationale in the same coherent change. Record the new status, reason, evidence/date, and affected alternatives. Git preserves the historical rationale. After a prototype or benchmark, distinguish observed results from the earlier hypothesis and update reconsideration conditions. Use concise explanations that a human can defend during the walkthrough.

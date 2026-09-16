@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type {
+  BoulderEventOccurrence,
+  CityEventsQueryResult,
+  CityEventsProvider,
+} from "../../src/adapters/boulder/events.js";
 import {
   agentToolDefinitions,
   callAgentTool,
@@ -21,15 +26,65 @@ const CONTEXT: AgentToolContext = {
 const SUPPORTED_REVIEWED_TOPICS = [
   "BRC 8-3-9 glass containers in parks/open space",
   "Boulder pothole reporting information",
-  "City Council Study Session on 2026-09-24",
+  "Upcoming events from the official Boulder calendar",
 ] as const;
 
+const FAKE_OCCURRENCES: readonly BoulderEventOccurrence[] = [
+  {
+    title: "City Council Study Session",
+    detailUrl:
+      "https://bouldercolorado.gov/events/city-council-study-session-61",
+    date: "2026-09-24",
+    locationText: "Virtual",
+    status: "unknown",
+  },
+  {
+    title: "City Council Meeting",
+    detailUrl: "https://bouldercolorado.gov/events/city-council-meeting-110",
+    date: "2026-09-17",
+    locationText: "Penfield Tate II Municipal Building",
+    status: "unknown",
+  },
+  {
+    title: "Planning Board Meeting (hybrid)",
+    detailUrl:
+      "https://bouldercolorado.gov/events/planning-board-meeting-hybrid-37",
+    date: "2026-09-15",
+    locationText: null,
+    status: "unknown",
+  },
+  {
+    title: "Downtown Management Commission Meeting",
+    detailUrl:
+      "https://bouldercolorado.gov/events/downtown-management-commission-meeting-31",
+    date: "2026-09-22",
+    locationText: "Virtual",
+    status: "unknown",
+  },
+];
+
+/** Input: fixed occurrences. Output: a provider whose cache is always fresh at the test clock. */
+function eventsProviderWith(
+  result: CityEventsQueryResult = {
+    status: "ok",
+    occurrences: FAKE_OCCURRENCES,
+    fetchedAtUtc: "2026-09-16T12:00:00.000Z",
+    expiresAtUtc: "2026-09-17T12:00:00.000Z",
+  },
+): CityEventsProvider {
+  return { upcomingEvents: vi.fn(async () => result) };
+}
+
 /**
- * Builds the reviewed local knowledge handlers with a deterministic server clock.
+ * Builds the reviewed local knowledge handlers with a deterministic server
+ * clock and a fake live-events provider.
  * Input: `"2026-09-16T12:00:00Z"`. Output: three lookup handlers.
  */
-function reviewedHandlers(nowUtc: string): Partial<AgentToolHandlers> {
-  return createReviewedKnowledgeToolHandlers(() => new Date(nowUtc));
+function reviewedHandlers(
+  nowUtc: string,
+  events: CityEventsProvider = eventsProviderWith(),
+): Partial<AgentToolHandlers> {
+  return createReviewedKnowledgeToolHandlers(() => new Date(nowUtc), events);
 }
 
 describe("agent tool boundary", () => {
@@ -389,7 +444,7 @@ describe("agent tool boundary", () => {
     expect(result).toMatchObject({ status: "limited_coverage" });
   });
 
-  it("answers the reviewed dated council event while it is upcoming", async () => {
+  it("answers upcoming council events from the live official calendar", async () => {
     const result = await callAgentTool(
       "findCityEvents",
       { query: "Any upcoming city council event?" },
@@ -402,19 +457,35 @@ describe("agent tool boundary", () => {
 
     expect(result).toMatchObject({
       status: "answered",
-      coverage: "reviewed_example",
-      sources: [{ kind: "city_event" }],
+      coverage: "live_official_source",
+      sources: [
+        { kind: "city_event", title: "City Council Meeting" },
+        { kind: "city_event", title: "City Council Study Session" },
+      ],
     });
     expect(result.status === "answered" && result.answer).toContain(
-      "2026-09-24",
+      "City Council Meeting",
+    );
+    expect(result.status === "answered" && result.answer).toContain("Sep 17");
+    expect(result.status === "answered" && result.answer).toContain(
+      "Penfield Tate II Municipal Building",
     );
     expect(result.status === "answered" && result.answer).toContain(
-      "18:00 to 21:00 America/Denver",
+      "City Council Study Session",
     );
-    expect(result.status === "answered" && result.answer).toContain("virtual");
+    expect(result.status === "answered" && result.answer).toContain("Sep 24");
+    expect(result.status === "answered" && result.answer).toContain(
+      "(virtual)",
+    );
+    expect(result.status === "answered" && result.answer).not.toContain(
+      "Planning Board",
+    );
+    expect(result.status === "answered" && result.answer).not.toContain(
+      "Downtown Management",
+    );
   });
 
-  it("uses a structured date range to answer the reviewed event", async () => {
+  it("honors a structured date range for the live calendar answer", async () => {
     const result = await callAgentTool(
       "findCityEvents",
       {
@@ -428,10 +499,17 @@ describe("agent tool boundary", () => {
         ...reviewedHandlers("2026-09-16T12:00:00Z"),
       },
     );
+
     expect(result).toMatchObject({ status: "answered" });
+    expect(result.status === "answered" && result.answer).toContain(
+      "City Council Study Session",
+    );
+    expect(result.status === "answered" && result.answer).not.toContain(
+      "City Council Meeting",
+    );
   });
 
-  it("does not present the reviewed event as upcoming after the server clock passes it", async () => {
+  it("does not present past-dated calendar entries as upcoming", async () => {
     const result = await callAgentTool(
       "findCityEvents",
       { query: "Any upcoming city council event?" },
@@ -442,15 +520,12 @@ describe("agent tool boundary", () => {
       },
     );
 
-    expect(result).toEqual({
-      status: "limited_coverage",
-      coverage: "reviewed_examples_only",
-      reason: "past_or_stale_event",
-      supportedTopics: SUPPORTED_REVIEWED_TOPICS,
-    });
+    expect(result.status === "answered" && result.answer).toBe(
+      "No upcoming City Council events appear on the official Boulder calendar in the checked date range.",
+    );
   });
 
-  it("does not return the reviewed event for a requested date range that excludes it", async () => {
+  it("answers honestly when a requested range has no events", async () => {
     const result = await callAgentTool(
       "findCityEvents",
       {
@@ -465,13 +540,34 @@ describe("agent tool boundary", () => {
       },
     );
 
-    expect(result).toMatchObject({
+    expect(result.status === "answered" && result.answer).toBe(
+      "No upcoming City Council events appear on the official Boulder calendar in the checked date range.",
+    );
+  });
+
+  it("returns limited coverage when the live calendar source is unavailable", async () => {
+    const result = await callAgentTool(
+      "findCityEvents",
+      { query: "Any upcoming city council event?" },
+      CONTEXT,
+      {
+        ...createAgentToolStubs(),
+        ...reviewedHandlers(
+          "2026-09-16T12:00:00Z",
+          eventsProviderWith({ status: "source_unavailable" }),
+        ),
+      },
+    );
+
+    expect(result).toEqual({
       status: "limited_coverage",
-      reason: "unsupported_query",
+      coverage: "reviewed_examples_only",
+      reason: "source_unavailable",
+      supportedTopics: SUPPORTED_REVIEWED_TOPICS,
     });
   });
 
-  it("does not answer a different explicit event date with the reviewed September 24 event", async () => {
+  it("does not answer a different explicit event date with the checked calendar window", async () => {
     const handlers = {
       ...createAgentToolStubs(),
       ...reviewedHandlers("2026-09-16T12:00:00Z"),
@@ -491,23 +587,6 @@ describe("agent tool boundary", () => {
       );
       expect(result).toMatchObject({ status: "limited_coverage" });
     }
-  });
-
-  it("does not return the reviewed event when its verification is stale before the event date", async () => {
-    const result = await callAgentTool(
-      "findCityEvents",
-      { query: "Any upcoming city council event?" },
-      CONTEXT,
-      {
-        ...createAgentToolStubs(),
-        ...reviewedHandlers("2026-09-23T12:00:00Z"),
-      },
-    );
-
-    expect(result).toMatchObject({
-      status: "limited_coverage",
-      reason: "past_or_stale_event",
-    });
   });
 
   it("treats malformed event date ranges as limited coverage", async () => {

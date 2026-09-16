@@ -8,6 +8,10 @@ import {
   it,
   vi,
 } from "vitest";
+import type {
+  BoulderEventOccurrence,
+  CityEventsProvider,
+} from "../../src/adapters/boulder/events.js";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
@@ -177,6 +181,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     cityId: string,
     time: string | (() => Date),
     ticketing?: Parameters<typeof buildLocalApp>[4],
+    events?: Parameters<typeof buildLocalApp>[7],
   ) {
     const store = new PostgresDraftStore(pool);
     const opened = await store.openConversation(cityId);
@@ -187,6 +192,9 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
       new PostgresCityPolicyStore(pool),
       typeof time === "string" ? () => new Date(time) : time,
       ticketing,
+      undefined,
+      undefined,
+      events,
     );
     await app.ready();
     sessions.push({ app, context: opened.context });
@@ -211,17 +219,44 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     };
   }
 
-  it("serves the three reviewed knowledge examples through the running app boundary", async () => {
-    const app = await openSession("boulder-co", "2026-09-16T16:00:00Z");
-    for (const [tool, query, sourceKind] of [
-      ["lookupMunicipalCode", "What is BRC 8-3-9?", "municipal_code"],
-      ["lookupCityInformation", "How do I report a pothole?", "city_website"],
-      [
-        "findCityEvents",
-        "Is there a city council study session coming up?",
-        "city_event",
-      ],
-    ] as const) {
+  it("serves the reviewed knowledge examples and live calendar events through the running app boundary", async () => {
+    const fakeOccurrences: readonly BoulderEventOccurrence[] = [
+      {
+        title: "City Council Meeting",
+        detailUrl:
+          "https://bouldercolorado.gov/events/city-council-meeting-110",
+        date: "2026-09-17",
+        locationText: "Penfield Tate II Municipal Building",
+        status: "unknown",
+      },
+    ];
+    const fakeEvents: CityEventsProvider = {
+      upcomingEvents: vi.fn(async () => ({
+        status: "ok" as const,
+        occurrences: fakeOccurrences,
+        fetchedAtUtc: "2026-09-16T12:00:00.000Z",
+        expiresAtUtc: "2026-09-17T12:00:00.000Z",
+      })),
+    };
+    const app = await openSession(
+      "boulder-co",
+      "2026-09-16T16:00:00Z",
+      undefined,
+      fakeEvents,
+    );
+    const reviewedCases = [
+      {
+        tool: "lookupMunicipalCode",
+        query: "What is BRC 8-3-9?",
+        sourceKind: "municipal_code",
+      },
+      {
+        tool: "lookupCityInformation",
+        query: "How do I report a pothole?",
+        sourceKind: "city_website",
+      },
+    ] as const;
+    for (const { tool, query, sourceKind } of reviewedCases) {
       const response = await app.inject({
         method: "POST",
         url: "/api/local/knowledge",
@@ -234,6 +269,21 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
         sources: [{ kind: sourceKind }],
       });
     }
+
+    const events = await app.inject({
+      method: "POST",
+      url: "/api/local/knowledge",
+      payload: {
+        tool: "findCityEvents",
+        query: "Is there a city council study session coming up?",
+      },
+    });
+    expect(events.statusCode).toBe(200);
+    expect(events.json()).toMatchObject({
+      status: "answered",
+      coverage: "live_official_source",
+      sources: [{ kind: "city_event", title: "City Council Meeting" }],
+    });
 
     const unsupported = await app.inject({
       method: "POST",
