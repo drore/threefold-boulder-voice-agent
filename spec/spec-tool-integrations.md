@@ -76,6 +76,7 @@ Transfer input: allowed department/destination/config revision/operation ID. Sim
 - AC-007: Given a created authorized ticket, actual Linear readback returns matching provider identity/location/description and a timestamped state snapshot; needed refresh reads the provider rather than a local placeholder.
 - AC-008: Given an unrelated reference, provider read is blocked; given auth/GraphQL/rate-limit/not-found/unavailable outcomes, no private ticket is exposed, current status is not invented, and no create is triggered by a read failure.
 - AC-009: Given the Linear API mock, the real adapter emits the expected GraphQL operations and classifies response/error/rate-limit/timeout fixtures correctly without network credentials. Given local E2E, the app creates and reads back a real synthetic issue in the dedicated board; mock endpoints/configuration cannot satisfy or intercept that run.
+- AC-010 (first Linear slice): The adapter uses a server-held key and configured team to issue only the documented create and issue-by-ID GraphQL operations. A loopback mock verifies create payload and separate readback, including HTTP and GraphQL errors. An ambiguous create result is `uncertain` and never retried by the adapter. This slice makes no live Linear call and does not claim a ticket exists until an approved real run verifies it.
 
 ## 6. Test automation strategy
 
