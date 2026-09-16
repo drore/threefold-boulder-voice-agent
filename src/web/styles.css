@@ -156,6 +156,13 @@ h2 {
   resize: vertical;
 }
 
+.example-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
 .field input::placeholder,
 .field textarea::placeholder {
   color: #617582;

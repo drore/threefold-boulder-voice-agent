@@ -2,7 +2,7 @@
 
 Workspace for the Threefold take-home assignment: a municipal voice agent for Boulder, Colorado.
 
-**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. The separate Linear adapter passes loopback create/read tests but is not connected to this path. Municipal-code, city-information, and events tools remain unavailable stubs. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
+**Status: the local text form saves a pothole draft, accepts explicit confirmation of its current revision, reads Boulder hours and department mapping from Supabase Postgres, and displays the resulting mock routing decision. During closed hours it explains that no Linear ticket was created. Three reviewed, source-linked information examples work through the local agent-tool boundary and browser buttons. The separate Linear adapter passes loopback create/read tests but is not connected to the report path. Browser voice, real ticket creation, a second department route, and deployment remain unimplemented.**
 
 **Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
 
@@ -45,6 +45,8 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173`. Enter a pothole description and location, save, review the persisted summary, then confirm it. The server checks the current draft revision, Boulder policy row, and actual server time. If open, the page names the configured fictional Transportation number and says no call was placed. If closed, it says the Linear ticket path is pending and no ticket was created. Refreshing the page reloads the draft; the decision itself is not persisted. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. `.env.local` is Git-ignored; keep hosted credentials separate.
+
+The same page has three buttons for reviewed code, pothole guidance, and one City Council event. These call the server's agent-tool handlers without an OpenAI call. The event example is verified only through September 16, 2026 UTC; after its freshness horizon, it returns limited coverage until the source and checked-in record are reviewed again. The browser buttons prove only these examples, not general city search or spoken behavior.
 
 This is a single-developer, loopback-only harness. It does not submit a real service request, call OpenAI or Linear, place a phone call, or provide multi-user browser sessions. These are explicit later P0 gates, not claims of a completed assignment.
 

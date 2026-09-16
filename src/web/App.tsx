@@ -2,8 +2,27 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { ConfirmPotholeResult } from "../core/confirm-pothole-route.js";
 import type { PrepareReportResult } from "../core/prepare-service-report.js";
+import type { AgentToolResult } from "../server/agent-tools.js";
 
 type SavedReport = { status: "empty" } | PrepareReportResult;
+
+const KNOWLEDGE_EXAMPLES = [
+  {
+    label: "Glass in city parks",
+    tool: "lookupMunicipalCode",
+    query: "What is BRC 8-3-9 about glass containers in city parks?",
+  },
+  {
+    label: "Report a pothole",
+    tool: "lookupCityInformation",
+    query: "How do I report a pothole in Boulder?",
+  },
+  {
+    label: "Upcoming council study session",
+    tool: "findCityEvents",
+    query: "Is there an upcoming City Council study session?",
+  },
+] as const;
 
 const BLOCKED_MESSAGES: Record<string, string> = {
   invalid_input: "Please check the details and try again.",
@@ -27,6 +46,9 @@ export function App() {
   const [action, setAction] = useState<ConfirmPotholeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [knowledge, setKnowledge] = useState<AgentToolResult | null>(null);
+  const [knowledgeError, setKnowledgeError] = useState("");
+  const [loadingKnowledge, setLoadingKnowledge] = useState(false);
 
   useEffect(() => {
     const request = new AbortController();
@@ -133,6 +155,30 @@ export function App() {
       setError("Could not reach the local service. Please try again.");
     } finally {
       setConfirming(false);
+    }
+  }
+
+  /** Input: the reviewed code example button. Output: the server's cited answer or coverage limit. */
+  async function tryKnowledgeExample(
+    example: (typeof KNOWLEDGE_EXAMPLES)[number],
+  ) {
+    setLoadingKnowledge(true);
+    setKnowledge(null);
+    setKnowledgeError("");
+    try {
+      const response = await fetch("/api/local/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool: example.tool, query: example.query }),
+      });
+      if (!response.ok) throw new Error("The local service did not respond.");
+      setKnowledge((await response.json()) as AgentToolResult);
+    } catch {
+      setKnowledgeError(
+        "Could not load the reviewed answer from the local service.",
+      );
+    } finally {
+      setLoadingKnowledge(false);
     }
   }
 
@@ -272,6 +318,55 @@ export function App() {
               {saving ? "Saving…" : result ? "Update draft" : "Save draft"}
             </button>
           </form>
+        )}
+      </section>
+
+      <section className="report-card" aria-labelledby="knowledge-heading">
+        <h2 id="knowledge-heading">Try three sourced answers</h2>
+        <p className="form-hint">
+          These reviewed examples demonstrate municipal code, city service
+          information, and one dated event. They are not a complete Boulder
+          knowledge base.
+        </p>
+        <div className="example-actions">
+          {KNOWLEDGE_EXAMPLES.map((example) => (
+            <button
+              type="button"
+              key={example.tool}
+              disabled={loadingKnowledge}
+              onClick={() => tryKnowledgeExample(example)}
+            >
+              {example.label}
+            </button>
+          ))}
+        </div>
+        {loadingKnowledge && <p role="status">Checking reviewed source…</p>}
+        {knowledgeError && (
+          <p role="alert" className="error">
+            {knowledgeError}
+          </p>
+        )}
+        {knowledge?.status === "answered" && (
+          <div className="notice" role="status">
+            <p>{knowledge.answer}</p>
+            {knowledge.sources.map((source) => (
+              <p key={source.url}>
+                Source:{" "}
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  {source.title}
+                </a>
+                {source.excerpt && <> · “{source.excerpt}…”</>} · reviewed{" "}
+                {source.verifiedOn}
+              </p>
+            ))}
+            <p>{knowledge.limitations.join(" ")}</p>
+          </div>
+        )}
+        {knowledge?.status === "limited_coverage" && (
+          <p role="status" className="form-hint">
+            This reviewed example is unavailable for the question or date.
+            Consult official Boulder sources for current information.
+          </p>
         )}
       </section>
 

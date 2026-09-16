@@ -192,6 +192,45 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     };
   }
 
+  it("serves the three reviewed knowledge examples through the running app boundary", async () => {
+    const app = await openSession("boulder-co", "2026-09-16T16:00:00Z");
+    for (const [tool, query, sourceKind] of [
+      ["lookupMunicipalCode", "What is BRC 8-3-9?", "municipal_code"],
+      ["lookupCityInformation", "How do I report a pothole?", "city_website"],
+      [
+        "findCityEvents",
+        "Is there a city council study session coming up?",
+        "city_event",
+      ],
+    ] as const) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/local/knowledge",
+        payload: { tool, query },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        status: "answered",
+        coverage: "reviewed_example",
+        sources: [{ kind: sourceKind }],
+      });
+    }
+
+    const unsupported = await app.inject({
+      method: "POST",
+      url: "/api/local/knowledge",
+      payload: { tool: "lookupCityInformation", query: "Who is the mayor?" },
+    });
+    expect(unsupported.json()).toMatchObject({ status: "limited_coverage" });
+
+    const unauthorizedTool = await app.inject({
+      method: "POST",
+      url: "/api/local/knowledge",
+      payload: { tool: "prepareServiceReport", query: "report a pothole" },
+    });
+    expect(unauthorizedTool.statusCode).toBe(400);
+  });
+
   it("uses the DB destination to simulate open-hours routing only after current confirmation", async () => {
     const app = await openSession("boulder-co", "2026-09-16T16:00:00Z");
     const noDraft = await app.inject({

@@ -79,8 +79,30 @@ export type AgentToolInput =
       };
     };
 
+export type AgentSourceCard = {
+  title: string;
+  url: string;
+  kind: "municipal_code" | "city_website" | "city_event";
+  verifiedOn: string;
+  note: string;
+  excerpt?: string;
+};
+
 export type AgentToolResult =
   | { status: "unavailable"; reason: "not_implemented" }
+  | {
+      status: "answered";
+      coverage: "reviewed_example";
+      answer: string;
+      sources: readonly AgentSourceCard[];
+      limitations: readonly string[];
+    }
+  | {
+      status: "limited_coverage";
+      coverage: "reviewed_examples_only";
+      reason: "unsupported_query" | "past_or_stale_event";
+      supportedTopics: readonly string[];
+    }
   | {
       status: "rejected";
       reason:

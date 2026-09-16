@@ -32,7 +32,7 @@ Satisfy R1 municipal code AND website answers and R2 current events using a boun
 
 `KnowledgeProvider.retrieve(ctx, query, topic?, nowUtc) -> EvidenceBundle`.
 
-The reasoning backend uses distinct `lookupMunicipalCode` and `lookupCityInformation` tools, both backed by the core's `retrieveEvidence` with separate source/type filters. `KnowledgeProvider` remains an internal port rather than a direct model credential or unrestricted web search. The distinct `findCityEvents` tool has a local-date range and event-specific status/timezone semantics; it uses the core's `findEvents` use case and `CityEventProvider` port when implemented. The session coordinator supplies server-owned scope and trusted time for all three tools. No source is trusted merely because the model requested it.
+The reasoning backend uses distinct `lookupMunicipalCode` and `lookupCityInformation` tools. The current interview slice serves three checked-in reviewed examples directly through these tools; `KnowledgeProvider`, `retrieveEvidence`, and a broader corpus are later design seams, not prerequisites to demonstrate the assignment. The distinct `findCityEvents` tool accepts a local-date range and uses trusted server time. It serves one checked event with a freshness cutoff. No source is trusted merely because the model requested it.
 
 `CityEventProvider.search(ctx, {query, startDate?, endDate?}, nowUtc) -> EventSearchResult` is a separate dated-data contract. An event occurrence carries title, canonical official detail URL, local date, `America/Denver` timezone, optional start/end time and location, source-observed status (`scheduled`, `cancelled`, `postponed`, or `unknown`), last-verified time, and any limitations. Search returns matching occurrences plus a freshness/coverage result; an empty list is not proof that no city events exist. The server interprets relative date phrases using trusted time, bounds the range, and checks current status before labeling an occurrence upcoming. For a same-day event without a start time, it can give the date but cannot assert that it has not started or ended.
 
@@ -53,12 +53,12 @@ Initial source manifest targets:
 
 | Topic | Source | Acquisition status |
 | --- | --- | --- |
-| Pothole intake | official transportation maintenance | Website inspected; reviewed corpus not built |
+| Pothole intake | official transportation maintenance | One reviewed local answer with source link; broader corpus not built |
 | Park maintenance | park regulations/information | Website inspected |
 | Park/shelter guidance | general park rules; shelter reservations | Relevant pages identified; recheck restrictions/details at ingestion |
 | Glass containers | [actual BRC 8-3-9](https://library.municode.com/co/boulder/codes/municipal_code?nodeId=TIT8PAOPSPSTPUWA_CH3PAREPESPMOPA_8-3-9GLBOPR) | Inspected September 16 in Supplement 167 Update 3; prescription-medication exception and applicability recorded; pre-delivery amendment check pending |
 | Park closure hours | [city park-rules guidance](https://bouldercolorado.gov/general-park-rules-and-regulations) | Website guidance inspected; BRC 8-3-3 authorizes city-manager rules, while the 11 p.m.–5 a.m. detail is published as rule guidance, not that code section's verbatim text |
-| Current events | official calendar plus selected detail pages | Listings inspected; individual details required |
+| Current events | official calendar plus selected detail pages | One September 24 City Council detail page reviewed; refresh before demo |
 | Current news | official news plus selected details | Listings inspected; current details required |
 
 Recommended refresh defaults for review: events/news verification <=24 hours; service pages <=7 days; code review before submission and whenever source version changes, with explicit amendment status. Never claim timeless validity from these intervals. Unknown/unverified legal currency is disclosed. P0 manifests have a known support/freshness horizon and refresh command; request path need not crawl the web.
@@ -74,6 +74,7 @@ Manual reviewed code acquisition is acceptable P0 if provenance/version is retai
 - AC-005: Given injected instructions inside a passage, then no tool scope/authorization changes.
 - AC-006: Given an event listing and its detail page, search returns a source-linked occurrence with the detail page's available date/time/location/status; missing time remains missing.
 - AC-007: Given a past occurrence, same-day occurrence without a time, cancellation, stale record, or unverified range, then the agent does not present it as a verified upcoming scheduled event.
+- AC-008 (implemented local slice): A checked-in, source-linked example each for BRC 8-3-9, the city's pothole-maintenance guidance, and one dated City Council event can be retrieved through the three existing agent tools and local browser buttons without a model call. Unsupported questions return an explicit limited-coverage result; the event result never claims to enumerate every city event.
 
 ## 6. Test automation strategy
 
@@ -93,7 +94,7 @@ Park guidance hours do not define city office hours. Missing event time -> say s
 
 ## 10. Validation criteria
 
-One actual code section and its applicability/exception have now been inspected; the reviewed runtime corpus, answer behavior, and separate website-answer check remain M1/M4 work. M4 builds the bounded dated event index and reviewed news documents with a refresh path. M6 refreshes before submission and records manifest/revision/date against A1–A3/A11/A19. No corpus/eval exists yet.
+One actual code section and its applicability/exception have been inspected. A minimal checked-in excerpt and three reviewed answer examples now pass local tool/API tests; the event example expires at 2026-09-17T00:00:00Z and fails closed afterward. This is not a general corpus, spoken answer path, refresh command, or model evaluation. Before a later demo, revisit each official detail page, check the code supplement/amendments and event status, update the recorded review date/event expiry and answer if needed, then rerun the tool/API tests. M4 still owns broader dated-event coverage if needed; M6 records fresh source evidence before submission.
 
 ## 11. Related specifications
 

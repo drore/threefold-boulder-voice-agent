@@ -12,9 +12,16 @@ import {
   createReportToolHandler,
   type AgentToolContext,
 } from "./agent-tools.js";
+import { createReviewedKnowledgeToolHandlers } from "./reviewed-knowledge.js";
 
 type ReportBody = { description?: string; location?: string };
 type ConfirmBody = { draftId: string; revision: number };
+type KnowledgeBody = {
+  tool: "lookupMunicipalCode" | "lookupCityInformation" | "findCityEvents";
+  query: string;
+  startDate?: string;
+  endDate?: string;
+};
 
 /**
  * Runs one local developer session through intake and DB-backed route simulation.
@@ -33,6 +40,7 @@ export function buildLocalApp(
   });
   const handlers = {
     ...createAgentToolStubs(),
+    ...createReviewedKnowledgeToolHandlers(clock),
     prepareServiceReport: createReportToolHandler(store),
   };
   let currentDraft: { draftId: string; revision: number } | null = null;
@@ -56,6 +64,49 @@ export function buildLocalApp(
   }
 
   app.get("/health", async () => ({ status: "ok" }));
+  app.post<{ Body: KnowledgeBody }>(
+    "/api/local/knowledge",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["tool", "query"],
+          properties: {
+            tool: {
+              type: "string",
+              enum: [
+                "lookupMunicipalCode",
+                "lookupCityInformation",
+                "findCityEvents",
+              ],
+            },
+            query: { type: "string", minLength: 1, maxLength: 500 },
+            startDate: { type: "string", maxLength: 10 },
+            endDate: { type: "string", maxLength: 10 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request) => {
+      const { tool, query, startDate, endDate } = request.body;
+      return callAgentTool(
+        tool,
+        {
+          query,
+          ...(startDate ? { startDate } : {}),
+          ...(endDate ? { endDate } : {}),
+        },
+        {
+          ...context,
+          runId: randomUUID(),
+          channel: "text",
+          observationIds: [],
+        },
+        handlers,
+      );
+    },
+  );
   app.get("/api/local/report", async () => {
     if (!currentDraft) return { status: "empty" };
     return callAgentTool(
