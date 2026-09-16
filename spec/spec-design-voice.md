@@ -11,7 +11,7 @@ tags: [design, voice, reasoning]
 
 ## 1. Purpose and scope
 
-P0 browser voice via planned GPT-Live with selected client delegation, independent reasoning/tool contracts, honest task updates, and session lifecycle. Exact model/access/event behavior must pass M1. P1 adds tone/representative UI; P2 telephony.
+P0 browser voice uses GPT-Live with client delegation, independent reasoning/tool contracts, honest task updates, and session lifecycle. The local WebRTC/session/delegation path is implemented and fake-tested; actual microphone, spoken replies, and event ordering still need M1 verification. P1 adds tone/representative UI; P2 telephony.
 
 Voice is one channel adapter into the shared server conversation workflow. The same agent-tool boundary and Application Core also support a later text-chat adapter; text does not require GPT-Live or voice delegation. The system architecture owns this channel-neutral boundary, while this document owns voice-specific media/events/playback behavior.
 
@@ -52,7 +52,7 @@ Selected client delegation: server owns transient transcripts/current task snaps
 
 The voice model requests a supported task; the server assembles observed caller details and current state for the reasoning backend. It does not receive `isWithinBusinessHours`, `decideBusinessHoursAction`, `TicketProvider`, or `TransferProvider` as callable tools. The coordinator maps validated reasoning proposals to the core's `updateDraft`, `requestConfirmation`, and `recordConfirmation` use cases. Only after the server verifies confirmation of the current draft revision may the coordinator call `executeRequest`. The core chooses the action from validated database configuration and trusted time, then returns a verified outcome for the coordinator to communicate through Live.
 
-The reasoning backend receives four bounded P0 tools from the server. The server validates every tool name and argument before passing it to the corresponding application capability. The current [tool boundary](../src/server/agent-tools.ts) exposes honest unavailable stubs; no provider, DB, or voice integration is implied by their existence.
+The reasoning backend proposes one bounded intent using `gpt-5.6-luna` Structured Outputs. The server validates the proposal and invokes one of four application capabilities through the [tool boundary](../src/server/agent-tools.ts). Reviewed code, service, and event examples and both service-report drafts now have handlers; other requests return honest limited coverage. The proposal cannot select a destination, confirm a draft, or create a ticket. Two live synthetic intent-classification calls succeeded, including a location-only report follow-up, but no spoken delegated result has yet been verified.
 
 | Agent tool | Model-supplied input | Application responsibility |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ The reasoning backend receives four bounded P0 tools from the server. The server
 
 Conversation/city scope, trusted time, observations, source allowlists, department mappings, and provider settings are supplied by the server. The model cannot pass URLs, source IDs, Linear destinations, permissions, confirmation booleans, or a business-hours outcome. Only the confirmed core `executeRequest` flow may cause a ticket or simulated route. Tool definitions are backend-owned in client delegation; GPT-Live delegates the conversation task rather than executing these application tools itself. The [knowledge spec](spec-data-knowledge.md) owns code/site evidence and event data rules.
 
-For client delegation, the server correlates `session.delegation.created` with scoped transcript and task state, executes its bounded reasoning workflow, and sends verified speakable results with `session.commentary.append` and the matching delegation ID. An append acknowledgment is not proof of playback. M1 validates actual event ordering and correction behavior. Responses delegation remains an alternative only if client delegation proves unworkable.
+For client delegation, the browser correlates `session.delegation.created` with recent timed transcript fragments, and the server runs the bounded reasoning/tool workflow. The browser sends verified speakable results with `session.commentary.append` and the matching delegation ID. The current transcript assembly waits for a short quiet period and asks the caller to repeat if it has no usable text; because fragments have no completion event, actual delayed-fragment behavior needs empirical evaluation. A delegation captures the active report generation when the event arrives; a reset during queuing, transcript assembly, or backend work discards its stale result. Report writes and reset are serialized in the local session so a late write cannot restore an old active report. On-screen confirmation remains required before the app sends a verified route/ticket result back under the matching draft's delegation ID. An append acknowledgment is not proof of playback. M1 validates actual event ordering and correction behavior. Responses delegation remains an alternative only if client delegation proves unworkable.
 
 Live prompt skeleton (specification guidance, not exact mandated speech):
 
@@ -102,7 +102,7 @@ Separation keeps voice replaceable and workflow deterministic. Client control co
 
 ## 8. Dependencies and integrations
 
-GPT-Live planned, WebRTC browser media, server-side control capability, ReasoningBackend, core, evidence, authorized UI events. Pin exact libraries/models after access tests. No telephony provider, LiveKit, Pipecat, or agent framework selected.
+GPT-Live browser WebRTC, server-held OpenAI key, `gpt-5.6-luna` intent proposals, core, reviewed evidence, authorized UI events. The first live model classification passed; browser media remains unverified. No telephony provider, LiveKit, Pipecat, or agent framework selected.
 
 ## 9. Examples and edge cases
 
@@ -110,7 +110,7 @@ GPT-Live planned, WebRTC browser media, server-side control capability, Reasonin
 
 ## 10. Validation criteria
 
-M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. No paid calls/audio tests executed yet.
+M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. Model access and two paid synthetic intent calls passed on September 16, 2026; browser microphone and spoken tests have not passed yet.
 
 ## 11. Related specifications
 

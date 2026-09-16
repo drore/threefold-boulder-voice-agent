@@ -1,8 +1,12 @@
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
-import type { PrepareReportResult } from "../core/prepare-service-report.js";
+import { useEffect, useRef, useState } from "react";
+import type {
+  PrepareReportResult,
+  SupportedReportType,
+} from "../core/prepare-service-report.js";
 import type { AgentToolResult } from "../server/agent-tools.js";
 import type { LocalConfirmResult } from "../server/local-app.js";
+import { VoicePanel } from "./VoicePanel.js";
 
 type SavedReport = { status: "empty" } | PrepareReportResult;
 
@@ -26,7 +30,8 @@ const KNOWLEDGE_EXAMPLES = [
 
 const BLOCKED_MESSAGES: Record<string, string> = {
   invalid_input: "Please check the details and try again.",
-  unsupported_request_type: "This demo supports pothole reports only.",
+  unsupported_request_type:
+    "This demo supports pothole and park maintenance reports only.",
   scope_mismatch: "This draft is no longer available in this session.",
   revision_conflict: "The draft changed. Reload this page before editing.",
   store_unavailable: "The draft could not be saved. Please try again later.",
@@ -39,16 +44,20 @@ const BLOCKED_MESSAGES: Record<string, string> = {
 export function App() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [requestType, setRequestType] =
+    useState<SupportedReportType>("pothole");
   const [result, setResult] = useState<PrepareReportResult | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [action, setAction] = useState<LocalConfirmResult | null>(null);
+  const [actionDraftId, setActionDraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [knowledge, setKnowledge] = useState<AgentToolResult | null>(null);
   const [knowledgeError, setKnowledgeError] = useState("");
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
+  const reportEpochRef = useRef(0);
 
   useEffect(() => {
     const request = new AbortController();
@@ -69,6 +78,11 @@ export function App() {
           saved.status === "needs_confirmation"
         ) {
           setResult(saved);
+          setRequestType(
+            saved.status === "needs_input"
+              ? saved.requestType
+              : saved.summary.requestType,
+          );
         } else if (saved.status !== "empty") {
           throw new Error("The current draft could not be read.");
         }
@@ -96,12 +110,12 @@ export function App() {
 
     setSaving(true);
     setError("");
-    setAction(null);
     try {
       const response = await fetch("/api/local/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          requestType,
           ...(nextDescription ? { description: nextDescription } : {}),
           ...(nextLocation ? { location: nextLocation } : {}),
         }),
@@ -116,6 +130,13 @@ export function App() {
       if (!response.ok) throw new Error("The local service did not respond.");
 
       setResult(nextResult);
+      setAction(null);
+      setActionDraftId(null);
+      setRequestType(
+        nextResult.status === "needs_input"
+          ? nextResult.requestType
+          : nextResult.summary.requestType,
+      );
       setDescription("");
       setLocation("");
     } catch {
@@ -151,6 +172,7 @@ export function App() {
       }
       if (!response.ok) throw new Error("The local service did not respond.");
       setAction(nextAction);
+      setActionDraftId(result.draftId);
     } catch {
       setError("Could not reach the local service. Please try again.");
     } finally {
@@ -182,6 +204,47 @@ export function App() {
     }
   }
 
+  /** Input: a verified delegated tool result. Output: the matching report or source panel reflects server state. */
+  function showVoiceResult(nextResult: AgentToolResult) {
+    if (
+      nextResult.status === "needs_input" ||
+      nextResult.status === "needs_confirmation"
+    ) {
+      setResult(nextResult);
+      setRequestType(
+        nextResult.status === "needs_input"
+          ? nextResult.requestType
+          : nextResult.summary.requestType,
+      );
+      setAction(null);
+      setActionDraftId(null);
+    } else if (
+      nextResult.status === "answered" ||
+      nextResult.status === "limited_coverage"
+    ) {
+      setKnowledge(nextResult);
+    } else if (nextResult.status === "blocked") {
+      setError(BLOCKED_MESSAGES[nextResult.code] ?? "The request was blocked.");
+    }
+  }
+
+  /** Input: a click on Start another report. Output: a fresh local draft slot without deleting the saved history. */
+  async function startAnotherReport() {
+    setError("");
+    try {
+      const response = await fetch("/api/local/report/new", { method: "POST" });
+      if (!response.ok) throw new Error("Could not start a new report.");
+      reportEpochRef.current += 1;
+      setResult(null);
+      setAction(null);
+      setActionDraftId(null);
+      setDescription("");
+      setLocation("");
+    } catch {
+      setError("Could not start another report. Please try again.");
+    }
+  }
+
   const missingFields =
     result?.status === "needs_input" ? result.fields.join(" and ") : "";
 
@@ -191,17 +254,37 @@ export function App() {
         <p className="eyebrow">
           Independent developer demo · Boulder, Colorado
         </p>
-        <h1>Report a pothole</h1>
+        <h1>Boulder service demo</h1>
         <p className="intro">
-          Describe the issue and its location, then confirm the saved details to
-          see the local business-hours decision.
+          Ask a reviewed city question or report a nonurgent pothole or park
+          maintenance issue. Confirm the saved details to see the business-hours
+          decision.
         </p>
       </header>
 
+      <VoicePanel
+        onResult={showVoiceResult}
+        action={action}
+        actionDraftId={actionDraftId}
+        reportEpochRef={reportEpochRef}
+      />
+
       <section className="report-card" aria-labelledby="report-heading">
         <div className="card-header">
-          <h2 id="report-heading">Pothole details</h2>
-          <span className="draft-badge">Draft only</span>
+          <h2 id="report-heading">
+            {requestType === "pothole"
+              ? "Pothole details"
+              : "Park issue details"}
+          </h2>
+          <span className="draft-badge">
+            {action?.status === "linear_ticket_created"
+              ? "Linear demo ticket"
+              : action?.status === "ticket_uncertain"
+                ? "Ticket uncertain"
+                : action?.status === "simulated_route"
+                  ? "Mock route"
+                  : "Draft only"}
+          </span>
         </div>
 
         {loading && <p role="status">Loading saved draft…</p>}
@@ -235,7 +318,7 @@ export function App() {
                 <dd>{result.summary.location}</dd>
               </div>
             </dl>
-            <p>No service request has been submitted.</p>
+            <p>No service request has been submitted to the City of Boulder.</p>
             <button
               type="button"
               disabled={confirming || saving || action !== null}
@@ -310,6 +393,22 @@ export function App() {
 
         {!loading && !loadError && (
           <form onSubmit={submitReport}>
+            <div className="field">
+              <label htmlFor="request-type">Report type</label>
+              <select
+                id="request-type"
+                value={requestType}
+                disabled={result !== null}
+                onChange={(event) =>
+                  setRequestType(event.target.value as SupportedReportType)
+                }
+              >
+                <option value="pothole">Pothole · Transportation</option>
+                <option value="park_maintenance">
+                  Park maintenance · Parks & Recreation
+                </option>
+              </select>
+            </div>
             {result && (
               <p className="form-hint">
                 Enter only a missing or changed detail. Leave the other field
@@ -323,7 +422,11 @@ export function App() {
                 name="description"
                 rows={3}
                 maxLength={500}
-                placeholder="For example, a deep pothole in the eastbound lane"
+                placeholder={
+                  requestType === "pothole"
+                    ? "For example, a deep pothole in the eastbound lane"
+                    : "For example, a broken swing near the playground"
+                }
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
@@ -335,7 +438,11 @@ export function App() {
                 name="location"
                 type="text"
                 maxLength={500}
-                placeholder="For example, 15th Street at Pine Street"
+                placeholder={
+                  requestType === "pothole"
+                    ? "For example, 15th Street at Pine Street"
+                    : "For example, North Boulder Park near the playground"
+                }
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
               />
@@ -345,16 +452,28 @@ export function App() {
                 {error}
               </p>
             )}
-            <button
-              type="submit"
-              disabled={
-                saving ||
-                confirming ||
-                (!description.trim() && !location.trim())
-              }
-            >
-              {saving ? "Saving…" : result ? "Update draft" : "Save draft"}
-            </button>
+            <div className="form-actions">
+              <button
+                type="submit"
+                disabled={
+                  saving ||
+                  confirming ||
+                  (!description.trim() && !location.trim())
+                }
+              >
+                {saving ? "Saving…" : result ? "Update draft" : "Save draft"}
+              </button>
+              {result && action?.status !== "ticket_uncertain" && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={saving || confirming}
+                  onClick={() => void startAnotherReport()}
+                >
+                  Start another report
+                </button>
+              )}
+            </div>
           </form>
         )}
       </section>

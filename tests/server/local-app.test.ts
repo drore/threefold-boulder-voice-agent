@@ -323,6 +323,52 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     });
   });
 
+  it("routes a park issue to Parks and then starts a separate pothole draft", async () => {
+    const app = await openSession("boulder-co", "2026-09-16T16:00:00Z");
+    const park = await app.inject({
+      method: "POST",
+      url: "/api/local/report",
+      payload: {
+        requestType: "park_maintenance",
+        location: "North Boulder Park",
+        description: "Broken swing",
+      },
+    });
+    expect(park.json()).toMatchObject({
+      status: "needs_confirmation",
+      summary: { requestType: "park_maintenance" },
+    });
+    const route = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: { draftId: park.json().draftId, revision: park.json().revision },
+    });
+    expect(route.json()).toMatchObject({
+      status: "simulated_route",
+      department: {
+        name: "Parks & Recreation",
+        mockDestination: "+13035550102",
+      },
+    });
+
+    const fresh = await app.inject({
+      method: "POST",
+      url: "/api/local/report/new",
+    });
+    expect(fresh.json()).toEqual({ status: "empty" });
+    const pothole = await app.inject({
+      method: "POST",
+      url: "/api/local/report",
+      payload: { requestType: "pothole", description: "Deep pothole" },
+    });
+    expect(pothole.json()).toMatchObject({
+      status: "needs_input",
+      requestType: "pothole",
+      fields: ["location"],
+    });
+    expect(pothole.json().draftId).not.toBe(park.json().draftId);
+  });
+
   it("creates one closed-hours ticket after confirmation and reads it from the provider", async () => {
     let now = new Date("2026-09-17T00:00:00Z");
     let createdDescription = "";

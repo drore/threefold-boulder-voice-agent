@@ -10,9 +10,15 @@ if (build.status !== 0) {
 }
 
 const children = [
-  spawn(process.execPath, ["--env-file=.env.local", "dist/server/main.js"], {
-    stdio: "inherit",
-  }),
+  spawn(
+    process.execPath,
+    [
+      "--env-file=.env.local",
+      "--env-file-if-exists=.env.dev",
+      "dist/server/main.js",
+    ],
+    { stdio: "inherit" },
+  ),
   spawn(process.execPath, ["node_modules/vite/bin/vite.js"], {
     stdio: "inherit",
   }),

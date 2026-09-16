@@ -16,7 +16,7 @@
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "check:architecture": "biome lint src/core --only=style/noRestrictedImports --only=style/noCommonJs",
     "dev": "node scripts/dev.mjs",
-    "dev:api": "npm run build:server && node --env-file=.env.local dist/server/main.js",
+    "dev:api": "npm run build:server && node --env-file=.env.local --env-file-if-exists=.env.dev dist/server/main.js",
     "dev:web": "vite --host 127.0.0.1",
     "format": "biome format --write .",
     "format:check": "biome format .",

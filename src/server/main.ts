@@ -3,6 +3,7 @@ import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.
 import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
+import { registerLocalLiveSession } from "./live-session.js";
 import { buildLocalApp } from "./local-app.js";
 
 const CITY_ID = "boulder-co";
@@ -53,7 +54,9 @@ async function startLocalApi(): Promise<void> {
             }),
           }
         : undefined,
+      { apiKey: process.env.OPENAI_API_KEY },
     );
+    registerLocalLiveSession(app, process.env.OPENAI_API_KEY);
     await app.listen({ host: "127.0.0.1", port: LOCAL_API_PORT });
     process.stdout.write(
       `Local API ready at http://127.0.0.1:${LOCAL_API_PORT}\n`,

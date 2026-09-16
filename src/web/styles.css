@@ -15,12 +15,14 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid #e8a63a;
   outline-offset: 2px;
@@ -142,6 +144,7 @@ h2 {
 }
 
 .field input,
+.field select,
 .field textarea {
   display: block;
   width: 100%;
@@ -188,6 +191,21 @@ button:disabled {
   opacity: 0.55;
 }
 
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.secondary-button {
+  color: #175e79;
+  background: #eaf3f8;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #d4e8f2;
+}
+
 .error {
   color: #9a2d22;
   font-weight: 600;
@@ -198,4 +216,13 @@ button:disabled {
   color: #526777;
   font-size: 0.85rem;
   line-height: 1.5;
+}
+
+.voice-transcript {
+  margin: 1rem 0 0;
+  padding: 0.8rem;
+  background: #f5f7f8;
+  border-radius: 7px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

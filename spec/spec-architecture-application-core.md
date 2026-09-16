@@ -241,7 +241,7 @@ Hexagonal boundaries do not require many services or classes. One Node applicati
 - Application simulation for the first `TransferProvider`.
 - OpenTelemetry-compatible observer for `OperationalEvents`.
 
-OpenAI voice/reasoning and React are adjacent adapters/clients of core contracts, not core dependencies. The initial offline tooling versions are pinned in package.json; server/client/provider packages remain future M0/M1 decisions.
+OpenAI voice/reasoning and React are adjacent adapters/clients of core contracts, not core dependencies. Runtime versions are pinned in package.json. The current local browser/server voice integration uses those boundaries; spoken behavior and public session ownership still need verification.
 
 ## 9. Examples and edge cases
 
