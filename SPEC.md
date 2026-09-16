@@ -48,7 +48,7 @@ Record date, revision, commands/evidence, and pass/fail per gate. Local tests do
 | --- | --- | --- |
 | J1 — nonurgent pothole | Collect address or nearest intersection and description; clarify/confirm current details; route or ticket. Transportation & Mobility owns this demo report. | No photo upload, damage claim, repair booking, geocoding guarantee, or repair-time promise. |
 | J2 — nonurgent park maintenance | Collect park/location, issue description, useful landmark if needed; clarify/confirm; route or ticket. Parks & Recreation owns this demo report. | No enforcement, emergency dispatch, booking, or county/open-space maintenance guarantee. |
-| J3 — information | Supported park rules/shelter guidance, actual municipal-code questions, current official events/news. | No reservations/payments, city-wide legal coverage, or unsupported precise claims. |
+| J3 — information | Reviewed BRC 8-3-9 glass-container rule, official pothole-reporting guidance, and a dated City Council event. | No reservations/payments, city-wide legal coverage, or unsupported precise claims. Broader source coverage remains a later extension. |
 
 The bounded P0 code topic is [Boulder Revised Code 8-3-9](https://library.municode.com/co/boulder/codes/municipal_code?nodeId=TIT8PAOPSPSTPUWA_CH3PAREPESPMOPA_8-3-9GLBOPR), inspected in the current Municode supplement on September 16, 2026. It prohibits glass bottles and other glass containers in city parks, parkways, recreation areas, and open space, **except a container holding prescription medication**. The city's [short park-rules page](https://bouldercolorado.gov/general-park-rules-and-regulations) omits that exception. The local reviewed code answer retains it; the separate website answer covers pothole service guidance. Municode shows Supplement 167 Update 3, online August 18, 2026, containing ordinances effective through July 30, 2026; later amendments still require a pre-delivery check. Park closure hours come from the city's published rule guidance; BRC 8-3-3 grants rulemaking authority and is not itself a verbatim 11 p.m. closure provision. Spoken answers and broader source coverage remain unimplemented.
 
@@ -243,8 +243,8 @@ P0 scenarios gate submission. P1 scenarios define later behavior.
 | ID | Recommendation / prerequisite | Gate |
 | --- | --- | --- |
 | Q1 | Resolved: Dror selected client delegation. Exact reasoning model and working provider flow still require task/latency checks. | M1 feasibility |
-| Q2 | Long-lived Node web service; Render is a candidate supporting WebSockets. Choose vendor/region/plan and cost before deployment. | M0 review; M6 external approval |
-| Q3 | Same-origin server reviewer sessions; simple access gate recommended, no privileged direct browser DB access. Choose method/credential delivery. | Security review; M6 |
+| Q2 | One HTTPS Node service can serve the built UI and same-origin API; browser WebRTC connects directly to OpenAI, so the server needs no WebSocket. Render is a candidate. Choose vendor/region/plan and cost before deployment. | M6 external approval |
+| Q3 | Before a public link, give each admitted visitor a server-owned conversation, bounded quota, and an access gate; origin checks alone are not visitor authorization. Choose the gate and credential delivery. | Security review; M6 |
 | Q4 | DB general city office hours Mon–Fri 08:00–17:00 America/Denver; verified closure dates/validity horizon. Park hours are distinct. Override shape supports future department differences. | Core review + M1 |
 | Q5 | Reviewed bounded corpus, deterministic source selection first; manifest refresh at ingestion/startup/before submission and explicit freshness limits. No vector infrastructure required. | Knowledge review + M1 |
 | Q6 | Proposed 5-minute sessions, 2 service requests/session, bounded model work, 3 total safe-read attempts. Writes need reconciliation; account-wide cost/concurrency still reviewed. | Security/integration review |

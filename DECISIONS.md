@@ -253,7 +253,19 @@ The first core slice uses native `Date` and `Intl` for trusted instants and Boul
 
 ## Decisions still open
 
-The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation is selected; exact reasoning/runtime/package versions, hosting vendor/region/plan, reviewer access, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not authorize paid calls, external mutations, or publication.
+The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation is selected; hosting vendor/region/plan, reviewer access, numerical budgets, retention, external demo resources, and telemetry exporter require their defined review/validation gates. Render is a candidate, not a selected or provisioned host. This rationale file does not authorize external mutations or publication.
+
+## 19. Why propose one hosted Node service for the reviewer demo?
+
+**Status:** Proposed, not deployed. **SPEC:** ADR-011, ADR-014, Q2–Q3.
+
+**Why:** One HTTPS service can serve the Vite build and the same-origin Fastify API. The browser connects to OpenAI over WebRTC while the server holds provider credentials and applies ticket and hours policy. This keeps the local and hosted application shape close. A separate Supabase project supplies the hosted database; the dedicated Linear project remains the external ticket destination. A public link first needs per-visitor conversation isolation, admission, and bounded paid-call quotas. HTTP Origin checks do not identify a visitor.
+
+**Alternatives:** Render Free avoids service charges but [sleeps after idle time and can take about a minute to wake](https://render.com/docs/free), which weakens a short reviewer session. Render Starter is listed at [$0.05 per hour](https://render.com/pricing) and avoids that cold start, but requires spending approval. Other persistent Node hosts may be viable; a serverless-only redesign adds risk to this application without helping the assignment.
+
+**Tradeoff:** Hosting and a public access gate add setup and verification work. [Supabase Free can pause after low activity](https://supabase.com/docs/guides/platform/free-project-pausing), so a longer-lived demo needs an availability decision. No host choice, cost, or static-serving code proves the spoken and Linear journeys; those still require fresh deployed checks.
+
+**Reconsider when:** Dror chooses a spending/access envelope or a candidate host cannot support the documented same-origin, database, microphone, and environment requirements. Keep hosting-specific configuration at the runtime edge rather than in the application core.
 
 ## Keeping the rationale current
 

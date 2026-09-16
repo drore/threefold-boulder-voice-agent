@@ -6,6 +6,8 @@ Workspace for the Threefold take-home assignment: a municipal voice agent for Bo
 
 **Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
 
+The [dedicated Linear project](https://linear.app/hamaarag/project/threefold-boulder-voice-agent-interview-demo-315b60bc3027/overview) tracks the remaining P0 proof: [HAM-10 real ticket create/readback](https://linear.app/hamaarag/issue/HAM-10/verify-real-linear-ticket-creation-and-readback), [HAM-11 spoken journey](https://linear.app/hamaarag/issue/HAM-11/verify-spoken-gpt-live-journey-in-browser), and [HAM-12 reviewer deployment](https://linear.app/hamaarag/issue/HAM-12/deploy-and-verify-reviewer-demo).
+
 - [Assignment](https://www.threefold.ai/developer-task)
 - [Root specification, decisions, and assignment coverage](SPEC.md)
 - [Decision rationale: why Boulder, OpenAI, and this design](DECISIONS.md)
