@@ -148,6 +148,8 @@ function DemoApp() {
   const [knowledge, setKnowledge] = useState<AgentToolResult | null>(null);
   const [knowledgeError, setKnowledgeError] = useState("");
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
+  const [scenario, setScenario] = useState<"live" | "open" | "closed">("live");
+  const [simulatedNow, setSimulatedNow] = useState<string | null>(null);
   const reportEpochRef = useRef(0);
 
   useEffect(() => {
@@ -336,6 +338,26 @@ function DemoApp() {
     }
   }
 
+  /** Input: a demo-time selection. Output: the server simulates open or closed hours for the next confirmation. */
+  async function selectScenario(next: "live" | "open" | "closed") {
+    setError("");
+    try {
+      const response = await fetch("/api/local/scenario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: next }),
+      });
+      if (!response.ok) throw new Error("Could not set the demo scenario.");
+      const body = (await response.json()) as {
+        simulatedNow: string | null;
+      };
+      setScenario(next);
+      setSimulatedNow(body.simulatedNow);
+    } catch {
+      setError("Could not set the demo scenario.");
+    }
+  }
+
   const missingFields =
     result?.status === "needs_input" ? result.fields.join(" and ") : "";
 
@@ -356,6 +378,35 @@ function DemoApp() {
           synthetic issue in its dedicated Linear project.
         </p>
       </header>
+
+      <section className="report-card" aria-label="Demo time scenario">
+        <h2>Demo time</h2>
+        <p className="form-hint">
+          Simulate the office being open or closed to see routing vs. ticket
+          creation. This is a demo simulation, not a real clock change.
+        </p>
+        <div className="example-actions">
+          {(["live", "open", "closed"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              disabled={scenario === option}
+              onClick={() => void selectScenario(option)}
+            >
+              {option === "live"
+                ? "Live now"
+                : option === "open"
+                  ? "Business hours (open)"
+                  : "After hours (closed)"}
+            </button>
+          ))}
+        </div>
+        {simulatedNow && (
+          <p className="form-hint">
+            Simulated server time: {new Date(simulatedNow).toLocaleString()}
+          </p>
+        )}
+      </section>
 
       <VoicePanel
         onResult={showVoiceResult}

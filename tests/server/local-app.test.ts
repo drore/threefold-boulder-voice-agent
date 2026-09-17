@@ -373,6 +373,44 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     });
   });
 
+  it("switches between open and closed hours through the demo scenario endpoint", async () => {
+    const app = await openSession("boulder-co", () => new Date());
+    const open = await app.inject({
+      method: "POST",
+      url: "/api/local/scenario",
+      payload: { scenario: "open" },
+    });
+    expect(open.json()).toMatchObject({
+      scenario: "open",
+      simulatedNow: expect.any(String),
+    });
+
+    const openDraft = await saveReport(app);
+    const routed = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: openDraft,
+    });
+    expect(routed.json()).toMatchObject({ status: "simulated_route" });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/local/scenario",
+      payload: { scenario: "closed" },
+    });
+    await app.inject({ method: "POST", url: "/api/local/report/new" });
+    const closedDraft = await saveReport(app);
+    const ticketed = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: closedDraft,
+    });
+    expect(ticketed.json()).toMatchObject({
+      status: "ticket_path_unavailable",
+      reason: "not_configured",
+    });
+  });
+
   it("routes a park issue to Parks and then starts a separate pothole draft", async () => {
     const app = await openSession("boulder-co", "2026-09-16T16:00:00Z");
     const park = await app.inject({
