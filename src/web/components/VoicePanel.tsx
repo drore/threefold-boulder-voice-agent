@@ -197,7 +197,7 @@ export function VoicePanel({
       try {
         voice.sendCommentary(
           id,
-          "I could not check that request. Please try again or use the form on screen.",
+          "I could not check that request. Please try again.",
         );
       } catch {
         // The voice session may already be closed; the visible error remains.

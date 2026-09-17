@@ -96,11 +96,12 @@ function reviewedHandlers(
 }
 
 describe("agent tool boundary", () => {
-  it("exposes only the four P0 agent capabilities", () => {
+  it("exposes the five P0 agent capabilities", () => {
     expect(agentToolDefinitions.map(({ name }) => name)).toEqual([
       "lookupMunicipalCode",
       "lookupCityInformation",
       "findCityEvents",
+      "confirmReport",
       "prepareServiceReport",
     ]);
     expect(

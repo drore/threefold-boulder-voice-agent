@@ -118,7 +118,7 @@ export function createKnowledgeToolHandlers(
           )
         : limitedCoverage("unsupported_query"),
     findCityEvents: async ({ query, startDate, endDate }) => {
-      if (hasUnsupportedEventQualifier(query)) {
+      if (hasUnverifiableEventQualifier(query)) {
         return limitedCoverage("unsupported_query");
       }
       if (startDate && !isValidLocalDate(startDate)) {
@@ -251,16 +251,16 @@ function matchesGlassContainerQuery(query: string): boolean {
 }
 
 /**
- * Rejects free-text dates and status checks this one-event example cannot verify.
- * Input: `"study session on October 22"`. Output: `true`.
+ * Rejects a query that embeds an explicit date or a status check the listing
+ * cannot verify. Relative phrases ("this week") are allowed because the
+ * handler uses its own trusted window, and caller-stated dates travel in
+ * startDate/endDate. Input: `"events on 2026-09-24"`. Output: `true`.
  */
-function hasUnsupportedEventQualifier(query: string): boolean {
+function hasUnverifiableEventQualifier(query: string): boolean {
   const text = normalizeQuery(query);
   return (
     /\d/.test(text) ||
-    /\b(today|tomorrow|tonight|this week|next week|this weekend|next weekend|cancelled|canceled|postponed|rescheduled|status)\b/.test(
-      text,
-    ) ||
+    /\b(cancelled|canceled|postponed|rescheduled|status)\b/.test(text) ||
     /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/.test(
       text,
     )

@@ -30,9 +30,9 @@ import {
 } from "./reasoning/agent-tools.js";
 import {
   submitConfirmedTicket,
-  type ConfirmedTicketResult,
   type TicketProvider,
 } from "./workflow/confirmed-ticket.js";
+import type { LocalConfirmResult } from "./workflow/confirm-outcome.js";
 import { isLocalVoiceOrigin } from "./voice/live-session.js";
 import { createKnowledgeToolHandlers } from "./reasoning/knowledge-tools.js";
 import { runReasoningTurn } from "./reasoning/reasoning-turn.js";
@@ -57,10 +57,7 @@ type KnowledgeBody = {
   endDate?: string;
 };
 
-export type LocalConfirmResult =
-  | Exclude<ConfirmServiceReportDecision, { status: "ticket_required" }>
-  | ConfirmedTicketResult
-  | { status: "ticket_path_unavailable"; reason: "not_configured" };
+export type { LocalConfirmResult } from "./workflow/confirm-outcome.js";
 
 const MAX_LOCAL_DELEGATIONS = 20;
 const SUPERSEDED_REPORT_SPEECH =
@@ -263,6 +260,11 @@ export function buildLocalApp(
         name: string,
         args: Record<string, unknown>,
       ): Promise<AgentToolResult> {
+        if (name === "confirmReport") {
+          const current = session.currentDraft;
+          if (!current) return { status: "blocked", code: "missing_draft" };
+          return runConfirmation(session, current.draftId, current.revision);
+        }
         if (name === "prepareServiceReport") {
           const location =
             typeof args.location === "string" ? args.location : undefined;
@@ -274,11 +276,11 @@ export function buildLocalApp(
               ? args.requestType
               : (session.currentDraft?.requestType ?? "pothole");
           const observedLocation =
-            location && isSpokenField(utterance, location)
+            location && isGroundedInUtterance(utterance, location)
               ? location
               : undefined;
           const observedDescription =
-            description && isSpokenField(utterance, description)
+            description && isGroundedInUtterance(utterance, description)
               ? description
               : undefined;
           const fieldObservationIds = {
@@ -531,62 +533,68 @@ export function buildLocalApp(
     },
   );
 
-  /** Input: `{draftId: "saved-id", revision: 2}` from a review button. Output: a simulated route or an honest unavailable result. */
-  async function confirmReport(
-    request: FastifyRequest<{ Body: ConfirmBody }>,
-    reply: FastifyReply,
-  ) {
-    const session = sessionFor(request);
-    if (ticketing && session.currentDraft?.draftId === request.body.draftId) {
+  /** Input: a session and a revision-bound confirmation. Output: one confirmation attempt. */
+  async function runConfirmation(
+    session: VisitorSession,
+    draftId: string,
+    revision: number,
+  ): Promise<LocalConfirmResult> {
+    if (ticketing && session.currentDraft?.draftId === draftId) {
       const existing = await ticketing.operations.findByDraft(
         session.context,
-        request.body.draftId,
-        request.body.revision,
+        draftId,
+        revision,
       );
       if (existing.status === "found") {
         return submitConfirmedTicket(
           session.context,
-          request.body.draftId,
-          request.body.revision,
+          draftId,
+          revision,
           existing.operation.policyRevision,
           ticketing.operations,
           ticketing.provider,
         );
       }
       if (existing.status === "unavailable") {
-        return reply
-          .code(503)
-          .send({ status: "blocked", code: "store_unavailable" });
+        return { status: "blocked", code: "store_unavailable" };
       }
-      if (existing.status === "blocked") {
-        return reply.code(409).send(existing);
-      }
+      if (existing.status === "blocked") return existing;
     }
     const decision =
-      session.currentDraft &&
-      session.currentDraft.draftId !== request.body.draftId
+      session.currentDraft && session.currentDraft.draftId !== draftId
         ? ({ status: "blocked", code: "revision_conflict" } as const)
         : await confirmServiceReport(
             session.context,
             session.currentDraft?.draftId ?? null,
-            request.body.revision,
+            revision,
             store,
             policyStore,
             effectiveClock,
           );
-    const result: LocalConfirmResult =
-      decision.status !== "ticket_required"
-        ? decision
-        : ticketing
-          ? await submitConfirmedTicket(
-              session.context,
-              decision.draftId,
-              decision.revision,
-              decision.policyRevision,
-              ticketing.operations,
-              ticketing.provider,
-            )
-          : { status: "ticket_path_unavailable", reason: "not_configured" };
+    if (decision.status !== "ticket_required") return decision;
+    return ticketing
+      ? await submitConfirmedTicket(
+          session.context,
+          decision.draftId,
+          decision.revision,
+          decision.policyRevision,
+          ticketing.operations,
+          ticketing.provider,
+        )
+      : { status: "ticket_path_unavailable", reason: "not_configured" };
+  }
+
+  /** Input: `{draftId: "saved-id", revision: 2}` from a review button. Output: a simulated route or an honest unavailable result. */
+  async function confirmReport(
+    request: FastifyRequest<{ Body: ConfirmBody }>,
+    reply: FastifyReply,
+  ) {
+    const session = sessionFor(request);
+    const result = await runConfirmation(
+      session,
+      request.body.draftId,
+      request.body.revision,
+    );
     if (result.status !== "blocked") return result;
     const statusCode =
       result.code === "revision_conflict"
@@ -619,9 +627,40 @@ export function buildLocalApp(
   return app;
 }
 
-/** Input: caller text `"at 15th and Pine"` and extracted `"15th and Pine"`. Output: `true` only for a spoken span. */
-function isSpokenField(utterance: string, field: string): boolean {
+/**
+ * Checks whether a model-proposed field is grounded in what the caller said.
+ * Exact containment passes; otherwise at least one significant field token must
+ * appear in the utterance, so a spoken expansion ("it's deep" -> "the pothole
+ * is deep") binds while a wholly invented field ("Invented location") does not.
+ */
+function isGroundedInUtterance(utterance: string, field: string): boolean {
   const normalize = (value: string) =>
     value.toLowerCase().replace(/\s+/g, " ").trim();
-  return normalize(utterance).includes(normalize(field));
+  const spoken = normalize(utterance);
+  const proposed = normalize(field);
+  if (proposed.length === 0) return false;
+  if (spoken.includes(proposed)) return true;
+  const stopwords = new Set([
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "of",
+    "for",
+    "at",
+    "in",
+    "on",
+    "to",
+    "with",
+    "is",
+    "it",
+    "its",
+    "this",
+    "that",
+  ]);
+  const tokens = proposed
+    .split(" ")
+    .filter((token) => token.length > 2 && !stopwords.has(token));
+  return tokens.length > 0 && tokens.some((token) => spoken.includes(token));
 }

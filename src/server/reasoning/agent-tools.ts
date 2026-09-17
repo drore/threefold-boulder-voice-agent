@@ -4,6 +4,7 @@
  * calls before invoking a handler. Tool names/arguments are untrusted input;
  * conversation scope, time, and destinations come from server state.
  */
+import type { LocalConfirmResult } from "../workflow/confirm-outcome.js";
 import {
   prepareServiceReport,
   type DraftStore,
@@ -40,7 +41,7 @@ export const agentToolDefinitions = [
   {
     name: "findCityEvents",
     description:
-      "Find upcoming events from the official Boulder city calendar (live, cached). Returns dated occurrences with official links.",
+      "Find upcoming events from the official Boulder city calendar (live, cached). The date range is optional; omit it to cover the next two weeks. Never ask the caller for dates.",
     parameters: {
       type: "object",
       properties: {
@@ -49,6 +50,17 @@ export const agentToolDefinitions = [
         endDate: { type: "string", description: "YYYY-MM-DD, if known" },
       },
       required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "confirmReport",
+    description:
+      "Confirm the caller's current saved report so the server routes or files it. Call only after you have summarized the exact saved details and the caller clearly agrees. Takes no arguments; the server uses the current saved revision.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
       additionalProperties: false,
     },
   },
@@ -78,6 +90,7 @@ export type AgentToolInput =
       name: "findCityEvents";
       arguments: { query: string; startDate?: string; endDate?: string };
     }
+  | { name: "confirmReport"; arguments: Record<string, never> }
   | {
       name: "prepareServiceReport";
       arguments: {
@@ -119,7 +132,8 @@ export type AgentToolResult =
         | "missing_server_context"
         | "missing_observation";
     }
-  | PrepareReportResult;
+  | PrepareReportResult
+  | LocalConfirmResult;
 
 // The coordinator must create this context from authenticated server state.
 export type AgentToolContext = Readonly<{
@@ -159,6 +173,7 @@ export function createAgentToolStubs(): AgentToolHandlers {
     lookupMunicipalCode: unavailable,
     lookupCityInformation: unavailable,
     findCityEvents: unavailable,
+    confirmReport: unavailable,
     prepareServiceReport: unavailable,
   };
 }
@@ -264,6 +279,8 @@ export async function callAgentTool(
         context,
       );
     }
+    case "confirmReport":
+      return handlers.confirmReport({}, context);
     case "prepareServiceReport": {
       const { requestType, location, description } = rawArguments as {
         requestType: "pothole" | "park_maintenance";
@@ -310,8 +327,20 @@ function areValidArguments(
   }
   for (const [key, argument] of Object.entries(argumentsObject)) {
     const property = properties[key];
+    if (!property) return false;
+    // Models commonly send null or an empty string for optional fields;
+    // treat those as absent instead of invalid.
+    const isOptional = !(
+      definition.parameters.required as readonly string[]
+    ).includes(key);
     if (
-      !property ||
+      isOptional &&
+      (argument === null ||
+        (typeof argument === "string" && argument.trim().length === 0))
+    ) {
+      continue;
+    }
+    if (
       typeof argument !== "string" ||
       argument.trim().length === 0 ||
       argument.length > MAX_TOOL_TEXT_LENGTH ||
