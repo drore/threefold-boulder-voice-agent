@@ -58,6 +58,7 @@ The reasoning backend runs one bounded tool-calling turn per delegated utterance
 | --- | --- | --- |
 | `lookupMunicipalCode` | Bounded question | Retrieve reviewed actual code text and qualifications through `retrieveEvidence`. |
 | `lookupCityInformation` | Bounded question | Retrieve reviewed city service/department website facts through `retrieveEvidence`. |
+| `lookupCityWebsite` | Bounded question | Discover the most relevant official page from the city sitemap, fetch it live, and return its extracted text with URL, fetch time, and limitations; fail closed. |
 | `findCityEvents` | Bounded question, optional ISO local-date range | Fetch the official calendar through a daily-cached live provider, filter upcoming occurrences by the trusted server date and the requested range, and answer with bounded dated entries and official links. |
 | `prepareServiceReport` | Supported report type and candidate location/description | Validate untrusted details and update a draft; return needed fields or confirmation state, never submit a ticket or route directly. |
 
