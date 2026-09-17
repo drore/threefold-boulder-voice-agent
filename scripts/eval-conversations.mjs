@@ -163,10 +163,10 @@ function isGoalReached(scenario, draft, toolResult, turns) {
     return expectedDraftFieldsSatisfied(scenario, draft);
   }
   if (scenario.kind === "answer") {
-    return (
+    const answered =
       toolResult?.status === "answered" ||
-      toolResult?.status === "limited_coverage"
-    );
+      toolResult?.status === "limited_coverage";
+    return answered && turns.length >= (scenario.minTurns ?? 1);
   }
   return turns.length >= 1;
 }
@@ -290,7 +290,7 @@ function inferTools(turns) {
 }
 
 /** Input: a scenario, turns, and assertions. Output: the critic scorecard. */
-async function critique(scenario, turns, assertions) {
+async function critique(scenario, turns, assertions, confirmation) {
   const transcript = turns
     .map((turn) => `Resident: ${turn.caller}\nCity assistant: ${turn.reply}`)
     .join("\n");
@@ -353,14 +353,20 @@ async function critique(scenario, turns, assertions) {
     system: [
       "You are a strict evaluator of a city-services voice assistant demo.",
       "Score the transcript against the rubric dimensions 0-2.",
+      "Deterministic assertions are authoritative for task completion: when the harness reports a passing confirmation outcome, do not lower taskCompletion for the confirmation happening outside the transcript.",
       "Only report issues you can quote from the transcript.",
       "Prefer concrete, fixable issues over generalities.",
     ].join(" "),
     user: [
       `Scenario goal: ${scenario.goal}`,
       `Deterministic assertions:\n${assertionText}`,
+      confirmation
+        ? `After the transcript the harness confirmed the draft: ${confirmation.pass ? "PASS" : "FAIL"} (${confirmation.detail})`
+        : "",
       `Transcript:\n${transcript}`,
-    ].join("\n\n"),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     schema,
     maxTokens: 700,
   });

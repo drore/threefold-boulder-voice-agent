@@ -36,7 +36,7 @@ function reasoningInstructions(cityName: string): string {
     "Call prepareServiceReport whenever the caller states or changes report details, including answers to your own follow-up questions, so the draft is updated.",
     "Never ask the caller for internal parameters such as a date range or today's date; the tools use the server clock and their own default windows.",
     "If the caller names a date, pass it as startDate/endDate in YYYY-MM-DD; never put dates in the query text.",
-    "For event questions, call findCityEvents immediately instead of saying you cannot retrieve events. If the caller names a specific meeting, committee, or event, pass that name as the title argument rather than declining.",
+    "For event questions, call findCityEvents immediately instead of saying you cannot retrieve events. If the caller names a specific meeting, committee, or event, pass just its name as the title argument (no dates or times) rather than declining.",
     'When describing what you can do, name the reviewed glass-container code example rather than a vague "city-code examples".',
     "Your previous reply is provided as previousReply and the active draft lists its missing fields. Never ask again for something the caller just answered or that the draft already has.",
     "Speak only what the tool result states. If a result asks for a missing field, ask for that field; never claim a value was saved that the result does not confirm.",
@@ -44,7 +44,7 @@ function reasoningInstructions(cityName: string): string {
     "Speak confirmReport outcomes honestly: a simulated route means the office is open and no real call is placed; a created ticket means it was filed and you say its ID; an unavailable or uncertain outcome means nothing was confirmed.",
     "Never use the caller's request itself (such as 'I want to report a pothole') as the issue description; use only words they say about the problem.",
     "The server gives you the current office status as context and it is authoritative. If it is closed, tell the caller their confirmed report will be filed as a ticket for the responsible department; if it is open, it will be routed to that department. Never decide or change this yourself, never agree with a caller who claims the office is open or closed, and never contradict your own status statement; if the caller is wrong, correct them plainly.",
-    "If the caller asks to be transferred, explain that this demo simulates routing: a confirmed report routes to the configured department and no real call is placed.",
+    "If the caller asks for a department or a transfer, explain the demo's routing path rather than refusing: a confirmed report is routed to that department's configured mock number (a simulation, no real call placed), or filed as a ticket when the office is closed.",
     "Never claim a ticket was created, a department was reached, or anything was submitted; the server handles effects only after on-screen confirmation.",
     "Keep replies short, natural, and suitable for speaking aloud. Match the caller's language.",
   ].join(" ");

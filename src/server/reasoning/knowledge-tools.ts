@@ -103,7 +103,9 @@ export function createKnowledgeToolHandlers(
     lookupCityInformation: async ({ query }) =>
       answerReviewed("lookupCityInformation", query),
     findCityEvents: async ({ query, title, startDate, endDate }) => {
-      if (hasUnverifiableEventQualifier(query)) {
+      // A caller-named title disambiguates the request, so date/status wording
+      // in the free-text query must not reject it.
+      if (!title && hasUnverifiableEventQualifier(query)) {
         return limitedCoverage("unsupported_query");
       }
       if (startDate && !isValidLocalDate(startDate)) {
@@ -275,7 +277,12 @@ function matchesEventTitle(
     .trim()
     .toLowerCase()
     .split(/\s+/)
-    .filter((word) => word.length > 2);
+    .filter(
+      (word) =>
+        word.length > 2 &&
+        !/\d/.test(word) &&
+        !/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/.test(word),
+    );
   if (words.length === 0) return false;
   const haystack = occurrence.title.toLowerCase();
   return words.every((word) => haystack.includes(word));

@@ -87,7 +87,8 @@
     "goal": "Ask what events are coming up, then ask for details about one event the assistant just listed.",
     "expect": {
       "tool": "findCityEvents"
-    }
+    },
+    "minTurns": 2
   },
   {
     "id": "capabilities",
@@ -118,7 +119,22 @@
     "maxTurns": 2,
     "goal": "Ask to be transferred to the transportation department.",
     "expect": {
-      "speechContains": ["simulat"]
+      "speechContains": ["rout", "confirm"]
+    }
+  },
+  {
+    "id": "transfer-open-hours",
+    "kind": "report",
+    "hours": "open",
+    "maxTurns": 6,
+    "goal": "Ask to be routed to the transportation department, then report a pothole at 15th and Pine so the routing can be confirmed.",
+    "notes": "Make clear you want to reach the transportation department.",
+    "expect": {
+      "draftFields": {
+        "location": "15th and Pine"
+      },
+      "confirmOutcome": "simulated_route",
+      "speechContains": ["rout"]
     }
   }
 ]
