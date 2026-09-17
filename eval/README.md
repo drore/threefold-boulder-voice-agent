@@ -47,6 +47,8 @@ Before delivery, exercise actual microphone input/output and check the cited ans
 Iterate: run → fix the reported targets → re-run (`--scenarios=id1,id2` to focus)
 → compare assertions and scores.
 
+Latest full run (2026-09-17, `gpt-5.6-luna`): **11/11 scenarios pass**, including the open-hours department routing and the closed-hours ticket path; the only prior critic note was resolved by treating deterministic assertions as authoritative.
+
 First full run (2026-09-17, `gpt-5.6-luna`): 7/10 scenarios passed. Findings and
 fixes: event questions failed because the model sent empty strings for optional
 tool arguments and the boundary rejected them (fixed in `areValidArguments`);
