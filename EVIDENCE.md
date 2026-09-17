@@ -10,8 +10,8 @@ Recording date, revision, commands/evidence, and result per gate. Local tests do
 | R3 real Linear ticket | 2026-09-16 | 99afa87 | Closed-hours confirm flow created DRO-5; independent Linear API readback matched ID/title/description/team/project; `app.ticket_operations` state `created` | Passed; spoken trigger pending |
 | R4 two department routes | 2026-09-16 | 0c7e857 | `npm run test:db` distinct mock destinations (Transportation `+13035550101`, Parks `+13035550102`) | Passed local DB/API; spoken pending |
 | R5 deterministic hours | 2026-09-16 | 0c7e857 | Boundary/timezone/closure tests with fixed clocks; live closed-hours DRO-5 run | Passed; spoken open/closed comparison pending |
-| R6 evaluation setup | 2026-09-16 | dc882a0 | `npm run check`, `npm run test:db` (162/162), `npm run audit:dependencies` (0 advisories), `npm run eval:intents` 8/8 (code SHA-256 `6b8af2bb…978`, cases SHA-256 `16542b65…7afd`) | Passed; CI workflow prepared but no remote run |
-| D1 repository | — | 12d14b5 | Incremental commits on `feat/core-policy`, setup instructions in README | Local history passes; reviewer access pending (no remote) |
+| R6 evaluation setup | 2026-09-17 | e1c5bdb | `npm run check` (123+43), `npm run test:db` (166/166), `npm run audit:dependencies` (0 advisories), `npm run eval:conversations` (11/11), GitHub Actions CI on `main` | Passed locally and in remote CI |
+| D1 repository | 2026-09-17 | e1c5bdb | Incremental commits, setup instructions, public repository `https://github.com/drore/threefold-boulder-voice-agent` | Reviewer access available; CI green |
 | D2 reviewer link | — | — | No deployment | Open (G3 approvals + hosting required) |
 | D3 one-page writeup | — | 12d14b5 | `WRITEUP.md` draft with cuts, decisions, diagram, limitations, next steps | Draft exists; final page-length check and proof pending |
 
@@ -25,5 +25,5 @@ Recording date, revision, commands/evidence, and result per gate. Local tests do
 ## Remaining before submission
 
 - Formal recorded spoken browser journey (mic/playback, interruption/correction, target browsers) — checklist in `VOICE_CHECKLIST.md`; run later by Dror.
-- Deployment (D2) and Git remote/reviewer access (D1) — deferred by Dror on 2026-09-16 ("skip for now" / "not yet"); not dropped, to be revisited before submission if desired.
+- Deployment (D2) — deferred by Dror on 2026-09-16; the public reviewer repository (D1) is published.
 - Final writeup page-length check and debugging rehearsal (T70/T73) — planned.
