@@ -14,7 +14,7 @@ import {
 } from "./voice-helpers.js";
 
 type DelegationResult =
-  | { status: "completed"; speech: string; result: AgentToolResult }
+  | { status: "completed"; speech: string; result?: AgentToolResult }
   | { status: "unavailable"; speech: string };
 
 type VoicePanelProps = {
@@ -180,15 +180,15 @@ export function VoicePanel({
       }
       if (result.status === "completed") {
         if (
-          result.result.status === "needs_input" ||
-          result.result.status === "needs_confirmation"
+          result.result?.status === "needs_input" ||
+          result.result?.status === "needs_confirmation"
         ) {
           reportDelegationRef.current = {
             id,
             draftId: result.result.draftId,
           };
         }
-        onResult(result.result);
+        if (result.result) onResult(result.result);
       }
       voice.sendCommentary(id, result.speech);
     } catch {

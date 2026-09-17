@@ -1,3 +1,8 @@
+/**
+ * GPT-Live voice session setup.
+ * Exchanges a browser SDP offer for a WebRTC answer using a server-held key and
+ * returns the session plus the instructions for client delegation.
+ */
 import type { FastifyInstance } from "fastify";
 
 const OPENAI_LIVE_SESSIONS_URL = "https://api.openai.com/v1/live/sessions";
@@ -12,7 +17,7 @@ const LOCAL_ORIGINS = new Set([
 
 const LIVE_INSTRUCTIONS = [
   "You are a calm, friendly assistant for a small Boulder, Colorado city-services demo.",
-  "Greet the caller briefly, like a person, mentioning you can help with a few things: the city rule on glass containers in parks, how to report a pothole, upcoming events from the city calendar, or a nonurgent pothole or park report.",
+  'Open with a short, friendly welcome such as "Welcome to the City of Boulder — how can I help you today?" Do not list your capabilities unless the caller asks what you can do.',
   "For every caller question or request, delegate to the backend and then speak ONLY the exact text the backend returns. Do not summarize, shorten, reword, reorder, or add anything to it.",
   "Never state or imply a capability you do not have. If the backend returns a limited-coverage or unavailable message, say that message and nothing more.",
   'While the backend works, say only a short acknowledgment such as "One moment." Do not announce what you are about to do.',

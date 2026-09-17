@@ -35,7 +35,7 @@ flowchart TD
   Browser[React UI and browser voice adapter]
   Voice[GPT-Live cloud]
   Server[Fastify local coordinator and tool boundary]
-  Reason[Responses intent proposal]
+  Reason[Responses tool calling]
   Core[Report intake and hours policy]
   Stores[Supabase Postgres: policy, drafts, operations]
   Know[Reviewed code, service, event examples]
@@ -43,7 +43,7 @@ flowchart TD
   Browser <-->|WebRTC audio and delegation events| Voice
   Browser <-->|observed text, confirmation, verified results| Server
   Browser -->|verified commentary| Voice
-  Server <-->|bounded intent request and proposal| Reason
+  Server <-->|bounded tool calls and results| Reason
   Server --> Core
   Server --> Know
   Core --> Stores

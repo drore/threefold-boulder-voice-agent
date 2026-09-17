@@ -12,7 +12,7 @@ import {
   type AgentToolContext,
   type AgentToolHandlers,
 } from "../../src/server/agent-tools.js";
-import { createReviewedKnowledgeToolHandlers } from "../../src/server/reviewed-knowledge.js";
+import { createKnowledgeToolHandlers } from "../../src/server/knowledge-tools.js";
 
 const CONTEXT: AgentToolContext = {
   conversationId: "server-owned-conversation",
@@ -61,6 +61,14 @@ const FAKE_OCCURRENCES: readonly BoulderEventOccurrence[] = [
     locationText: "Virtual",
     status: "unknown",
   },
+  {
+    title: "Beverage Licensing Authority Hearing",
+    detailUrl:
+      "https://bouldercolorado.gov/events/beverage-licensing-authority-hearing-68",
+    date: "2026-09-20",
+    locationText: "Virtual",
+    status: "unknown",
+  },
 ];
 
 /** Input: fixed occurrences. Output: a provider whose cache is always fresh at the test clock. */
@@ -84,7 +92,7 @@ function reviewedHandlers(
   nowUtc: string,
   events: CityEventsProvider = eventsProviderWith(),
 ): Partial<AgentToolHandlers> {
-  return createReviewedKnowledgeToolHandlers(() => new Date(nowUtc), events);
+  return createKnowledgeToolHandlers(() => new Date(nowUtc), events);
 }
 
 describe("agent tool boundary", () => {
@@ -506,6 +514,31 @@ describe("agent tool boundary", () => {
     );
     expect(result.status === "answered" && result.answer).not.toContain(
       "City Council Meeting",
+    );
+  });
+
+  it("answers a specific event the caller names", async () => {
+    const result = await callAgentTool(
+      "findCityEvents",
+      {
+        query:
+          "Can you tell me about the beverage licensing authority hearing?",
+      },
+      CONTEXT,
+      {
+        ...createAgentToolStubs(),
+        ...reviewedHandlers("2026-09-16T12:00:00Z"),
+      },
+    );
+
+    expect(result.status === "answered" && result.answer).toContain(
+      "Here's what the city calendar shows for that",
+    );
+    expect(result.status === "answered" && result.answer).toContain(
+      "Beverage Licensing Authority Hearing",
+    );
+    expect(result.status === "answered" && result.answer).not.toContain(
+      "City Council",
     );
   });
 

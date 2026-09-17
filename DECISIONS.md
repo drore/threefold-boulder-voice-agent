@@ -291,15 +291,27 @@ The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation and
 
 **Reconsider when:** The city publishes a machine-readable calendar feed, detail-page enrichment is needed for reviewer questions, or the listing markup changes in a way the parser tests flag.
 
-## 22. Why a fixed capabilities overview for "what can you do" questions?
+## 22. Why capability questions are answered by the reasoning model now?
 
-**Status:** Accepted and implemented; live model verification of the two new intent cases pending. **SPEC:** ADR-009; voice spec AC-008.
+**Status:** Accepted and implemented; spoken verification pending. **SPEC:** ADR-009; voice spec AC-008.
 
-**Why:** Dror observed that callers do not know what the demo supports, so "what can you do for me" or "what questions can I ask" must answer with the available options. The intent classifier recognizes a `capabilities` intent, and the server replies with one fixed, honest options message listing the reviewed code question, pothole guidance, live upcoming events, and nonurgent pothole/park reports. The wording is server-owned presentation copy, not model-generated facts.
+**Why:** Dror observed that callers do not know what the demo supports, so "what can you do for me" or "what questions can I ask" must answer with the available options. With tool-calling reasoning, the model knows the four tool descriptions and answers conversationally from them, constrained to describe coverage only as the tools do. An early fixed options message was replaced because it sounded like a service menu and had to be edited whenever capabilities changed.
 
-**Alternatives:** Letting GPT-Live improvise an options answer risks overstating coverage; routing the question through the city-information tool would return only the pothole example. A growing capability list could later come from a message catalog, but one fixed English message matches the current four-capability demo.
+**Alternatives:** A fixed server-owned message is deterministic but rigid. Letting the model improvise without constraints overstates coverage (it initially offered "parking, noise, pets" that the reviewed corpus does not contain); the tool descriptions plus a "describe coverage only as the tools do" instruction bound it. The opt-in reasoning evaluation includes capability utterances (expected: no tool call).
 
-**Tradeoff:** The fixed message must be updated when capabilities change; the eight-case intent evaluation includes two capability utterances so drift is caught by the opt-in paid eval.
+**Tradeoff:** The answer wording now varies, so the paid reasoning eval checks that capability questions select no tool rather than exact copy. The tool descriptions became the capability contract, so they must stay honest about the reviewed, limited coverage.
+
+## 23. Why tool-calling reasoning instead of an intent classifier?
+
+**Status:** Accepted and implemented; spoken verification pending. **SPEC:** ADR-009; voice spec.
+
+**Why:** Dror found the conversation rigid: a weak model classified each utterance into a fixed intent enum, the server then matched keywords to pick an answer, and natural follow-ups ("why did you save", "what rules do you know", "transfer me to transportation") fell through to canned limitations. The reasoning turn now gives the capable model the four application tools, executes its calls through the same validated, server-owned handlers, and lets it compose a short grounded reply. Intent and phrasing live with the model; facts, scope, and effects stay on the server.
+
+**Alternatives:** Keep the intent classifier and add more patterns (rejected: keyword markers do not generalize and drove the rigidity). Register tools directly on the GPT-Live session (rejected for now: client delegation keeps reasoning context, validation, and model comparison on the server, per ADR-007). Structured-output intent with a stronger model (worse: still an enum, still a second hop).
+
+**Tradeoff:** One capable tool-calling call typically costs two model calls (tool round + reply) and adds a little latency versus a single cheap classification; the model composes answers, so "answer only from tool results" must be enforced by instruction and bounded tool exposure. The server still owns validation, the draft pointer, and the confirmed route/ticket effect, so a wrong tool choice is bounded rather than dangerous.
+
+**Reconsider when:** Latency or cost proves unacceptable for the demo, or tool selection proves unreliable on the evaluation cases; then revisit managed delegation or a smaller tool set.
 
 ## Keeping the rationale current
 

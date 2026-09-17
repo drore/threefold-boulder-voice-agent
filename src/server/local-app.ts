@@ -1,3 +1,8 @@
+/**
+ * Local application composition root.
+ * Builds the Fastify API that runs voice/text intake, the agent tools, DB-backed
+ * routing, and ticket submission for local and reviewer modes.
+ */
 import { randomUUID } from "node:crypto";
 import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
@@ -27,9 +32,9 @@ import {
   type ConfirmedTicketResult,
   type TicketProvider,
 } from "./confirmed-ticket.js";
-import { proposeCitizenIntent } from "./intent-proposal.js";
 import { isLocalVoiceOrigin } from "./live-session.js";
-import { createReviewedKnowledgeToolHandlers } from "./reviewed-knowledge.js";
+import { createKnowledgeToolHandlers } from "./knowledge-tools.js";
+import { runReasoningTurn } from "./reasoning-turn.js";
 import {
   newVisitorSession,
   registerVisitorSessions,
@@ -59,8 +64,18 @@ export type LocalConfirmResult =
 const MAX_LOCAL_DELEGATIONS = 20;
 const SUPERSEDED_REPORT_SPEECH =
   "A new report was started. Please repeat your request.";
-const CAPABILITIES_SPEECH =
-  "I can help with a few things: the city rule on glass containers in parks, how to report a pothole, what's coming up on the city's events calendar, and nonurgent pothole or park reports.";
+
+/**
+ * Fixed clock fixtures for the demo scenario toggle. The interviewer can flip
+ * between a real open-hours and closed-hours time so both the route and ticket
+ * paths can be experienced in one session. Server-owned, never caller-set.
+ */
+const SCENARIO_CLOCKS = {
+  open: new Date("2026-09-16T16:00:00.000Z"),
+  closed: new Date("2026-09-17T00:00:00.000Z"),
+} as const;
+
+type DemoScenario = "live" | "open" | "closed";
 
 /**
  * Runs admitted visitor sessions through intake and DB-backed route simulation.
@@ -73,7 +88,11 @@ export function buildLocalApp(
   policyStore: CityPolicyReader,
   clock: () => Date = () => new Date(),
   ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
-  reasoning?: { apiKey: string | undefined; request?: typeof fetch },
+  reasoning?: {
+    apiKey: string | undefined;
+    request?: typeof fetch;
+    model?: string;
+  },
   access?: VisitorAccess,
   events?: CityEventsProvider,
 ) {
@@ -81,10 +100,13 @@ export function buildLocalApp(
     logger: false,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
-  const eventsProvider = events ?? createBoulderEventsProvider({ clock });
+  let scenarioClock: Date | undefined;
+  const effectiveClock = () => scenarioClock ?? clock();
+  const eventsProvider =
+    events ?? createBoulderEventsProvider({ clock: effectiveClock });
   const handlers = {
     ...createAgentToolStubs(),
-    ...createReviewedKnowledgeToolHandlers(clock, eventsProvider),
+    ...createKnowledgeToolHandlers(effectiveClock, eventsProvider),
     prepareServiceReport: createReportToolHandler(store),
   };
   if (!initialContext && !access) {
@@ -136,6 +158,37 @@ export function buildLocalApp(
 
   app.get("/health", async () => ({ status: "ok" }));
 
+  /**
+   * Demo scenario toggle. Selects a fixed server clock so the interviewer can
+   * experience both the open-hours route and the closed-hours ticket path in
+   * one session. `live` restores the real clock. Server-owned, never caller-set.
+   */
+  app.post<{ Body: { scenario: DemoScenario } }>(
+    "/api/local/scenario",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["scenario"],
+          properties: {
+            scenario: { type: "string", enum: ["live", "open", "closed"] },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    (request) => {
+      const { scenario } = request.body;
+      scenarioClock =
+        scenario === "live" ? undefined : SCENARIO_CLOCKS[scenario];
+      return {
+        scenario,
+        simulatedNow:
+          scenarioClock === undefined ? null : scenarioClock.toISOString(),
+      };
+    },
+  );
+
   app.post<{ Body: DelegationBody }>(
     "/api/local/delegation",
     {
@@ -181,6 +234,7 @@ export function buildLocalApp(
             "I could not save this conversation turn, so I cannot continue that request.",
         });
       }
+      const observationId = observation.observationId;
       if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
@@ -202,117 +256,110 @@ export function buildLocalApp(
           : current?.status === "needs_confirmation"
             ? { requestType: current.summary.requestType, missingFields: [] }
             : undefined;
-      const proposed = await proposeCitizenIntent(
+
+      /** Server-owned tool executor: binds scope, observations, and report locking. */
+      async function executeDelegatedTool(
+        name: string,
+        args: Record<string, unknown>,
+      ): Promise<AgentToolResult> {
+        if (name === "prepareServiceReport") {
+          const location =
+            typeof args.location === "string" ? args.location : undefined;
+          const description =
+            typeof args.description === "string" ? args.description : undefined;
+          const requestType =
+            args.requestType === "park_maintenance" ||
+            args.requestType === "pothole"
+              ? args.requestType
+              : (session.currentDraft?.requestType ?? "pothole");
+          const observedLocation =
+            location && isSpokenField(utterance, location)
+              ? location
+              : undefined;
+          const observedDescription =
+            description && isSpokenField(utterance, description)
+              ? description
+              : undefined;
+          const fieldObservationIds = {
+            ...(observedLocation ? { location: observationId } : {}),
+            ...(observedDescription ? { description: observationId } : {}),
+          };
+          return withReportLock(session, async () => {
+            if (generation !== session.reportGeneration) {
+              return { status: "rejected", reason: "missing_server_context" };
+            }
+            const prepared = await callAgentTool(
+              "prepareServiceReport",
+              {
+                requestType,
+                ...(observedLocation ? { location: observedLocation } : {}),
+                ...(observedDescription
+                  ? { description: observedDescription }
+                  : {}),
+              },
+              {
+                ...reportToolContext(session, fieldObservationIds, [
+                  observationId,
+                ]),
+                channel: "voice",
+              },
+              handlers,
+            );
+            if (
+              prepared.status === "needs_input" ||
+              prepared.status === "needs_confirmation"
+            ) {
+              session.currentDraft = {
+                draftId: prepared.draftId,
+                revision: prepared.revision,
+                requestType:
+                  prepared.status === "needs_input"
+                    ? prepared.requestType
+                    : prepared.summary.requestType,
+              };
+            }
+            return prepared;
+          });
+        }
+        return callAgentTool(
+          name,
+          args,
+          {
+            ...session.context,
+            runId: randomUUID(),
+            channel: "voice",
+            observationIds: [observationId],
+          },
+          handlers,
+        );
+      }
+
+      const turn = await runReasoningTurn({
         utterance,
-        reasoning?.apiKey,
-        reasoning?.request,
-        activeDraft,
-      );
+        ...(activeDraft ? { activeDraft } : {}),
+        apiKey: reasoning?.apiKey,
+        ...(reasoning?.request ? { request: reasoning.request } : {}),
+        ...(reasoning?.model ? { model: reasoning.model } : {}),
+        executeTool: executeDelegatedTool,
+      });
       if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
           speech: SUPERSEDED_REPORT_SPEECH,
         };
       }
-      if (proposed.status !== "proposed") {
+      if (turn.status !== "completed") {
         return reply.code(503).send({
           status: "unavailable",
           speech: "I could not check that request right now. Please try again.",
         });
       }
-
-      const { intent, requestType, location, description } = proposed.proposal;
-      if (intent === "unclear") {
-        return {
-          status: "unavailable",
-          speech: "Could you say that again — what question do you have?",
-        };
-      }
-      if (intent === "capabilities") {
-        return { status: "completed", speech: CAPABILITIES_SPEECH };
-      }
-      if (intent === "out_of_scope") {
-        return {
-          status: "unavailable",
-          speech:
-            "I can only help with a few things: the glass-container rule, pothole reporting, upcoming events, and nonurgent pothole or park reports.",
-        };
-      }
-      if (intent === "service_report") {
-        const observedLocation =
-          location && isSpokenField(utterance, location) ? location : undefined;
-        const observedDescription =
-          description && isSpokenField(utterance, description)
-            ? description
-            : undefined;
-        const fieldObservationIds = {
-          ...(observedLocation ? { location: observation.observationId } : {}),
-          ...(observedDescription
-            ? { description: observation.observationId }
-            : {}),
-        };
-        const result = await withReportLock(session, async () => {
-          if (generation !== session.reportGeneration) return null;
-          const prepared = await callAgentTool(
-            "prepareServiceReport",
-            {
-              requestType:
-                requestType ?? session.currentDraft?.requestType ?? "pothole",
-              ...(observedLocation ? { location: observedLocation } : {}),
-              ...(observedDescription
-                ? { description: observedDescription }
-                : {}),
-            },
-            {
-              ...reportToolContext(session, fieldObservationIds, [
-                observation.observationId,
-              ]),
-              channel: "voice",
-            },
-            handlers,
-          );
-          if (
-            prepared.status === "needs_input" ||
-            prepared.status === "needs_confirmation"
-          ) {
-            session.currentDraft = {
-              draftId: prepared.draftId,
-              revision: prepared.revision,
-              requestType:
-                prepared.status === "needs_input"
-                  ? prepared.requestType
-                  : prepared.summary.requestType,
-            };
-          }
-          return prepared;
-        });
-        if (result === null || generation !== session.reportGeneration) {
-          return {
-            status: "unavailable",
-            speech: SUPERSEDED_REPORT_SPEECH,
-          };
-        }
-        return { status: "completed", speech: speechForResult(result), result };
-      }
-
-      const tool =
-        intent === "municipal_code"
-          ? "lookupMunicipalCode"
-          : intent === "city_information"
-            ? "lookupCityInformation"
-            : "findCityEvents";
-      const result = await callAgentTool(
-        tool,
-        { query: utterance },
-        {
-          ...session.context,
-          runId: randomUUID(),
-          channel: "voice",
-          observationIds: [observation.observationId],
-        },
-        handlers,
-      );
-      return { status: "completed", speech: speechForResult(result), result };
+      const lastResult = turn.toolCalls.at(-1)?.result;
+      return {
+        status: "completed",
+        speech: turn.speech,
+        ...(lastResult ? { result: lastResult } : {}),
+      };
     },
   );
   app.post<{ Body: KnowledgeBody }>(
@@ -498,7 +545,7 @@ export function buildLocalApp(
             request.body.revision,
             store,
             policyStore,
-            clock,
+            effectiveClock,
           );
     const result: LocalConfirmResult =
       decision.status !== "ticket_required"
@@ -550,20 +597,4 @@ function isSpokenField(utterance: string, field: string): boolean {
   const normalize = (value: string) =>
     value.toLowerCase().replace(/\s+/g, " ").trim();
   return normalize(utterance).includes(normalize(field));
-}
-
-/** Input: a validated application tool result. Output: a short factual update for GPT-Live to speak. */
-function speechForResult(result: AgentToolResult): string {
-  switch (result.status) {
-    case "answered":
-      return result.answer;
-    case "limited_coverage":
-      return "I don't have an answer for that. I only know a few specific topics, so the city's website would be the better place to check.";
-    case "needs_input":
-      return `I saved that. What's the ${result.fields.join(" and ")}?`;
-    case "needs_confirmation":
-      return `I've got ${result.summary.description} at ${result.summary.location}. Please confirm it on the screen before I send it.`;
-    default:
-      return "I couldn't finish that. Please check the screen or try again.";
-  }
 }

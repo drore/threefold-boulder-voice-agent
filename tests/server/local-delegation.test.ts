@@ -17,20 +17,34 @@ if (
   throw new Error("Voice integration tests require a loopback database");
 }
 
-/** Input: a synthetic structured intent. Output: the Responses envelope the local API consumes. */
-function modelResponse(proposal: Record<string, unknown>): Response {
-  return new Response(
-    JSON.stringify({
-      status: "completed",
-      output: [
-        {
-          type: "message",
-          content: [{ type: "output_text", text: JSON.stringify(proposal) }],
-        },
-      ],
-    }),
-    { status: 200 },
-  );
+/** Input: response output items. Output: the Responses envelope the app consumes. */
+function modelOutput(output: unknown[]): Response {
+  return new Response(JSON.stringify({ status: "completed", output }), {
+    status: 200,
+  });
+}
+
+/** Input: a tool call the model should make. Output: a function-call response. */
+function toolCall(
+  name: string,
+  args: Record<string, unknown>,
+  callId: string,
+): Response {
+  return modelOutput([
+    {
+      type: "function_call",
+      name,
+      arguments: JSON.stringify(args),
+      call_id: callId,
+    },
+  ]);
+}
+
+/** Input: the model's final spoken reply. Output: a message response. */
+function message(text: string): Response {
+  return modelOutput([
+    { type: "message", content: [{ type: "output_text", text }] },
+  ]);
 }
 
 describe.skipIf(!databaseUrl)("local voice delegation", () => {
@@ -38,35 +52,28 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
   let context: ReportContext;
   let app: ReturnType<typeof buildLocalApp>;
   const modelInputs: unknown[] = [];
-  const proposals = [
-    {
-      intent: "municipal_code",
-      requestType: null,
-      location: null,
-      description: null,
-      query: "BRC 8-3-9 glass",
-    },
-    {
-      intent: "service_report",
-      requestType: "pothole",
-      location: "Invented location",
-      description: "Deep pothole",
-      query: null,
-    },
-    {
-      intent: "service_report",
-      requestType: null,
-      location: "15th and Pine",
-      description: null,
-      query: null,
-    },
-    {
-      intent: "capabilities",
-      requestType: null,
-      location: null,
-      description: null,
-      query: null,
-    },
+  const responses: Response[] = [
+    toolCall("lookupMunicipalCode", { query: "BRC 8-3-9 glass" }, "call-1"),
+    message("Glass bottles are banned in city parks, with an exception."),
+    toolCall(
+      "prepareServiceReport",
+      {
+        requestType: "pothole",
+        location: "Invented location",
+        description: "Deep pothole",
+      },
+      "call-2",
+    ),
+    message("I saved that. What's the location?"),
+    toolCall(
+      "prepareServiceReport",
+      { requestType: "pothole", location: "15th and Pine" },
+      "call-3",
+    ),
+    message(
+      "I've got Deep pothole at 15th and Pine. Please confirm on screen.",
+    ),
+    message("I can help with glass containers, potholes, events, and reports."),
   ];
 
   beforeAll(async () => {
@@ -78,9 +85,9 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
     context = opened.context;
     const request: typeof fetch = async (_input, init) => {
       modelInputs.push(JSON.parse(String(init?.body)));
-      const proposal = proposals.shift();
-      if (!proposal) throw new Error("Unexpected model request");
-      return modelResponse(proposal);
+      const response = responses.shift();
+      if (!response) throw new Error("Unexpected model request");
+      return response;
     };
     app = buildLocalApp(
       store,
@@ -132,6 +139,7 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       status: "completed",
+      speech: expect.stringContaining("Glass bottles"),
       result: { status: "answered", coverage: "reviewed_example" },
     });
     const observations = await pool.query(
@@ -170,7 +178,7 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
         summary: { location: "15th and Pine", description: "Deep pothole" },
       },
     });
-    const modelInput = modelInputs[2] as { input: Array<{ content: string }> };
+    const modelInput = modelInputs[4] as { input: Array<{ content: string }> };
     expect(JSON.parse(modelInput.input[1]?.content ?? "{}")).toMatchObject({
       activeDraft: { requestType: "pothole", missingFields: ["location"] },
     });
@@ -187,7 +195,7 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
     });
   });
 
-  it("lists the supported options when the caller asks what the demo can do", async () => {
+  it("answers a conversational capability question without touching the draft", async () => {
     const draftsBefore = await pool.query(
       "select id from app.request_drafts where conversation_id = $1",
       [context.conversationId],
@@ -201,10 +209,9 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       status: "completed",
-      speech: expect.stringContaining("glass"),
+      speech: expect.stringContaining("I can help"),
     });
-    expect(response.json().speech).toContain("pothole");
-    expect(response.json().speech).toContain("events calendar");
+    expect(response.json().result).toBeUndefined();
     const observations = await pool.query(
       "select id from app.observations where conversation_id = $1",
       [context.conversationId],
@@ -226,9 +233,14 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
     const modelReply = new Promise<Response>((resolve) => {
       releaseModel = resolve;
     });
+    let calls = 0;
     const delayedRequest: typeof fetch = async () => {
-      notifyModelStarted();
-      return modelReply;
+      calls += 1;
+      if (calls === 1) {
+        notifyModelStarted();
+        return modelReply;
+      }
+      return message("Done.");
     };
     const delayedApp = buildLocalApp(
       new PostgresDraftStore(pool),
@@ -253,13 +265,15 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
       });
       expect(reset.statusCode).toBe(200);
       releaseModel(
-        modelResponse({
-          intent: "service_report",
-          requestType: "pothole",
-          location: "15th and Pine",
-          description: "deep pothole",
-          query: null,
-        }),
+        toolCall(
+          "prepareServiceReport",
+          {
+            requestType: "pothole",
+            location: "15th and Pine",
+            description: "deep pothole",
+          },
+          "call-late",
+        ),
       );
       expect((await pending).json()).toMatchObject({
         status: "unavailable",
@@ -292,14 +306,21 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
         return super.save(...args);
       }
     }
-    const request: typeof fetch = async () =>
-      modelResponse({
-        intent: "service_report",
-        requestType: "pothole",
-        location: "15th and Pine",
-        description: "deep pothole",
-        query: null,
-      });
+    let calls = 0;
+    const request: typeof fetch = async () => {
+      calls += 1;
+      return calls === 1
+        ? toolCall(
+            "prepareServiceReport",
+            {
+              requestType: "pothole",
+              location: "15th and Pine",
+              description: "deep pothole",
+            },
+            "call-4",
+          )
+        : message("I've got that. Please confirm on screen.");
+    };
     const delayedApp = buildLocalApp(
       new DelayedDraftStore(pool),
       context,

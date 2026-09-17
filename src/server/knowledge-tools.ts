@@ -1,7 +1,19 @@
+/**
+ * Reviewed knowledge handlers.
+ * Answers the reviewed municipal-code and city-service examples from checked-in
+ * evidence and delegates event questions to the live cached calendar provider.
+ */
 import type {
   BoulderEventOccurrence,
   CityEventsProvider,
 } from "../adapters/boulder/events.js";
+import {
+  addLocalDays,
+  formatShortLocalDate,
+  isValidLocalDate,
+  localDateIn,
+  utcDate,
+} from "../core/date-time.js";
 import type {
   AgentSourceCard,
   AgentToolHandlers,
@@ -79,7 +91,7 @@ const EMPTY_COUNCIL_EVENTS_ANSWER =
  * Input: a server clock and the live-events provider.
  * Output: handlers for code/service answers and bounded live event answers.
  */
-export function createReviewedKnowledgeToolHandlers(
+export function createKnowledgeToolHandlers(
   clock: () => Date = () => new Date(),
   events: CityEventsProvider,
 ): Pick<
@@ -136,6 +148,24 @@ export function createReviewedKnowledgeToolHandlers(
             occurrence.date <= rangeEnd,
         )
         .sort((a, b) => a.date.localeCompare(b.date));
+      const named = namedEventMatches(query, upcoming);
+      if (named.length > 0) {
+        const lines = named.slice(0, MAX_EVENT_ANSWERS).map(formatEventLine);
+        return answered(
+          named.length === 1
+            ? `Here's what the city calendar shows for that: ${lines[0]}.`
+            : `Here's what the city calendar shows for that: ${lines.join(" ")}`,
+          named
+            .slice(0, MAX_EVENT_ANSWERS)
+            .map((occurrence) =>
+              eventSourceCard(occurrence, result.fetchedAtUtc),
+            ),
+          [
+            "Times and cancellations may appear only on the event's official detail page.",
+          ],
+          "live_official_source",
+        );
+      }
       const councilOnly = matchesCouncilEventQuery(query);
       const matches = councilOnly ? upcoming.filter(isCouncilEvent) : upcoming;
       const shown = matches.slice(0, MAX_EVENT_ANSWERS);
@@ -242,32 +272,18 @@ function hasUnsupportedEventQualifier(query: string): boolean {
  * Input: a clock at `2026-09-17T01:00:00Z`. Output: `"2026-09-16"`.
  */
 function boulderToday(clock: () => Date): string {
-  return formatLocalDate(clock(), BOULDER_TIME_ZONE);
-}
-
-/**
- * Adds days to a `YYYY-MM-DD` local date.
- * Input: `("2026-09-16", 14)`. Output: `"2026-09-30"`.
- */
-function addLocalDays(localDate: string, days: number): string {
-  const [year = 1970, month = 1, day = 1] = localDate.split("-").map(Number);
-  return formatUtcDate(new Date(Date.UTC(year, month - 1, day + days)));
+  return localDateIn(clock(), BOULDER_TIME_ZONE);
 }
 
 /**
  * Formats an occurrence for a spoken/screen answer.
  * Input: `{title:"City Council Meeting", date:"2026-09-17", ...}`.
- * Output: `"Thu Sep 17: City Council Meeting at Penfield Tate II Municipal Building"`.
+ * Output: `"Thu, Sep 17: City Council Meeting at Penfield Tate II Municipal Building"`.
  */
 function formatEventLine(occurrence: BoulderEventOccurrence): string {
-  const when = new Date(`${occurrence.date}T12:00:00Z`).toLocaleDateString(
-    "en-US",
-    {
-      timeZone: BOULDER_TIME_ZONE,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    },
+  const when = formatShortLocalDate(
+    new Date(`${occurrence.date}T12:00:00Z`),
+    BOULDER_TIME_ZONE,
   );
   const location =
     occurrence.locationText?.toLowerCase() === "virtual"
@@ -287,6 +303,56 @@ function isCouncilEvent(occurrence: BoulderEventOccurrence): boolean {
   return title.includes("council") || title.includes("study session");
 }
 
+const GENERIC_EVENT_WORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "of",
+  "for",
+  "at",
+  "in",
+  "on",
+  "to",
+  "with",
+  "city",
+  "council",
+  "meeting",
+  "session",
+  "study",
+  "committee",
+  "board",
+  "event",
+  "public",
+  "special",
+  "hearing",
+]);
+
+/**
+ * Matches a caller's query to specific calendar events by their distinctive
+ * title words. This is server-side evidence selection: the caller names an
+ * event, and we return only the occurrence whose title words are all present
+ * in the query. Category words ("council", "meeting") are ignored so a broad
+ * category question is not mistaken for one specific event.
+ * Input: `"tell me about the landmarks design review committee"`.
+ * Output: the `Landmarks Design Review Committee` occurrence, if upcoming.
+ */
+function namedEventMatches(
+  query: string,
+  occurrences: readonly BoulderEventOccurrence[],
+): BoulderEventOccurrence[] {
+  const normalizedQuery = normalizeQuery(query);
+  return occurrences.filter((occurrence) => {
+    const title = normalizeQuery(occurrence.title.replace(/\([^)]*\)/g, " "));
+    const distinctive = title
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !GENERIC_EVENT_WORDS.has(word));
+    if (distinctive.length === 0) return false;
+    return distinctive.every((word) => normalizedQuery.includes(word));
+  });
+}
+
 /**
  * Builds the source card for one parsed calendar occurrence.
  * Input: an occurrence and the fetch timestamp.
@@ -296,7 +362,7 @@ function eventSourceCard(
   occurrence: BoulderEventOccurrence,
   fetchedAtUtc: string,
 ): AgentSourceCard {
-  const fetchedOn = formatUtcDate(new Date(fetchedAtUtc));
+  const fetchedOn = utcDate(new Date(fetchedAtUtc));
   const note =
     occurrence.status === "unknown"
       ? "Official calendar listing; times and cancellations may appear on the detail page."
@@ -317,48 +383,8 @@ function eventSourceCard(
 function eventsListingSource(fetchedAtUtc: string): AgentSourceCard {
   return {
     ...EVENTS_LISTING_SOURCE,
-    verifiedOn: formatUtcDate(new Date(fetchedAtUtc)),
+    verifiedOn: utcDate(new Date(fetchedAtUtc)),
   };
-}
-
-/**
- * Formats a date as `YYYY-MM-DD` in the given IANA time zone.
- */
-function formatLocalDate(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
-}
-
-/**
- * Formats a UTC date as `YYYY-MM-DD`.
- */
-function formatUtcDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-/**
- * Validates the local date format used by the event tool.
- * Input: `"2026-02-30"`. Output: `false`.
- */
-function isValidLocalDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parts = value.split("-");
-  const year = Number(parts[0]);
-  const month = Number(parts[1]);
-  const day = Number(parts[2]);
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-  return (
-    utcDate.getUTCFullYear() === year &&
-    utcDate.getUTCMonth() === month - 1 &&
-    utcDate.getUTCDate() === day
-  );
 }
 
 /**

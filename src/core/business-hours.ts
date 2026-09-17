@@ -1,3 +1,11 @@
+/**
+ * Pure, provider-free business-hours policy.
+ * `isWithinBusinessHours` checks a validated schedule at a trusted time and
+ * `decideBusinessHoursAction` maps that to route/create_ticket/unavailable.
+ * No I/O or provider types here; the DB adapter validates the schedule first.
+ */
+import { localDateTimeParts } from "./date-time.js";
+
 type Weekday =
   | "monday"
   | "tuesday"
@@ -36,36 +44,18 @@ export function isWithinBusinessHours(
   }
 
   try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: schedule.timeZone,
-      calendar: "gregory",
-      numberingSystem: "latn",
-      weekday: "long",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    });
-    const { year, month, day, hour, minute, weekday } = Object.fromEntries(
-      formatter
-        .formatToParts(currentTime)
-        .map(({ type, value }) => [type, value]),
-    );
-    if (!year || !month || !day || !hour || !minute || !weekday) {
-      return undefined;
-    }
+    const parts = localDateTimeParts(currentTime, schedule.timeZone);
+    if (!parts) return undefined;
 
-    const localDate = `${year}-${month}-${day}`;
+    const localDate = `${parts.year}-${parts.month}-${parts.day}`;
     if (localDate > schedule.validThrough) return undefined;
 
     const openingHours =
       schedule.dateOverrides[localDate] ??
-      schedule.weeklySchedule[weekday.toLowerCase() as Weekday];
+      schedule.weeklySchedule[parts.weekday as Weekday];
     if (!Array.isArray(openingHours)) return undefined;
 
-    const localTime = `${hour}:${minute}`;
+    const localTime = `${parts.hour}:${parts.minute}`;
     return openingHours.some(
       ({ opensAt, closesAt }) => opensAt <= localTime && localTime < closesAt,
     );

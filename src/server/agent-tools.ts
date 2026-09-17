@@ -1,3 +1,9 @@
+/**
+ * Agent tool boundary.
+ * Declares the four backend capabilities and validates model-supplied tool
+ * calls before invoking a handler. Tool names/arguments are untrusted input;
+ * conversation scope, time, and destinations come from server state.
+ */
 import {
   prepareServiceReport,
   type DraftStore,
@@ -12,7 +18,7 @@ export const agentToolDefinitions = [
   {
     name: "lookupMunicipalCode",
     description:
-      "Find reviewed Boulder municipal-code evidence for a question.",
+      "Look up the reviewed Boulder municipal-code example (BRC 8-3-9, glass containers in parks). Coverage is a small reviewed set, not the full code.",
     parameters: {
       type: "object",
       properties: { query: { type: "string" } },
@@ -22,7 +28,8 @@ export const agentToolDefinitions = [
   },
   {
     name: "lookupCityInformation",
-    description: "Find reviewed Boulder city-service and department guidance.",
+    description:
+      "Look up reviewed Boulder city-service guidance (how to report a pothole). Coverage is a small reviewed set of examples, not a directory of every service.",
     parameters: {
       type: "object",
       properties: { query: { type: "string" } },
@@ -32,7 +39,8 @@ export const agentToolDefinitions = [
   },
   {
     name: "findCityEvents",
-    description: "Find dated Boulder events from reviewed official sources.",
+    description:
+      "Find upcoming events from the official Boulder city calendar (live, cached). Returns dated occurrences with official links.",
     parameters: {
       type: "object",
       properties: {

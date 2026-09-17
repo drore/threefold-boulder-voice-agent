@@ -52,7 +52,7 @@ Selected client delegation: server owns transient transcripts/current task snaps
 
 The voice model requests a supported task; the server assembles observed caller details and current state for the reasoning backend. It does not receive `isWithinBusinessHours`, `decideBusinessHoursAction`, `TicketProvider`, or `TransferProvider` as callable tools. The coordinator maps validated reasoning proposals to the core's `updateDraft`, `requestConfirmation`, and `recordConfirmation` use cases. Only after the server verifies confirmation of the current draft revision may the coordinator call `executeRequest`. The core chooses the action from validated database configuration and trusted time, then returns a verified outcome for the coordinator to communicate through Live.
 
-The reasoning backend proposes one bounded intent using `gpt-5.6-luna` Structured Outputs. The server validates the proposal and invokes one of four application capabilities through the [tool boundary](../src/server/agent-tools.ts). Reviewed code and service examples and both service-report drafts have handlers; other requests return honest limited coverage. A `capabilities` intent answers "what can you do" / "what can I ask" questions with a fixed server-owned options message that lists the supported topics, so callers always hear what the demo covers. The proposal cannot select a destination, confirm a draft, or create a ticket. Two live synthetic intent-classification calls succeeded, including a location-only report follow-up, but no spoken delegated result has yet been verified.
+The reasoning backend runs one bounded tool-calling turn per delegated utterance (`gpt-5.6-luna` via the Responses API). The model chooses from the four application capabilities in the [tool boundary](../src/server/agent-tools.ts); the server executes each call through validated, server-owned handlers and returns exact evidence; the model then composes a short grounded reply. Reviewed code and service examples and both service-report drafts have handlers, and capability questions ("what can you do") are answered conversationally from the tool list. The model cannot select a destination, confirm a draft, or create a ticket; only a confirmed revision reaches the effect path. Live tool selection passed on 2026-09-16, but no formal spoken delegated result has yet been recorded.
 
 | Agent tool | Model-supplied input | Application responsibility |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ Required capture rules are enforced through workflow contracts, not just this pr
 - AC-005: Given denied mic, connection loss, or close, resources release and recoverable state is accurate.
 - AC-006: Given a delegated code, service-guidance, or event question, the corresponding tool returns only approved scoped evidence or an explicit limitation; a model-supplied URL or stale/unsupported claim cannot become a sourced answer.
 - AC-007: Given an unknown tool, invalid argument shape/report type, or model-supplied confirmation/destination, the tool boundary rejects the call without invoking a handler. Valid stubs return unavailable until their use cases are implemented. The event use case validates calendar dates and allowed ranges before returning event data; live-fetch failures return an explicit limited-coverage outcome rather than stale or invented events.
-- AC-008: Given a "what can you do" or "what can I ask" utterance, the server speaks a fixed options overview covering the supported topics; the answer comes from the server, not a model-generated fact list.
+- AC-008: Given a "what can you do" or "what can I ask" utterance, the reasoning model answers conversationally from the tool list without calling a tool, and describes coverage only as the tools describe it; it never claims topics or sources beyond the reviewed examples.
 
 ## 6. Test automation strategy
 
@@ -103,7 +103,7 @@ Separation keeps voice replaceable and workflow deterministic. Client control co
 
 ## 8. Dependencies and integrations
 
-GPT-Live browser WebRTC, server-held OpenAI key, `gpt-5.6-luna` intent proposals, core, reviewed evidence, authorized UI events. The first live model classification passed; browser media remains unverified. No telephony provider, LiveKit, Pipecat, or agent framework selected.
+GPT-Live browser WebRTC, server-held OpenAI key, `gpt-5.6-luna` tool-calling reasoning, core, reviewed evidence, authorized UI events. Live tool selection passed; browser media remains unverified. No telephony provider, LiveKit, Pipecat, or agent framework selected.
 
 ## 9. Examples and edge cases
 
@@ -111,7 +111,7 @@ GPT-Live browser WebRTC, server-held OpenAI key, `gpt-5.6-luna` intent proposals
 
 ## 10. Validation criteria
 
-M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. Model access and two paid synthetic intent calls passed on September 16, 2026, and Dror personally used the live spoken browser path the same day with a positive report; formal recorded voice evidence and hosted browser verification remain pending.
+M1: startup, actual input/output, one backend call, ambiguity, interruption/correction, close, and server connection hosting. Record access/model/browser/version and limitations. M5/M6 exercise A9/A19/A25 and fresh deployed reviewer session. Model access and paid synthetic reasoning turns passed on September 16, 2026, and Dror personally used the live spoken browser path the same day with a positive report; formal recorded voice evidence and hosted browser verification remain pending.
 
 ## 11. Related specifications
 
