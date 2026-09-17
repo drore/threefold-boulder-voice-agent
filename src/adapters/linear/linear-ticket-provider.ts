@@ -84,7 +84,7 @@ type GraphQlResponse =
   | { status: "unavailable"; reason: string };
 
 /**
- * Creates and reads Boulder service tickets through the narrow Linear GraphQL API.
+ * Creates and reads city service tickets through the narrow Linear GraphQL API.
  * Input: `{apiKey: "lin_api_...", teamId: "team-uuid", projectId: "project-uuid"}`. Output: adapter with server-held credentials.
  */
 export class LinearTicketProvider {

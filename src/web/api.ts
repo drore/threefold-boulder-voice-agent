@@ -7,7 +7,7 @@ import type {
   PrepareReportResult,
   SupportedReportType,
 } from "../core/service-report/prepare-service-report.js";
-import type { AgentToolResult } from "../server/reasoning/agent-tools.js";
+import type { AgentToolResult } from "../server/reasoning/tool-definitions.js";
 import type { LocalConfirmResult } from "../server/build-app.js";
 
 export type SavedReport = { status: "empty" } | PrepareReportResult;
@@ -15,6 +15,17 @@ export type DemoScenario = "live" | "open" | "closed";
 export type AccessState = "admitted" | "required" | "unavailable";
 
 /** Input: the access probe. Output: whether this browser is admitted. */
+/** Input: the city probe. Output: the configured city display name. */
+export async function fetchCityName(): Promise<string> {
+  const response = await fetch("/api/city");
+  if (!response.ok) throw new Error("The city configuration is unavailable.");
+  const body = (await response.json()) as { displayName?: string };
+  return typeof body.displayName === "string" &&
+    body.displayName.trim().length > 0
+    ? body.displayName
+    : "City";
+}
+
 export async function fetchAccess(): Promise<AccessState> {
   const response = await fetch("/api/access");
   if (response.ok) return "admitted";

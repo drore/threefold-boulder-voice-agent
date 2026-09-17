@@ -5,10 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
-import {
-  createBoulderEventsProvider,
-  type CityEventsProvider,
-} from "../adapters/boulder/events.js";
+import type { CityEventsProvider } from "../adapters/city-website/events.js";
 import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { isWithinBusinessHours } from "../core/business-hours.js";
 import {
@@ -19,14 +16,17 @@ import type {
   ReportContext,
   SupportedReportType,
 } from "../core/service-report/prepare-service-report.js";
+import type { CityKnowledgeReader } from "../core/city.js";
 import type { TicketOperationStore } from "../core/service-report/ticket-operation.js";
 import {
   callAgentTool,
   createAgentToolStubs,
   createReportToolHandler,
-  type AgentToolContext,
-  type AgentToolResult,
 } from "./reasoning/agent-tools.js";
+import type {
+  AgentToolContext,
+  AgentToolResult,
+} from "./reasoning/tool-definitions.js";
 import {
   submitConfirmedTicket,
   type TicketProvider,
@@ -41,6 +41,20 @@ import {
   type VisitorAccess,
   type VisitorSession,
 } from "./visitor-sessions.js";
+
+/** Fallback source used when no city calendar is configured. */
+const unavailableEvents: CityEventsProvider = {
+  upcomingEvents: async () => ({ status: "source_unavailable" }),
+};
+
+/** Server-owned city runtime read from the database at startup. */
+export type CityRuntime = Readonly<{
+  cityId: string;
+  displayName: string;
+  timeZone: string;
+  eventsListingUrl: string;
+  knowledge: CityKnowledgeReader;
+}>;
 
 type ReportBody = {
   requestType?: SupportedReportType;
@@ -83,6 +97,7 @@ export function buildLocalApp(
   store: PostgresDraftStore,
   initialContext: ReportContext | null,
   policyStore: CityPolicyStore,
+  city: CityRuntime,
   clock: () => Date = () => new Date(),
   ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
   reasoning?: {
@@ -99,11 +114,17 @@ export function buildLocalApp(
   });
   let scenarioClock: Date | undefined;
   const effectiveClock = () => scenarioClock ?? clock();
-  const eventsProvider =
-    events ?? createBoulderEventsProvider({ clock: effectiveClock });
+  const eventsProvider = events ?? unavailableEvents;
   const handlers = {
     ...createAgentToolStubs(),
-    ...createKnowledgeToolHandlers(effectiveClock, eventsProvider),
+    ...createKnowledgeToolHandlers({
+      clock: effectiveClock,
+      events: eventsProvider,
+      knowledge: city.knowledge,
+      cityId: city.cityId,
+      timeZone: city.timeZone,
+      eventsListingUrl: city.eventsListingUrl,
+    }),
     prepareServiceReport: createReportToolHandler(store),
   };
   if (!initialContext && !access) {
@@ -154,6 +175,9 @@ export function buildLocalApp(
   }
 
   app.get("/health", async () => ({ status: "ok" }));
+
+  /** Input: none. Output: the configured city's display name for the UI header. */
+  app.get("/api/city", async () => ({ displayName: city.displayName }));
 
   /**
    * Demo scenario toggle. Selects a fixed server clock so the interviewer can
@@ -275,11 +299,11 @@ export function buildLocalApp(
               ? args.requestType
               : (session.currentDraft?.requestType ?? "pothole");
           const observedLocation =
-            location && isGroundedInUtterance(utterance, location)
+            location && isSpokenSpan(utterance, location)
               ? location
               : undefined;
           const observedDescription =
-            description && isGroundedInUtterance(utterance, description)
+            description && isSpokenSpan(utterance, description)
               ? description
               : undefined;
           const fieldObservationIds = {
@@ -359,6 +383,7 @@ export function buildLocalApp(
 
       const turn = await runReasoningTurn({
         utterance,
+        cityName: city.displayName,
         ...(activeDraft ? { activeDraft } : {}),
         officeStatus: await currentOfficeStatus(),
         ...(session.lastAssistantSpeech
@@ -552,6 +577,7 @@ export function buildLocalApp(
           existing.operation.policyRevision,
           ticketing.operations,
           ticketing.provider,
+          city.displayName,
         );
       }
       if (existing.status === "unavailable") {
@@ -579,6 +605,7 @@ export function buildLocalApp(
           decision.policyRevision,
           ticketing.operations,
           ticketing.provider,
+          city.displayName,
         )
       : { status: "ticket_path_unavailable", reason: "not_configured" };
   }
@@ -627,39 +654,16 @@ export function buildLocalApp(
 }
 
 /**
- * Checks whether a model-proposed field is grounded in what the caller said.
- * Exact containment passes; otherwise at least one significant field token must
- * appear in the utterance, so a spoken expansion ("it's deep" -> "the pothole
- * is deep") binds while a wholly invented field ("Invented location") does not.
+ * Checks that a model-proposed report field is an exact span of what the
+ * caller said. The instruction asks the model to pass the caller's own words,
+ * so a paraphrase is rejected and the model can retry with the exact words;
+ * this keeps report content backed by caller evidence with no fuzzy matching.
+ * Input: `"It's deep"` and `"deep"`. Output: `true`.
  */
-function isGroundedInUtterance(utterance: string, field: string): boolean {
+function isSpokenSpan(utterance: string, field: string): boolean {
   const normalize = (value: string) =>
     value.toLowerCase().replace(/\s+/g, " ").trim();
   const spoken = normalize(utterance);
   const proposed = normalize(field);
-  if (proposed.length === 0) return false;
-  if (spoken.includes(proposed)) return true;
-  const stopwords = new Set([
-    "the",
-    "a",
-    "an",
-    "and",
-    "or",
-    "of",
-    "for",
-    "at",
-    "in",
-    "on",
-    "to",
-    "with",
-    "is",
-    "it",
-    "its",
-    "this",
-    "that",
-  ]);
-  const tokens = proposed
-    .split(" ")
-    .filter((token) => token.length > 2 && !stopwords.has(token));
-  return tokens.length > 0 && tokens.some((token) => spoken.includes(token));
+  return proposed.length > 0 && spoken.includes(proposed);
 }

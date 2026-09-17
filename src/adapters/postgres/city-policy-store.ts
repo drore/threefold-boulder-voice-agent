@@ -20,14 +20,12 @@ const WEEKDAYS = [
   "sunday",
 ] as const;
 const REQUEST_TYPES = ["pothole", "park_maintenance"] as const;
-const DEPARTMENTS = ["transportation_mobility", "parks_recreation"] as const;
 
 type Weekday = (typeof WEEKDAYS)[number];
 export type SupportedRequestType = (typeof REQUEST_TYPES)[number];
-export type DepartmentId = (typeof DEPARTMENTS)[number];
 
 export type DepartmentPolicy = Readonly<{
-  id: DepartmentId;
+  id: string;
   name: string;
   mockDestination: string;
   sourceUrl: string;
@@ -35,18 +33,22 @@ export type DepartmentPolicy = Readonly<{
 
 export type CityPolicy = Readonly<{
   cityId: string;
+  displayName: string;
   revision: number;
   sourceUrl: string;
   holidaySourceUrl: string;
+  eventsListingUrl: string;
   sourceVerifiedAt: string;
   schedule: OfficeSchedule;
   alwaysOpenTicket: false;
-  departments: Readonly<Record<DepartmentId, DepartmentPolicy>>;
-  requestTypes: Readonly<Record<SupportedRequestType, DepartmentId>>;
+  departments: Readonly<Record<string, DepartmentPolicy>>;
+  requestTypes: Readonly<Record<SupportedRequestType, string>>;
 }>;
 
 type CityPolicyRow = {
   city_id: string;
+  display_name: string;
+  events_listing_url: string;
   revision: number;
   source_url: string;
   source_verified_at: Date;
@@ -70,7 +72,8 @@ export class PostgresCityPolicyStore {
   > {
     try {
       const result = await this.pool.query<CityPolicyRow>(
-        `select city_id, revision, source_url, source_verified_at,
+        `select city_id, display_name, events_listing_url, revision,
+                source_url, source_verified_at,
                 valid_through::text as valid_through, policy
          from app.city_policies
          where city_id = $1`,
@@ -99,7 +102,9 @@ function validateCityPolicy(
     row.city_id !== expectedCityId ||
     !Number.isInteger(row.revision) ||
     row.revision <= 0 ||
-    !isHttpsUrl(row.source_url)
+    !nonEmpty(row.display_name) ||
+    !isHttpsUrl(row.source_url) ||
+    !isHttpsUrl(row.events_listing_url)
   ) {
     return undefined;
   }
@@ -123,9 +128,11 @@ function validateCityPolicy(
 
   return {
     cityId: row.city_id,
+    displayName: row.display_name.trim(),
     revision: row.revision,
     sourceUrl: row.source_url,
     holidaySourceUrl: raw.holidaySourceUrl,
+    eventsListingUrl: row.events_listing_url,
     sourceVerifiedAt: row.source_verified_at.toISOString(),
     schedule,
     alwaysOpenTicket: false,
@@ -219,20 +226,20 @@ function validateOpeningHours(
   return hours;
 }
 
-/** Input: raw department map. Output: typed departments with fictional destinations. */
+/** Input: raw department map. Output: typed departments derived from the row keys. */
 function validateDepartments(
   raw: unknown,
 ): CityPolicy["departments"] | undefined {
   if (!isRecord(raw)) return undefined;
-  const departments = {} as Record<DepartmentId, DepartmentPolicy>;
-  for (const id of DEPARTMENTS) {
-    const department = raw[id];
+  const departments: Record<string, DepartmentPolicy> = {};
+  for (const [id, department] of Object.entries(raw)) {
     if (
+      id.trim() === "" ||
       !isRecord(department) ||
       typeof department.name !== "string" ||
       department.name.trim() === "" ||
       typeof department.mockDestination !== "string" ||
-      !/^\+130355501\d{2}$/.test(department.mockDestination) ||
+      !isE164Number(department.mockDestination) ||
       typeof department.sourceUrl !== "string" ||
       !isHttpsUrl(department.sourceUrl)
     ) {
@@ -245,7 +252,7 @@ function validateDepartments(
       sourceUrl: department.sourceUrl,
     };
   }
-  return departments;
+  return Object.keys(departments).length > 0 ? departments : undefined;
 }
 
 /** Input: raw request map plus departments. Output: request type to department IDs. */
@@ -254,17 +261,16 @@ function validateRequestTypes(
   departments: CityPolicy["departments"],
 ): CityPolicy["requestTypes"] | undefined {
   if (!isRecord(raw)) return undefined;
-  const requestTypes = {} as Record<SupportedRequestType, DepartmentId>;
+  const requestTypes: Record<SupportedRequestType, string> = {} as Record<
+    SupportedRequestType,
+    string
+  >;
   for (const requestType of REQUEST_TYPES) {
     const departmentId = raw[requestType];
-    if (
-      typeof departmentId !== "string" ||
-      !DEPARTMENTS.includes(departmentId as DepartmentId) ||
-      !departments[departmentId as DepartmentId]
-    ) {
+    if (typeof departmentId !== "string" || !departments[departmentId]) {
       return undefined;
     }
-    requestTypes[requestType] = departmentId as DepartmentId;
+    requestTypes[requestType] = departmentId;
   }
   return requestTypes;
 }
@@ -294,7 +300,16 @@ function isLocalTime(value: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-/** Input: `"https://bouldercolorado.gov/contact-us"`. Output: `true`. */
+/** Input: `"+13035550101"`. Output: `true` for a plausible E.164 number. */
+function isE164Number(value: string): boolean {
+  return /^\+[1-9]\d{6,14}$/.test(value);
+}
+
+function nonEmpty(value: string): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Input: `"https://example.gov/contact"`. Output: `true`. */
 function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === "https:";

@@ -15,15 +15,17 @@ const LOCAL_ORIGINS = new Set([
   "http://localhost:5173",
 ]);
 
-const LIVE_INSTRUCTIONS = [
-  "You are a calm, friendly assistant for a small Boulder, Colorado city-services demo.",
-  'Open with a short, friendly welcome such as "Welcome to the City of Boulder — how can I help you today?" Do not list your capabilities unless the caller asks what you can do.',
-  "For every caller question or request, delegate to the backend and then speak ONLY the exact text the backend returns. Do not summarize, shorten, reword, reorder, or add anything to it.",
-  "Never state or imply a capability you do not have. If the backend returns a limited-coverage or unavailable message, say that message and nothing more.",
-  'While the backend works, say only a short acknowledgment such as "One moment." Do not announce what you are about to do, and avoid filler sounds like "mm-hmm" or "hmm".',
-  "Ignore coughs, throat-clearing, sneezes, and background noise; treat them as no input rather than as a question.",
-  "Never claim a ticket was created or a department was reached until the backend confirms it.",
-].join(" ");
+function liveInstructions(cityName: string): string {
+  return [
+    `You are a calm, friendly assistant for a small ${cityName} city-services demo.`,
+    `Open with a short, friendly welcome such as "Welcome to the City of ${cityName} — how can I help you today?" Do not list your capabilities unless the caller asks what you can do.`,
+    "For every caller question or request, delegate to the backend and then speak ONLY the exact text the backend returns. Do not summarize, shorten, reword, reorder, or add anything to it.",
+    "Never state or imply a capability you do not have. If the backend returns a limited-coverage or unavailable message, say that message and nothing more.",
+    'While the backend works, say only a short acknowledgment such as "One moment." Do not announce what you are about to do, and avoid filler sounds like "mm-hmm" or "hmm".',
+    "Ignore coughs, throat-clearing, sneezes, and background noise; treat them as no input rather than as a question.",
+    "Never claim a ticket was created or a department was reached until the backend confirms it.",
+  ].join(" ");
+}
 
 type LiveSession = {
   session: { id: string };
@@ -41,6 +43,7 @@ type LiveSessionResult =
 export async function createLiveSession(
   sdp: string,
   apiKey: string | undefined,
+  cityName: string,
   request: typeof fetch = fetch,
 ): Promise<LiveSessionResult> {
   if (!apiKey)
@@ -55,7 +58,7 @@ export async function createLiveSession(
       body: JSON.stringify({
         session: {
           model: LIVE_MODEL,
-          instructions: LIVE_INSTRUCTIONS,
+          instructions: liveInstructions(cityName),
           delegation: { type: "client" },
         },
         transport: { type: "webrtc", sdp },
@@ -89,6 +92,7 @@ export async function createLiveSession(
 export function registerLocalLiveSession(
   app: FastifyInstance,
   apiKey: string | undefined,
+  cityName: string,
   request: typeof fetch = fetch,
 ): void {
   let sessionsCreated = 0;
@@ -130,6 +134,7 @@ export function registerLocalLiveSession(
       const result = await createLiveSession(
         incoming.body.sdp,
         apiKey,
+        cityName,
         request,
       );
       return result.status === "created"

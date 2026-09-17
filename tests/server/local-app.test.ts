@@ -9,17 +9,30 @@ import {
   vi,
 } from "vitest";
 import type {
-  BoulderEventOccurrence,
+  CityEventOccurrence,
   CityEventsProvider,
-} from "../../src/adapters/boulder/events.js";
+} from "../../src/adapters/city-website/events.js";
+import { PostgresCityKnowledgeStore } from "../../src/adapters/postgres/city-knowledge-store.js";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
 import type { ReportContext } from "../../src/core/service-report/prepare-service-report.js";
 import type { TicketProvider } from "../../src/server/workflow/confirmed-ticket.js";
-import { buildLocalApp } from "../../src/server/build-app.js";
+import { buildLocalApp, type CityRuntime } from "../../src/server/build-app.js";
 
 const localDatabaseUrl = process.env.LOCAL_DATABASE_URL;
+
+/** Input: the test pool. Output: the city runtime fixture for buildLocalApp. */
+function cityRuntime(pool: Pool): CityRuntime {
+  return {
+    cityId: "boulder-co",
+    displayName: "Boulder",
+    timeZone: "America/Denver",
+    eventsListingUrl: "https://example.test/events",
+    knowledge: new PostgresCityKnowledgeStore(pool),
+  };
+}
+
 if (localDatabaseUrl) {
   const host = new URL(localDatabaseUrl).hostname;
   if (!new Set(["127.0.0.1", "localhost", "[::1]"]).has(host)) {
@@ -43,6 +56,7 @@ describe.skipIf(!localDatabaseUrl)("local report API", () => {
       store,
       opened.context,
       new PostgresCityPolicyStore(pool),
+      cityRuntime(pool),
     );
     await app.ready();
   });
@@ -180,8 +194,8 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
   async function openSession(
     cityId: string,
     time: string | (() => Date),
-    ticketing?: Parameters<typeof buildLocalApp>[4],
-    events?: Parameters<typeof buildLocalApp>[7],
+    ticketing?: Parameters<typeof buildLocalApp>[5],
+    events?: Parameters<typeof buildLocalApp>[8],
   ) {
     const store = new PostgresDraftStore(pool);
     const opened = await store.openConversation(cityId);
@@ -190,6 +204,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
       store,
       opened.context,
       new PostgresCityPolicyStore(pool),
+      cityRuntime(pool),
       typeof time === "string" ? () => new Date(time) : time,
       ticketing,
       undefined,
@@ -220,7 +235,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
   }
 
   it("serves the reviewed knowledge examples and live calendar events through the running app boundary", async () => {
-    const fakeOccurrences: readonly BoulderEventOccurrence[] = [
+    const fakeOccurrences: readonly CityEventOccurrence[] = [
       {
         title: "City Council Meeting",
         detailUrl:

@@ -4,7 +4,7 @@
  * voice path feeds answers in through `show`.
  */
 import { useState } from "react";
-import type { AgentToolResult } from "../../server/reasoning/agent-tools.js";
+import type { AgentToolResult } from "../../server/reasoning/tool-definitions.js";
 import { fetchKnowledgeExample } from "../api.js";
 
 export const KNOWLEDGE_EXAMPLES = [
@@ -16,7 +16,7 @@ export const KNOWLEDGE_EXAMPLES = [
   {
     label: "Report a pothole",
     tool: "lookupCityInformation",
-    query: "How do I report a pothole in Boulder?",
+    query: "How do I report a pothole?",
   },
   {
     label: "Upcoming council study session",

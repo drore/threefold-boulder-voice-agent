@@ -35,6 +35,7 @@ describe("reasoning turn", () => {
     }));
 
     const result = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "Can I bring glass to a park?",
       apiKey: "synthetic-key",
       executeTool,
@@ -69,6 +70,7 @@ describe("reasoning turn", () => {
     const executeTool = vi.fn();
 
     const result = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "What can you do?",
       apiKey: "synthetic-key",
       executeTool,
@@ -84,6 +86,7 @@ describe("reasoning turn", () => {
 
   it("fails safely without an API key or on an auth rejection", async () => {
     const missingKey = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "hello",
       apiKey: undefined,
       executeTool: vi.fn(),
@@ -94,6 +97,7 @@ describe("reasoning turn", () => {
     });
 
     const rejected = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "hello",
       apiKey: "synthetic-key",
       executeTool: vi.fn(),
@@ -113,6 +117,7 @@ describe("reasoning turn", () => {
     }));
 
     const result = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "loop please",
       apiKey: "synthetic-key",
       executeTool,
@@ -135,6 +140,7 @@ describe("reasoning turn", () => {
     };
 
     await runReasoningTurn({
+      cityName: "Testville",
       utterance: "hello",
       apiKey: "synthetic-key",
       model: "candidate-2",
@@ -158,6 +164,7 @@ describe("reasoning turn", () => {
     );
 
     const result = await runReasoningTurn({
+      cityName: "Testville",
       utterance: "events please",
       apiKey: "synthetic-key",
       executeTool: vi.fn(),

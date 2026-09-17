@@ -42,8 +42,8 @@ export type ConfirmedTicketResult =
     };
 
 const TICKET_TITLES: Record<SupportedReportType, string> = {
-  pothole: "Boulder demo: pothole report",
-  park_maintenance: "Boulder demo: park maintenance report",
+  pothole: "pothole report",
+  park_maintenance: "park maintenance report",
 };
 
 /**
@@ -57,6 +57,7 @@ export async function submitConfirmedTicket(
   policyRevision: number,
   operations: TicketOperationStore,
   provider: TicketProvider,
+  cityName: string,
 ): Promise<ConfirmedTicketResult> {
   const authorized = await operations.authorize(
     context,
@@ -87,8 +88,8 @@ export async function submitConfirmedTicket(
   }
 
   const operation = claimed.operation;
-  const title = TICKET_TITLES[operation.requestType];
-  const description = ticketDescription(operation);
+  const title = `${cityName} demo: ${TICKET_TITLES[operation.requestType]}`;
+  const description = ticketDescription(operation, cityName);
   const creation = await provider.createTicket({
     title,
     description,
@@ -138,9 +139,12 @@ export async function submitConfirmedTicket(
  * Formats a synthetic, identifiable issue without taking destination from caller text.
  * Input: operation `abc` at `15th and Pine`. Output: issue body with both fields and marker.
  */
-function ticketDescription(operation: TicketOperation): string {
+function ticketDescription(
+  operation: TicketOperation,
+  cityName: string,
+): string {
   return [
-    "Boulder municipal service demo",
+    `${cityName} municipal service demo`,
     `Demo operation: ${operation.operationId}`,
     `Request type: ${operation.requestType}`,
     `Location: ${operation.location}`,

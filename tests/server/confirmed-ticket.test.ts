@@ -119,11 +119,12 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       linear.provider,
+      "Testville",
     );
 
     expect(result).toMatchObject({ status: "linear_ticket_created" });
     expect(linear.createTicket).toHaveBeenCalledWith({
-      title: "Boulder demo: park maintenance report",
+      title: "Testville demo: park maintenance report",
       description: expect.stringContaining("Request type: park_maintenance"),
     });
   });
@@ -139,6 +140,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       linear.provider,
+      "Testville",
     );
     expect(first).toMatchObject({
       status: "linear_ticket_created",
@@ -164,6 +166,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       linear.provider,
+      "Testville",
     );
     expect(repeated).toMatchObject({
       status: "linear_ticket_created",
@@ -189,6 +192,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       provider,
+      "Testville",
     );
     expect(first).toMatchObject({
       status: "ticket_uncertain",
@@ -201,6 +205,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       provider,
+      "Testville",
     );
     expect(repeated.status).toBe("ticket_uncertain");
     expect(createTicket).toHaveBeenCalledTimes(1);
@@ -222,6 +227,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       provider,
+      "Testville",
     );
     expect(result).toMatchObject({
       status: "ticket_uncertain",
@@ -257,6 +263,7 @@ describe("confirmed closed-hours ticket", () => {
           1,
           operations.store,
           provider,
+          "Testville",
         )
       ).status,
     ).toBe("ticket_uncertain");
@@ -267,6 +274,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       provider,
+      "Testville",
     );
     expect(repeated).toMatchObject({
       status: "linear_ticket_created",
@@ -286,6 +294,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       operations.store,
       linear.provider,
+      "Testville",
     );
     const editedProvider: TicketProvider = {
       ...linear.provider,
@@ -309,6 +318,7 @@ describe("confirmed closed-hours ticket", () => {
         1,
         operations.store,
         editedProvider,
+        "Testville",
       ),
     ).toMatchObject({
       status: "linear_ticket_created",
@@ -335,6 +345,7 @@ describe("confirmed closed-hours ticket", () => {
       1,
       blocked,
       linear.provider,
+      "Testville",
     );
     expect(result).toEqual({ status: "blocked", code: "revision_conflict" });
     expect(linear.createTicket).not.toHaveBeenCalled();

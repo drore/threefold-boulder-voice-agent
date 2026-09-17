@@ -111,10 +111,15 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 ├── design/                 # Reviewable UI proposals, assets, generation prompts
 ├── src/
 │   ├── core/               # Provider-neutral contracts, policy, workflow
+│   │   ├── city.ts         # City settings and knowledge-corpus contracts
+│   │   └── service-report/ # Intake, confirmation, and operation contracts
 │   │   └── service-report/ # Report intake, confirmation, and operation contracts
 │   ├── adapters/           # Provider-specific implementations
+│   │   ├── city-website/   # Config-driven city calendar adapter
+│   │   ├── linear/         # Linear ticket provider
+│   │   └── postgres/       # Policy, knowledge, draft, and operation stores
 │   ├── server/             # Composition, auth, configuration, sessions
-│   │   ├── reasoning/      # Model turn, tool boundary, knowledge handlers
+│   │   ├── reasoning/      # Tool catalog, boundary, knowledge handlers, model turn
 │   │   ├── voice/          # GPT-Live session setup
 │   │   └── workflow/       # Confirmed-report ticket submission
 │   └── web/                # React UI, browser interaction, presentation

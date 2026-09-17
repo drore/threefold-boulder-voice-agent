@@ -21,12 +21,16 @@ Baseline: `feat/core-policy` at `1894138`; `npm run check` (123 + 43 skipped),
 
 ### High
 
-1. **City-specific values live in code.** `knowledge-tools.ts` holds
+1. **City-specific values live in code.** ~~`knowledge-tools.ts` holds
    `BOULDER_TIME_ZONE`, the glass/pothole answers and source cards, the event
    listing source, and a council-title matcher; `adapters/boulder/events.ts`
    holds the listing URL; `main.ts` holds `CITY_ID`; instructions and UI copy
-   name Boulder. This contradicts ADR-003/ADR-013 value ownership and blocks
-   reuse for another city. See the plan below.
+   name Boulder.~~ **Addressed:** settings, display name, event URL, and the
+   reviewed corpus now come from `app.city_policies`/`app.city_knowledge`;
+   `CITY_ID` is environment configuration; the events adapter is generic and
+   config-driven; instructions, cookies, ticket titles, and UI copy are generic
+   with the display name injected. Request-type vocabulary (pothole /
+   park maintenance) remains typed in core and is the next step.
 2. **Prompts and copy are embedded in code.** Reasoning instructions,
    LIVE_INSTRUCTIONS, and user-facing strings live in TS modules. SPEC expects
    substantial prompts as versioned artifacts (the layout's `prompts/`), with

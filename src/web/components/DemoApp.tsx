@@ -3,7 +3,9 @@
  * Composes the task screen from the report, knowledge, and scenario hooks and
  * wires the voice panel's verified results into the same state model.
  */
-import type { AgentToolResult } from "../../server/reasoning/agent-tools.js";
+import { useEffect, useState } from "react";
+import type { AgentToolResult } from "../../server/reasoning/tool-definitions.js";
+import { fetchCityName } from "../api.js";
 import { useKnowledge } from "../hooks/useKnowledge.js";
 import { useReportFlow } from "../hooks/useReportFlow.js";
 import { useScenario } from "../hooks/useScenario.js";
@@ -13,6 +15,7 @@ import { ScenarioControl } from "./ScenarioControl.js";
 import { VoicePanel } from "./VoicePanel.js";
 
 export function DemoApp() {
+  const [cityName, setCityName] = useState("City");
   const report = useReportFlow();
   const knowledge = useKnowledge();
   const scenario = useScenario();
@@ -37,10 +40,8 @@ export function DemoApp() {
   return (
     <main className="page">
       <header className="page-header">
-        <p className="eyebrow">
-          Independent developer demo · Boulder, Colorado
-        </p>
-        <h1>Boulder service demo</h1>
+        <p className="eyebrow">Independent developer demo · City services</p>
+        <h1>City service demo</h1>
         <p className="intro">
           Ask a reviewed city question or report a nonurgent pothole or park
           maintenance issue. Confirm the saved details to see the business-hours
@@ -66,8 +67,8 @@ export function DemoApp() {
       <KnowledgePanel knowledge={knowledge} />
 
       <p className="footer-note">
-        Local test interface. This page does not contact Boulder or submit a
-        city service request.
+        Local test interface. This page does not contact the city or submit a
+        service request.
       </p>
     </main>
   );

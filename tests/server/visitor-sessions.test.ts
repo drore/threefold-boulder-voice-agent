@@ -102,6 +102,13 @@ describe("visitor admission and isolation", () => {
       store,
       null,
       {} as CityPolicyStore,
+      {
+        cityId: "test-city",
+        displayName: "Testville",
+        timeZone: "America/Denver",
+        eventsListingUrl: "https://example.test/events",
+        knowledge: { list: async () => ({ status: "unavailable" }) },
+      },
       () => new Date("2026-09-16T16:00:00Z"),
       undefined,
       undefined,
@@ -114,7 +121,7 @@ describe("visitor admission and isolation", () => {
   it("guards every API before opening a conversation or calling a provider", async () => {
     const { app, opened } = await makeApp();
     let providerCalls = 0;
-    registerLocalLiveSession(app, "synthetic-key", async () => {
+    registerLocalLiveSession(app, "synthetic-key", "Testville", async () => {
       providerCalls += 1;
       throw new Error("Provider must not be called");
     });
@@ -264,7 +271,7 @@ describe("visitor admission and isolation", () => {
   it("limits paid voice-session creation separately for each admitted visitor", async () => {
     const { app } = await makeApp();
     let providerCalls = 0;
-    registerLocalLiveSession(app, "synthetic-key", async () => {
+    registerLocalLiveSession(app, "synthetic-key", "Testville", async () => {
       providerCalls += 1;
       return new Response(
         JSON.stringify({

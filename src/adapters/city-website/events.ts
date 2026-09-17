@@ -1,13 +1,14 @@
 import * as cheerio from "cheerio";
 
 /**
- * Live Boulder event source: fetches the official city calendar listing and
- * parses its dated event cards into bounded occurrences, refreshed at most
- * once per cache window. The city website is an external source; its HTML is
- * untrusted data and every parsed value is bounded before it reaches answers.
+ * Live city event source.
+ * Fetches the configured official city calendar listing and parses its dated
+ * event cards into bounded occurrences, refreshed at most once per cache
+ * window. The city website is an external source; its HTML is untrusted data
+ * and every parsed value is bounded before it reaches answers.
  */
 
-export type BoulderEventOccurrence = Readonly<{
+export type CityEventOccurrence = Readonly<{
   title: string;
   detailUrl: string;
   /** Local YYYY-MM-DD from the official calendar card. */
@@ -24,7 +25,7 @@ export type CityEventsQueryOptions = Readonly<{
 export type CityEventsQueryResult =
   | {
       status: "ok";
-      occurrences: readonly BoulderEventOccurrence[];
+      occurrences: readonly CityEventOccurrence[];
       fetchedAtUtc: string;
       expiresAtUtc: string;
     }
@@ -36,15 +37,13 @@ export type CityEventsProvider = {
   ): Promise<CityEventsQueryResult>;
 };
 
-export const BOULDER_EVENTS_LISTING_URL = "https://bouldercolorado.gov/events";
-
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_PAGES = 2;
 const MAX_TITLE_LENGTH = 160;
 const MAX_LOCATION_LENGTH = 200;
 
 type EventsCache = {
-  occurrences: BoulderEventOccurrence[];
+  occurrences: CityEventOccurrence[];
   fetchedAtUtc: string;
   expiresAtUtc: string;
 };
@@ -55,12 +54,12 @@ type EventsCache = {
  * Output: dated cards with title, detail URL, optional location, and an
  * honest status; malformed cards are skipped, never guessed.
  */
-export function parseBoulderEventsListing(
+export function parseCityEventsListing(
   html: string,
   listingUrl: string,
-): BoulderEventOccurrence[] {
+): CityEventOccurrence[] {
   const $ = cheerio.load(html);
-  const occurrences: BoulderEventOccurrence[] = [];
+  const occurrences: CityEventOccurrence[] = [];
   for (const element of $("article.event-card").toArray()) {
     const card = $(element);
     const href = card.attr("data-href");
@@ -97,24 +96,22 @@ export function parseBoulderEventsListing(
 
 /**
  * Creates the cached live-events provider.
- * Input: optional injected fetch/clock/bounds for tests.
+ * Input: the configured listing URL plus optional fetch/clock/bounds for tests.
  * Output: `upcomingEvents` serves a fresh cache inside its TTL; on expiry it
  * refetches the listing and fails closed (`source_unavailable`) on any fetch
  * or parse problem. No stale results are fabricated after the cache expires.
  */
-export function createBoulderEventsProvider(
-  options: {
-    fetchHtml?: typeof fetch;
-    clock?: () => Date;
-    ttlMs?: number;
-    listingUrl?: string;
-    maxPages?: number;
-  } = {},
-): CityEventsProvider {
+export function createCityEventsProvider(options: {
+  listingUrl: string;
+  fetchHtml?: typeof fetch;
+  clock?: () => Date;
+  ttlMs?: number;
+  maxPages?: number;
+}): CityEventsProvider {
   const fetchHtml = options.fetchHtml ?? fetch;
   const clock = options.clock ?? (() => new Date());
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
-  const listingUrl = options.listingUrl ?? BOULDER_EVENTS_LISTING_URL;
+  const listingUrl = options.listingUrl;
   const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
 
   let cache: EventsCache | null = null;
@@ -122,12 +119,12 @@ export function createBoulderEventsProvider(
   async function refresh(): Promise<CityEventsQueryResult> {
     const now = new Date(clock());
     const seen = new Set<string>();
-    const occurrences: BoulderEventOccurrence[] = [];
+    const occurrences: CityEventOccurrence[] = [];
     for (let page = 0; page < maxPages; page += 1) {
       let response: Response;
       try {
         response = await fetchHtml(`${listingUrl}?page=${page}`, {
-          headers: { "user-agent": "boulder-municipal-demo/0.1" },
+          headers: { "user-agent": "city-services-demo/0.1" },
         });
       } catch {
         return { status: "source_unavailable" };
@@ -139,7 +136,7 @@ export function createBoulderEventsProvider(
       } catch {
         return { status: "source_unavailable" };
       }
-      const pageOccurrences = parseBoulderEventsListing(html, listingUrl);
+      const pageOccurrences = parseCityEventsListing(html, listingUrl);
       if (pageOccurrences.length === 0) break;
       for (const occurrence of pageOccurrences) {
         if (!seen.has(occurrence.detailUrl)) {

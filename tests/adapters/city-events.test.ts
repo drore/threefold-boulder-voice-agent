@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createBoulderEventsProvider,
-  parseBoulderEventsListing,
-} from "../../src/adapters/boulder/events.js";
+  createCityEventsProvider,
+  parseCityEventsListing,
+} from "../../src/adapters/city-website/events.js";
 
 const LISTING_URL = "https://bouldercolorado.gov/events";
 
@@ -26,7 +26,7 @@ const CARD = (
   </time>
 </article>`;
 
-describe("parseBoulderEventsListing", () => {
+describe("parseCityEventsListing", () => {
   it("parses titled dated cards with locations and detail URLs", () => {
     const html = [
       CARD(
@@ -44,7 +44,7 @@ describe("parseBoulderEventsListing", () => {
       CARD("/events/no-date-card", "Event Without Date", ""),
     ].join("");
 
-    const occurrences = parseBoulderEventsListing(html, LISTING_URL);
+    const occurrences = parseCityEventsListing(html, LISTING_URL);
 
     expect(occurrences).toHaveLength(2);
     expect(occurrences[0]).toEqual({
@@ -79,7 +79,7 @@ describe("parseBoulderEventsListing", () => {
       CARD("/events/art-event-9", "Artist Meetup (postponed)", "2026-10-01"),
     ].join("");
 
-    const occurrences = parseBoulderEventsListing(html, LISTING_URL);
+    const occurrences = parseCityEventsListing(html, LISTING_URL);
 
     expect(occurrences[0]?.title).toBe("Facilities & Fleet Open House");
     expect(occurrences[1]?.status).toBe("cancelled");
@@ -87,7 +87,7 @@ describe("parseBoulderEventsListing", () => {
   });
 });
 
-describe("createBoulderEventsProvider", () => {
+describe("createCityEventsProvider", () => {
   it("fetches on first use and serves the cache inside its TTL", async () => {
     let now = new Date("2026-09-16T12:00:00Z");
     const fetchHtml = vi.fn(
@@ -102,7 +102,8 @@ describe("createBoulderEventsProvider", () => {
           { status: 200 },
         ),
     );
-    const provider = createBoulderEventsProvider({
+    const provider = createCityEventsProvider({
+      listingUrl: LISTING_URL,
       fetchHtml,
       clock: () => now,
       ttlMs: 24 * 60 * 60 * 1000,
@@ -142,7 +143,8 @@ describe("createBoulderEventsProvider", () => {
           )
         : new Response("upstream unavailable", { status: 502 }),
     );
-    const provider = createBoulderEventsProvider({
+    const provider = createCityEventsProvider({
+      listingUrl: LISTING_URL,
       fetchHtml,
       clock: () => now,
       ttlMs: 1_000,
@@ -167,7 +169,8 @@ describe("createBoulderEventsProvider", () => {
           { status: 200 },
         ),
     );
-    const provider = createBoulderEventsProvider({
+    const provider = createCityEventsProvider({
+      listingUrl: LISTING_URL,
       fetchHtml,
       clock: () => new Date("2026-09-16T12:00:00Z"),
       maxPages: 3,

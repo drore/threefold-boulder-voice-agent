@@ -48,6 +48,7 @@ npm ci
 cp .env.example .env.local
 supabase db start
 supabase migration up --local
+# set CITY_ID in .env.local (for example CITY_ID=boulder-co)
 npm run dev
 ```
 

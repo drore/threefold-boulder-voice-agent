@@ -1,17 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
-  BoulderEventOccurrence,
+  CityEventOccurrence,
   CityEventsQueryResult,
   CityEventsProvider,
-} from "../../src/adapters/boulder/events.js";
+} from "../../src/adapters/city-website/events.js";
 import {
-  agentToolDefinitions,
   callAgentTool,
   createAgentToolStubs,
   createReportToolHandler,
+} from "../../src/server/reasoning/agent-tools.js";
+import {
+  agentToolDefinitions,
   type AgentToolContext,
   type AgentToolHandlers,
-} from "../../src/server/reasoning/agent-tools.js";
+} from "../../src/server/reasoning/tool-definitions.js";
+import type { CityKnowledgeReader } from "../../src/core/city.js";
 import { createKnowledgeToolHandlers } from "../../src/server/reasoning/knowledge-tools.js";
 
 const CONTEXT: AgentToolContext = {
@@ -24,12 +27,12 @@ const CONTEXT: AgentToolContext = {
 };
 
 const SUPPORTED_REVIEWED_TOPICS = [
-  "BRC 8-3-9 glass containers in parks/open space",
-  "Boulder pothole reporting information",
-  "Upcoming events from the official Boulder calendar",
+  "the reviewed city-code example",
+  "the reviewed city-service guidance",
+  "official city-calendar events",
 ] as const;
 
-const FAKE_OCCURRENCES: readonly BoulderEventOccurrence[] = [
+const FAKE_OCCURRENCES: readonly CityEventOccurrence[] = [
   {
     title: "City Council Study Session",
     detailUrl:
@@ -88,11 +91,68 @@ function eventsProviderWith(
  * clock and a fake live-events provider.
  * Input: `"2026-09-16T12:00:00Z"`. Output: three lookup handlers.
  */
+const FAKE_KNOWLEDGE: CityKnowledgeReader = {
+  list: async () => ({
+    status: "available",
+    entries: [
+      {
+        topicKey: "glass",
+        tool: "lookupMunicipalCode",
+        match: {
+          all: [
+            ["glass", "bottle", "8-3-9"],
+            ["park", "open space", "recreation", "8-3-9"],
+          ],
+          exclude: ["repeal", "amended", "current", "latest", "still"],
+        },
+        answer:
+          "BRC 8-3-9 prohibits glass bottles and glass containers in city parks, parkways, recreation areas, and open space. The reviewed code includes an exception for a container holding prescription medication.",
+        source: {
+          title: "Boulder Revised Code 8-3-9: Glass Bottles Prohibited",
+          url: "https://library.municode.com/co/boulder/codes/municipal_code?nodeId=TIT8PAOPSPSTPUWA_CH3PAREPESPMOPA_8-3-9GLBOPR",
+          kind: "municipal_code",
+          note: "Reviewed code.",
+          excerpt: "No person shall carry or possess any glass bottle",
+          verifiedOn: "2026-09-16",
+        },
+        limitations: ["This reviewed slice covers only BRC 8-3-9."],
+      },
+      {
+        topicKey: "pothole",
+        tool: "lookupCityInformation",
+        match: {
+          all: [["pothole"], ["report", "submit", "request"]],
+          exclude: ["claim", "claims", "who", "person", "staff", "handles"],
+        },
+        answer:
+          "Boulder's Transportation Maintenance page directs pothole reports through the city's online request path and says to include the location, such as an address or intersection, and a description of the issue.",
+        source: {
+          title: "City of Boulder Transportation Maintenance",
+          url: "https://bouldercolorado.gov/services/transportation-maintenance",
+          kind: "city_website",
+          note: "Reviewed service page.",
+          verifiedOn: "2026-09-16",
+        },
+        limitations: [
+          "This is service guidance, not a municipal-code citation.",
+        ],
+      },
+    ],
+  }),
+};
+
 function reviewedHandlers(
   nowUtc: string,
   events: CityEventsProvider = eventsProviderWith(),
 ): Partial<AgentToolHandlers> {
-  return createKnowledgeToolHandlers(() => new Date(nowUtc), events);
+  return createKnowledgeToolHandlers({
+    clock: () => new Date(nowUtc),
+    events,
+    knowledge: FAKE_KNOWLEDGE,
+    cityId: "test-city",
+    timeZone: "America/Denver",
+    eventsListingUrl: "https://example.gov/events",
+  });
 }
 
 describe("agent tool boundary", () => {
@@ -576,7 +636,7 @@ describe("agent tool boundary", () => {
     );
 
     expect(result.status === "answered" && result.answer).toBe(
-      "No Boulder events appear on the official calendar in the checked date range.",
+      "No events appear on the official city calendar in the checked date range.",
     );
   });
 

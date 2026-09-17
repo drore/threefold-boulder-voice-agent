@@ -23,7 +23,7 @@ describe("GPT-Live session exchange", () => {
     };
 
     expect(
-      await createLiveSession(SDP_OFFER, "synthetic-key", request),
+      await createLiveSession(SDP_OFFER, "synthetic-key", "Testville", request),
     ).toEqual({
       status: "created",
       session: {
@@ -48,16 +48,21 @@ describe("GPT-Live session exchange", () => {
         status: 201,
       });
     expect(
-      await createLiveSession(SDP_OFFER, "synthetic-key", malformed),
+      await createLiveSession(
+        SDP_OFFER,
+        "synthetic-key",
+        "Testville",
+        malformed,
+      ),
     ).toEqual({ status: "unavailable", reason: "openai_answer_invalid" });
 
     const denied: typeof fetch = async () =>
       new Response(JSON.stringify({ error: { message: "secret detail" } }), {
         status: 401,
       });
-    expect(await createLiveSession(SDP_OFFER, "synthetic-key", denied)).toEqual(
-      { status: "unavailable", reason: "openai_auth_rejected" },
-    );
+    expect(
+      await createLiveSession(SDP_OFFER, "synthetic-key", "Testville", denied),
+    ).toEqual({ status: "unavailable", reason: "openai_auth_rejected" });
   });
 
   it("blocks nonlocal origins and malformed SDP before contacting OpenAI", async () => {
@@ -69,7 +74,7 @@ describe("GPT-Live session exchange", () => {
     const app = fastify({
       ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
     });
-    registerLocalLiveSession(app, "synthetic-key", request);
+    registerLocalLiveSession(app, "synthetic-key", "Testville", request);
     try {
       const foreign = await app.inject({
         method: "POST",
@@ -104,7 +109,7 @@ describe("GPT-Live session exchange", () => {
       );
     };
     const app = fastify();
-    registerLocalLiveSession(app, "synthetic-key", request);
+    registerLocalLiveSession(app, "synthetic-key", "Testville", request);
     try {
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const response = await app.inject({

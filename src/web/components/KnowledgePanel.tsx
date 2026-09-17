@@ -14,8 +14,8 @@ export function KnowledgePanel({ knowledge }: { knowledge: KnowledgeState }) {
       <h2 id="knowledge-heading">Try three sourced answers</h2>
       <p className="form-hint">
         These reviewed examples demonstrate municipal code, city service
-        information, and one dated event. They are not a complete Boulder
-        knowledge base.
+        information, and one dated event. They are not a complete city knowledge
+        base.
       </p>
       <div className="example-actions">
         {KNOWLEDGE_EXAMPLES.map((example) => (
@@ -54,7 +54,7 @@ export function KnowledgePanel({ knowledge }: { knowledge: KnowledgeState }) {
       {knowledge.knowledge?.status === "limited_coverage" && (
         <p role="status" className="form-hint">
           This reviewed example is unavailable for the question or date. Consult
-          official Boulder sources for current information.
+          official city sources for current information.
         </p>
       )}
     </section>

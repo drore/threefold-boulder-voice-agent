@@ -5,7 +5,9 @@
  */
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { createCityEventsProvider } from "../adapters/city-website/events.js";
 import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
+import { PostgresCityKnowledgeStore } from "../adapters/postgres/city-knowledge-store.js";
 import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
@@ -15,7 +17,6 @@ import { readRuntimeConfig } from "./runtime-config.js";
 import { registerStaticWeb } from "./static-web.js";
 import type { VisitorAccess } from "./visitor-sessions.js";
 
-const CITY_ID = "boulder-co";
 const BUILT_WEB_ROOT = fileURLToPath(new URL("../web/", import.meta.url));
 
 /**
@@ -34,10 +35,20 @@ async function startApi(): Promise<void> {
   });
   try {
     await pool.query("select 1 from app.conversations limit 1");
+    const cityId = process.env.CITY_ID?.trim();
+    if (!cityId) {
+      throw new Error("CITY_ID is required and must name a configured city");
+    }
+    const policyStore = new PostgresCityPolicyStore(pool);
+    const loadedPolicy = await policyStore.load(cityId);
+    if (loadedPolicy.status !== "available") {
+      throw new Error(`City policy for ${cityId} is unavailable or invalid`);
+    }
+    const policy = loadedPolicy.policy;
     const store = new PostgresDraftStore(pool);
     const access: VisitorAccess = {
       mode: config.mode,
-      cityId: CITY_ID,
+      cityId,
       openConversation: (cityId) => store.openConversation(cityId),
       allowedOrigins: config.allowedOrigins,
       ...(config.reviewerCode ? { accessCode: config.reviewerCode } : {}),
@@ -45,7 +56,14 @@ async function startApi(): Promise<void> {
     const app = buildLocalApp(
       store,
       null,
-      new PostgresCityPolicyStore(pool),
+      policyStore,
+      {
+        cityId,
+        displayName: policy.displayName,
+        timeZone: policy.schedule.timeZone,
+        eventsListingUrl: policy.eventsListingUrl,
+        knowledge: new PostgresCityKnowledgeStore(pool),
+      },
       () => new Date(),
       config.linear
         ? {
@@ -62,8 +80,9 @@ async function startApi(): Promise<void> {
         ...(config.reasoningModel ? { model: config.reasoningModel } : {}),
       },
       access,
+      createCityEventsProvider({ listingUrl: policy.eventsListingUrl }),
     );
-    registerLocalLiveSession(app, config.openAiApiKey);
+    registerLocalLiveSession(app, config.openAiApiKey, policy.displayName);
     if (config.mode === "reviewer") registerStaticWeb(app, BUILT_WEB_ROOT);
     await app.listen({ host: config.host, port: config.port });
     process.stdout.write(`API ready on ${config.host}:${config.port}\n`);

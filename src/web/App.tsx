@@ -52,10 +52,8 @@ export function App() {
   return (
     <main className="page">
       <header className="page-header">
-        <p className="eyebrow">
-          Independent developer demo · Boulder, Colorado
-        </p>
-        <h1>Boulder service demo</h1>
+        <p className="eyebrow">Independent developer demo · City services</p>
+        <h1>City service demo</h1>
       </header>
       {access === "checking" ? (
         <p role="status">Checking demo access…</p>

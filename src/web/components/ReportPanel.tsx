@@ -61,7 +61,7 @@ export function ReportPanel({ flow }: { flow: ReportFlow }) {
                 <dd>{result.summary.location}</dd>
               </div>
             </dl>
-            <p>No service request has been submitted to the City of Boulder.</p>
+            <p>No service request has been submitted to the city.</p>
             <button
               type="button"
               disabled={flow.confirming || flow.saving || action !== null}
@@ -192,7 +192,7 @@ export function ReportPanel({ flow }: { flow: ReportFlow }) {
               placeholder={
                 flow.requestType === "pothole"
                   ? "For example, 15th Street at Pine Street"
-                  : "For example, North Boulder Park near the playground"
+                  : "For example, a neighborhood park near the playground"
               }
               value={flow.location}
               onChange={(event) => flow.setLocation(event.target.value)}

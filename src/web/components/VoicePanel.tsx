@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { AgentToolResult } from "../../server/reasoning/agent-tools.js";
+import type { AgentToolResult } from "../../server/reasoning/tool-definitions.js";
 import type { LocalConfirmResult } from "../../server/build-app.js";
 import {
   LiveVoice,
@@ -270,11 +270,11 @@ export function VoicePanel({
 
   return (
     <section className="report-card" aria-labelledby="voice-heading">
-      <h2 id="voice-heading">Talk to the Boulder demo assistant</h2>
+      <h2 id="voice-heading">Talk to the demo assistant</h2>
       <p className="form-hint">
         Ask about the reviewed city examples or describe a nonurgent issue.
         Voice requests use your microphone and the OpenAI service. The demo does
-        not call Boulder or transfer to a real staff member.
+        not call the city or transfer to a real staff member.
       </p>
       <div className="example-actions">
         <button

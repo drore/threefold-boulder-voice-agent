@@ -76,7 +76,7 @@ export function registerVisitorSessions(
   }
 
   const cookieName =
-    access.mode === "reviewer" ? "__Host-boulder_session" : "boulder_session";
+    access.mode === "reviewer" ? "__Host-city_session" : "city_session";
   const sessions = new Map<
     string,
     { session: VisitorSession; expiresAt: number }
