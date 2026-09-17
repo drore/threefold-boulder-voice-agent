@@ -30,6 +30,21 @@ describe("runtime configuration", () => {
     ).toThrow("loopback database");
   });
 
+  it("reads an optional reasoning model and rejects malformed ids", () => {
+    expect(
+      readRuntimeConfig({
+        LOCAL_DATABASE_URL: localDatabase,
+        REASONING_MODEL: "candidate-2",
+      }),
+    ).toMatchObject({ reasoningModel: "candidate-2" });
+    expect(() =>
+      readRuntimeConfig({
+        LOCAL_DATABASE_URL: localDatabase,
+        REASONING_MODEL: "two words",
+      }),
+    ).toThrow("REASONING_MODEL");
+  });
+
   it("accepts only a complete hosted reviewer configuration", () => {
     expect(readRuntimeConfig(reviewerEnvironment)).toMatchObject({
       mode: "reviewer",

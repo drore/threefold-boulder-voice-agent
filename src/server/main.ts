@@ -1,3 +1,8 @@
+/**
+ * Service entry point.
+ * Reads runtime config, connects Postgres, composes the adapters/providers, and
+ * starts the API, serving the built UI in reviewer mode.
+ */
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
@@ -52,7 +57,10 @@ async function startApi(): Promise<void> {
             }),
           }
         : undefined,
-      { apiKey: config.openAiApiKey },
+      {
+        apiKey: config.openAiApiKey,
+        ...(config.reasoningModel ? { model: config.reasoningModel } : {}),
+      },
       access,
     );
     registerLocalLiveSession(app, config.openAiApiKey);

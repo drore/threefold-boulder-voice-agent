@@ -18,7 +18,6 @@
     "dev": "node scripts/dev.mjs",
     "dev:api": "npm run build:server && node --env-file=.env.local --env-file-if-exists=.env.dev dist/server/main.js",
     "dev:web": "vite --host 127.0.0.1",
-    "eval:intents": "npm run build:server && node --env-file-if-exists=.env.dev scripts/eval-intents.mjs",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
@@ -27,7 +26,8 @@
     "test:db": "node --env-file=.env.local node_modules/vitest/vitest.mjs run",
     "test:core": "vitest run tests/core",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "eval:reasoning": "npm run build:server && node --env-file-if-exists=.env.dev scripts/eval-reasoning.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

@@ -1,7 +1,28 @@
-# Intent evaluation
+# Reasoning evaluation and model comparison
 
-`npm run eval:intents` is an opt-in, paid check of the `gpt-5.6-luna` intent proposal. It reads eight synthetic, versioned cases from [intent-cases.json](intent-cases.json), calls OpenAI once per case, checks only the specified fields, and exits nonzero on a mismatch. Put `OPENAI_API_KEY` in ignored `.env.dev` first. The ordinary `npm run check` suite makes no paid model calls.
+`npm run eval:reasoning` is an opt-in, paid check of tool selection in the tool-calling reasoning turn. It reads the versioned cases from [reasoning-cases.json](reasoning-cases.json), runs one reasoning turn per case per model per repeat with stub tool handlers, and checks that the expected tool was chosen (`null` expects a conversational reply with no tool call).
 
-On 2026-09-16 at about 11:40 UTC, the original six cases passed: municipal code, city service guidance, dated event, new pothole report, active-draft location follow-up, and unrelated request. The same day at about 18:17 UTC, a rerun with the two capability-overview cases ("what can you do for me?" and "what questions can I ask you?") passed 8/8. The evaluated proposal code SHA-256 was `6b8af2bb40b6166c25a2da7a8b5efb35d51e6925812d8d998f7261089d00c978`; the case file SHA-256 was `16542b650f0057bafebfa7f39deac1486622e17b4b745491f8d6d1f499327afd`. The runs used the configured development OpenAI account and only synthetic text. Exact provider model revision and cost were not exposed by this runner.
+Put `OPENAI_API_KEY` in ignored `.env.dev` first. The ordinary `npm run check` suite makes no paid model calls.
 
-This is a small classification smoke evaluation, not proof of factual answer quality, stable accuracy, or spoken behavior. The server separately validates proposals and deterministic policy before acting. Before delivery, exercise actual microphone input/output and check the cited answer content and source freshness in a fresh browser session.
+## Comparing models
+
+```sh
+npm run eval:reasoning -- --models=gpt-5.6-luna,candidate-2 --repeats=3
+```
+
+- `--models` is a comma-separated list (default `gpt-5.6-luna`). The same is available in the app via the `REASONING_MODEL` environment variable, so the chosen model can also be run live.
+- `--repeats` runs each case N times, since tool selection is stochastic.
+- Results print as a per-model pass rate with average latency and a line per failure, and a JSON record is written under `eval/results/` (git-ignored) with the cases hash, models, repeats, and per-run results.
+
+## Last recorded run
+
+On 2026-09-17 at about 06:14 UTC, `gpt-5.6-luna` with 2 repeats scored **18/22 (82%)**, average 2316 ms per turn. Cases hash `b82c6f3594705f59887b2f4728862fa7b697cb36212ece2ad4258761deb41754`.
+
+Failures, all tool selection (not application correctness):
+- `specific-event-follow-up` ("tell me about the landmarks design review committee") failed both runs: the model did not call `findCityEvents`. The reasoning turn currently receives only the current utterance and the active-draft hint, so a follow-up that refers to an event the assistant just listed has no context. Passing recent conversation context is the identified fix.
+- `rules-i-know` failed one of two runs by calling `lookupMunicipalCode` instead of answering conversationally.
+- `existing-report-location` ("at 15th and Pine" with an active draft) failed one of two runs by calling no tool; the active-draft hint is not decisive.
+
+These findings are the reason this evaluation exists. Tool selection is one axis; it does not establish factual answer quality, grounding, latency under load, or cost. The server executes every call through validated, server-owned handlers, so a wrong choice is bounded by scope and authorization rather than dangerous.
+
+Before delivery, exercise actual microphone input/output and check the cited answer content and source freshness in a fresh browser session.

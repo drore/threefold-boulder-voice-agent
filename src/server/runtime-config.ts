@@ -11,6 +11,7 @@ export type RuntimeConfig = {
   allowedOrigins: readonly string[];
   reviewerCode?: string;
   openAiApiKey?: string;
+  reasoningModel?: string;
   linear?: { apiKey: string; teamId: string; projectId: string };
 };
 
@@ -42,6 +43,7 @@ export function readRuntimeConfig(
   }
 
   const linear = readLinearConfig(env, mode === "reviewer");
+  const reasoningModel = readReasoningModel(env);
   if (mode === "development") {
     return {
       mode,
@@ -51,6 +53,7 @@ export function readRuntimeConfig(
       allowedOrigins: LOCAL_ORIGINS,
       ...(linear ? { linear } : {}),
       ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
+      ...(reasoningModel ? { reasoningModel } : {}),
     };
   }
 
@@ -81,7 +84,22 @@ export function readRuntimeConfig(
     reviewerCode: env.REVIEWER_ACCESS_CODE,
     openAiApiKey: env.OPENAI_API_KEY,
     linear,
+    ...(reasoningModel ? { reasoningModel } : {}),
   };
+}
+
+/** Input: optional `REASONING_MODEL`. Output: the validated model id, or undefined. */
+function readReasoningModel(
+  env: Record<string, string | undefined>,
+): string | undefined {
+  const value = env.REASONING_MODEL?.trim();
+  if (!value) return undefined;
+  if (value.length > 100 || /\s/.test(value)) {
+    throw new Error(
+      "REASONING_MODEL must be a single model id under 100 chars",
+    );
+  }
+  return value;
 }
 
 /** Input: a database URL. Output: a parsed Postgres URL or a safe configuration error. */

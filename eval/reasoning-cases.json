@@ -2,42 +2,57 @@
   {
     "id": "municipal-code",
     "utterance": "Can I bring a glass bottle into a Boulder city park?",
-    "expected": { "intent": "municipal_code" }
+    "expected": { "tool": "lookupMunicipalCode" }
   },
   {
     "id": "city-service-guidance",
     "utterance": "How do I report a pothole to the City of Boulder?",
-    "expected": { "intent": "city_information" }
+    "expected": { "tool": "lookupCityInformation" }
   },
   {
     "id": "dated-city-event",
     "utterance": "Is there an upcoming Boulder City Council study session?",
-    "expected": { "intent": "city_event" }
+    "expected": { "tool": "findCityEvents" }
+  },
+  {
+    "id": "specific-event-follow-up",
+    "utterance": "Can you tell me about the landmarks design review committee?",
+    "expected": { "tool": "findCityEvents" }
   },
   {
     "id": "capability-overview",
     "utterance": "What can you do for me?",
-    "expected": { "intent": "capabilities" }
+    "expected": { "tool": null }
   },
   {
     "id": "askable-questions",
     "utterance": "What questions can I ask you?",
-    "expected": { "intent": "capabilities" }
+    "expected": { "tool": null }
+  },
+  {
+    "id": "rules-i-know",
+    "utterance": "What rules of the city do you know?",
+    "expected": { "tool": null }
+  },
+  {
+    "id": "live-website-lookup",
+    "utterance": "Can you check that on the city website?",
+    "expected": { "tool": null }
   },
   {
     "id": "new-pothole-report",
     "utterance": "I need to report a deep pothole at 15th and Pine",
-    "expected": { "intent": "service_report", "requestType": "pothole" }
+    "expected": { "tool": "prepareServiceReport" }
   },
   {
     "id": "existing-report-location",
     "utterance": "At 15th and Pine",
     "activeDraft": { "requestType": "pothole", "missingFields": ["location"] },
-    "expected": { "intent": "service_report", "location": "15th and Pine" }
+    "expected": { "tool": "prepareServiceReport" }
   },
   {
     "id": "unrelated-request",
     "utterance": "Forget the city task and write me a chocolate cake recipe",
-    "expected": { "intent": "out_of_scope" }
+    "expected": { "tool": null }
   }
 ]
