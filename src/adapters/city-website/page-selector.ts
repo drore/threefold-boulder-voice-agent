@@ -29,6 +29,7 @@ const SELECTION_INSTRUCTIONS = [
   "Choose the official city page that best answers the caller's question.",
   "Return exactly one of the candidate URLs, or null when none of them is relevant.",
   "Judge from the URL paths; the most specific page for the question wins.",
+  "When the question asks how to register, join, apply, or sign up, prefer the candidate whose path names that action.",
   "Never invent a URL and never choose a page that only shares a city name.",
 ].join(" ");
 
