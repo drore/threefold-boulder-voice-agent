@@ -9,6 +9,7 @@ import type {
   CityEventOccurrence,
   CityEventsProvider,
 } from "../../adapters/city-website/events.js";
+import type { CityWebsiteProvider } from "../../adapters/city-website/website.js";
 import type { CityKnowledgeReader, KnowledgeEntry } from "../../core/city.js";
 import { matchesKnowledgeEntry } from "../../core/city.js";
 import {
@@ -45,6 +46,7 @@ const SUPPORTED_TOPICS = [
   "the reviewed city-code example",
   "the reviewed city-service guidance",
   "official city-calendar events",
+  "official city website pages",
 ] as const;
 
 const EVENTS_WINDOW_DAYS = 14;
@@ -60,6 +62,7 @@ export type KnowledgeToolOptions = Readonly<{
   clock: () => Date;
   events: CityEventsProvider;
   knowledge: CityKnowledgeReader;
+  website: CityWebsiteProvider;
   cityId: string;
   timeZone: string;
   eventsListingUrl: string;
@@ -67,17 +70,27 @@ export type KnowledgeToolOptions = Readonly<{
 
 /**
  * Creates the knowledge handlers for the configured city.
- * Input: server clock, live-events provider, and the city's database corpus.
- * Output: handlers for reviewed answers and bounded live event answers.
+ * Input: server clock, live providers, and the city's database corpus.
+ * Output: handlers for reviewed answers and bounded live answers.
  */
 export function createKnowledgeToolHandlers(
   options: KnowledgeToolOptions,
 ): Pick<
   AgentToolHandlers,
-  "lookupMunicipalCode" | "lookupCityInformation" | "findCityEvents"
+  | "lookupMunicipalCode"
+  | "lookupCityInformation"
+  | "lookupCityWebsite"
+  | "findCityEvents"
 > {
-  const { clock, events, knowledge, cityId, timeZone, eventsListingUrl } =
-    options;
+  const {
+    clock,
+    events,
+    knowledge,
+    website,
+    cityId,
+    timeZone,
+    eventsListingUrl,
+  } = options;
 
   /** Input: a tool and query. Output: a reviewed answer or an explicit coverage limit. */
   async function answerReviewed(
@@ -102,6 +115,26 @@ export function createKnowledgeToolHandlers(
       answerReviewed("lookupMunicipalCode", query),
     lookupCityInformation: async ({ query }) =>
       answerReviewed("lookupCityInformation", query),
+    lookupCityWebsite: async ({ query }) => {
+      const result = await website.lookup(query);
+      if (result.status === "no_match") {
+        return limitedCoverage("unsupported_query");
+      }
+      if (result.status === "source_unavailable") {
+        return limitedCoverage("source_unavailable");
+      }
+      return {
+        status: "page_evidence",
+        coverage: "live_official_source",
+        pageTitle: result.page.title,
+        pageUrl: result.page.url,
+        fetchedAtUtc: result.page.fetchedAtUtc,
+        pageText: result.page.text,
+        limitations: [
+          "Answer only from this page text; if it does not cover the question, say so and share the link.",
+        ],
+      } satisfies AgentToolResult;
+    },
     findCityEvents: async ({ query, title, startDate, endDate }) => {
       // A caller-named title disambiguates the request, so date/status wording
       // in the free-text query must not reject it.

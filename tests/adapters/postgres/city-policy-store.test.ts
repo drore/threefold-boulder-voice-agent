@@ -182,9 +182,10 @@ describe.skipIf(!localDatabaseUrl)(
       const policy = { ...seeded.rows[0]?.policy, ...policyPatch };
       await pool.query(
         `insert into app.city_policies
-           (city_id, display_name, events_listing_url, revision, source_url,
-            source_verified_at, valid_through, policy)
-         values ($1, 'Testville', 'https://example.test/events', 1,
+           (city_id, display_name, events_listing_url, website_base_url,
+            revision, source_url, source_verified_at, valid_through, policy)
+         values ($1, 'Testville', 'https://example.test/events',
+                 'https://example.test', 1,
                  'https://example.test/contact',
                  '2026-09-16T00:00:00Z', '2027-01-01', $2::jsonb)`,
         [cityId, JSON.stringify(policy)],

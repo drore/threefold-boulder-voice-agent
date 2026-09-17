@@ -15,6 +15,7 @@ import {
   type AgentToolHandlers,
 } from "../../src/server/reasoning/tool-definitions.js";
 import type { CityKnowledgeReader } from "../../src/core/city.js";
+import type { CityWebsiteProvider } from "../../src/adapters/city-website/website.js";
 import { createKnowledgeToolHandlers } from "../../src/server/reasoning/knowledge-tools.js";
 
 const CONTEXT: AgentToolContext = {
@@ -30,6 +31,7 @@ const SUPPORTED_REVIEWED_TOPICS = [
   "the reviewed city-code example",
   "the reviewed city-service guidance",
   "official city-calendar events",
+  "official city website pages",
 ] as const;
 
 const FAKE_OCCURRENCES: readonly CityEventOccurrence[] = [
@@ -141,13 +143,19 @@ const FAKE_KNOWLEDGE: CityKnowledgeReader = {
   }),
 };
 
+const FAKE_WEBSITE: CityWebsiteProvider = {
+  lookup: async () => ({ status: "no_match" }),
+};
+
 function reviewedHandlers(
   nowUtc: string,
   events: CityEventsProvider = eventsProviderWith(),
+  website: CityWebsiteProvider = FAKE_WEBSITE,
 ): Partial<AgentToolHandlers> {
   return createKnowledgeToolHandlers({
     clock: () => new Date(nowUtc),
     events,
+    website,
     knowledge: FAKE_KNOWLEDGE,
     cityId: "test-city",
     timeZone: "America/Denver",
@@ -160,6 +168,7 @@ describe("agent tool boundary", () => {
     expect(agentToolDefinitions.map(({ name }) => name)).toEqual([
       "lookupMunicipalCode",
       "lookupCityInformation",
+      "lookupCityWebsite",
       "findCityEvents",
       "confirmReport",
       "prepareServiceReport",
@@ -451,6 +460,44 @@ describe("agent tool boundary", () => {
       },
     );
     expect(result).toMatchObject({ status: "limited_coverage" });
+  });
+
+  it("returns page evidence for a live website lookup", async () => {
+    const website: CityWebsiteProvider = {
+      lookup: async () => ({
+        status: "found",
+        page: {
+          title: "Parking",
+          url: "https://example.gov/services/parking",
+          text: "On-street parking is free for the first 15 minutes.",
+          fetchedAtUtc: "2026-09-17T12:00:00.000Z",
+        },
+      }),
+    };
+    const result = await callAgentTool(
+      "lookupCityWebsite",
+      { query: "where can I park downtown" },
+      CONTEXT,
+      {
+        ...createAgentToolStubs(),
+        ...reviewedHandlers(
+          "2026-09-16T12:00:00Z",
+          eventsProviderWith(),
+          website,
+        ),
+      },
+    );
+    expect(result).toEqual({
+      status: "page_evidence",
+      coverage: "live_official_source",
+      pageTitle: "Parking",
+      pageUrl: "https://example.gov/services/parking",
+      fetchedAtUtc: "2026-09-17T12:00:00.000Z",
+      pageText: "On-street parking is free for the first 15 minutes.",
+      limitations: [
+        "Answer only from this page text; if it does not cover the question, say so and share the link.",
+      ],
+    });
   });
 
   it("does not count website pothole guidance as municipal-code evidence", async () => {

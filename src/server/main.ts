@@ -6,6 +6,7 @@
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { createCityEventsProvider } from "../adapters/city-website/events.js";
+import { createCityWebsiteProvider } from "../adapters/city-website/website.js";
 import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
 import { PostgresCityKnowledgeStore } from "../adapters/postgres/city-knowledge-store.js";
 import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
@@ -62,6 +63,7 @@ async function startApi(): Promise<void> {
         displayName: policy.displayName,
         timeZone: policy.schedule.timeZone,
         eventsListingUrl: policy.eventsListingUrl,
+        websiteBaseUrl: policy.websiteBaseUrl,
         knowledge: new PostgresCityKnowledgeStore(pool),
       },
       () => new Date(),
@@ -81,6 +83,7 @@ async function startApi(): Promise<void> {
       },
       access,
       createCityEventsProvider({ listingUrl: policy.eventsListingUrl }),
+      createCityWebsiteProvider({ baseUrl: policy.websiteBaseUrl }),
     );
     registerLocalLiveSession(app, config.openAiApiKey, policy.displayName);
     if (config.mode === "reviewer") registerStaticWeb(app, BUILT_WEB_ROOT);

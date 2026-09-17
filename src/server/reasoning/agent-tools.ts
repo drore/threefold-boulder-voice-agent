@@ -29,6 +29,7 @@ export function createAgentToolStubs(): AgentToolHandlers {
   return {
     lookupMunicipalCode: unavailable,
     lookupCityInformation: unavailable,
+    lookupCityWebsite: unavailable,
     findCityEvents: unavailable,
     confirmReport: unavailable,
     prepareServiceReport: unavailable,
@@ -118,6 +119,11 @@ export async function callAgentTool(
       );
     case "lookupCityInformation":
       return handlers.lookupCityInformation(
+        { query: rawArguments.query as string },
+        context,
+      );
+    case "lookupCityWebsite":
+      return handlers.lookupCityWebsite(
         { query: rawArguments.query as string },
         context,
       );

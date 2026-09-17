@@ -29,6 +29,7 @@ function cityRuntime(pool: Pool): CityRuntime {
     displayName: "Boulder",
     timeZone: "America/Denver",
     eventsListingUrl: "https://example.test/events",
+    websiteBaseUrl: "https://example.test",
     knowledge: new PostgresCityKnowledgeStore(pool),
   };
 }

@@ -6,6 +6,7 @@
 import { randomUUID } from "node:crypto";
 import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import type { CityEventsProvider } from "../adapters/city-website/events.js";
+import type { CityWebsiteProvider } from "../adapters/city-website/website.js";
 import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { isWithinBusinessHours } from "../core/business-hours.js";
 import {
@@ -43,6 +44,10 @@ import {
 } from "./visitor-sessions.js";
 
 /** Fallback source used when no city calendar is configured. */
+const unavailableWebsite: CityWebsiteProvider = {
+  lookup: async () => ({ status: "source_unavailable" }),
+};
+
 const unavailableEvents: CityEventsProvider = {
   upcomingEvents: async () => ({ status: "source_unavailable" }),
 };
@@ -53,6 +58,7 @@ export type CityRuntime = Readonly<{
   displayName: string;
   timeZone: string;
   eventsListingUrl: string;
+  websiteBaseUrl: string;
   knowledge: CityKnowledgeReader;
 }>;
 
@@ -107,6 +113,7 @@ export function buildLocalApp(
   },
   access?: VisitorAccess,
   events?: CityEventsProvider,
+  website?: CityWebsiteProvider,
 ) {
   const app = fastify({
     logger: false,
@@ -115,11 +122,13 @@ export function buildLocalApp(
   let scenarioClock: Date | undefined;
   const effectiveClock = () => scenarioClock ?? clock();
   const eventsProvider = events ?? unavailableEvents;
+  const websiteProvider = website ?? unavailableWebsite;
   const handlers = {
     ...createAgentToolStubs(),
     ...createKnowledgeToolHandlers({
       clock: effectiveClock,
       events: eventsProvider,
+      website: websiteProvider,
       knowledge: city.knowledge,
       cityId: city.cityId,
       timeZone: city.timeZone,

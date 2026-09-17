@@ -137,6 +137,7 @@ describe.skipIf(!databaseUrl)(
         displayName: "Boulder",
         timeZone: "America/Denver",
         eventsListingUrl: "https://example.test/events",
+        websiteBaseUrl: "https://example.test",
         knowledge: new PostgresCityKnowledgeStore(pool),
       };
       const app = buildLocalApp(
@@ -361,6 +362,7 @@ describe.skipIf(!databaseUrl)(
           displayName: "Boulder",
           timeZone: "America/Denver",
           eventsListingUrl: "https://example.test/events",
+          websiteBaseUrl: "https://example.test",
           knowledge: new PostgresCityKnowledgeStore(pool),
         },
         () => new Date(options.clock),

@@ -37,6 +37,7 @@ export type CityPolicy = Readonly<{
   revision: number;
   sourceUrl: string;
   holidaySourceUrl: string;
+  websiteBaseUrl: string;
   eventsListingUrl: string;
   sourceVerifiedAt: string;
   schedule: OfficeSchedule;
@@ -49,6 +50,7 @@ type CityPolicyRow = {
   city_id: string;
   display_name: string;
   events_listing_url: string;
+  website_base_url: string;
   revision: number;
   source_url: string;
   source_verified_at: Date;
@@ -72,7 +74,7 @@ export class PostgresCityPolicyStore {
   > {
     try {
       const result = await this.pool.query<CityPolicyRow>(
-        `select city_id, display_name, events_listing_url, revision,
+        `select city_id, display_name, events_listing_url, website_base_url, revision,
                 source_url, source_verified_at,
                 valid_through::text as valid_through, policy
          from app.city_policies
@@ -104,7 +106,8 @@ function validateCityPolicy(
     row.revision <= 0 ||
     !nonEmpty(row.display_name) ||
     !isHttpsUrl(row.source_url) ||
-    !isHttpsUrl(row.events_listing_url)
+    !isHttpsUrl(row.events_listing_url) ||
+    !isSiteBaseUrl(row.website_base_url)
   ) {
     return undefined;
   }
@@ -133,6 +136,7 @@ function validateCityPolicy(
     sourceUrl: row.source_url,
     holidaySourceUrl: raw.holidaySourceUrl,
     eventsListingUrl: row.events_listing_url,
+    websiteBaseUrl: row.website_base_url,
     sourceVerifiedAt: row.source_verified_at.toISOString(),
     schedule,
     alwaysOpenTicket: false,
@@ -298,6 +302,11 @@ function isValidCalendarDate(value: string): boolean {
 /** Input: `"24:00"`. Output: `false`; `"17:00"` returns `true`. */
 function isLocalTime(value: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/** Input: `"https://example.gov"`. Output: `true` for a bare HTTPS origin. */
+function isSiteBaseUrl(value: string): boolean {
+  return /^https:\/\/[^/]+$/.test(value);
 }
 
 /** Input: `"+13035550101"`. Output: `true` for a plausible E.164 number. */

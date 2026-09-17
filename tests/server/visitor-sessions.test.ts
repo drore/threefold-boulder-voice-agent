@@ -107,6 +107,7 @@ describe("visitor admission and isolation", () => {
         displayName: "Testville",
         timeZone: "America/Denver",
         eventsListingUrl: "https://example.test/events",
+        websiteBaseUrl: "https://example.test",
         knowledge: { list: async () => ({ status: "unavailable" }) },
       },
       () => new Date("2026-09-16T16:00:00Z"),

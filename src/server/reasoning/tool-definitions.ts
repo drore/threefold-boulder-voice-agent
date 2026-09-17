@@ -35,6 +35,17 @@ export const agentToolDefinitions = [
     },
   },
   {
+    name: "lookupCityWebsite",
+    description:
+      "Look up the official city website for a caller question when the reviewed examples do not cover it. Pass the caller's key words; the server selects and fetches the most relevant official page.",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string" } },
+      required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "findCityEvents",
     description:
       "Find upcoming events from the configured city's official calendar (live, cached). The date range is optional; omit it to cover the next two weeks. Never ask the caller for dates.",
@@ -86,6 +97,7 @@ export type AgentToolName = (typeof agentToolDefinitions)[number]["name"];
 export type AgentToolInput =
   | { name: "lookupMunicipalCode"; arguments: { query: string } }
   | { name: "lookupCityInformation"; arguments: { query: string } }
+  | { name: "lookupCityWebsite"; arguments: { query: string } }
   | {
       name: "findCityEvents";
       arguments: {
@@ -128,6 +140,15 @@ export type AgentToolResult =
       coverage: "reviewed_examples_only";
       reason: "unsupported_query" | "source_unavailable";
       supportedTopics: readonly string[];
+    }
+  | {
+      status: "page_evidence";
+      coverage: "live_official_source";
+      pageTitle: string;
+      pageUrl: string;
+      fetchedAtUtc: string;
+      pageText: string;
+      limitations: readonly string[];
     }
   | {
       status: "rejected";
