@@ -271,6 +271,8 @@ function inferTools(turns) {
       result.status === "needs_confirmation"
     ) {
       tools.add("prepareServiceReport");
+    } else if (result.status === "page_evidence") {
+      tools.add("lookupCityWebsite");
     } else if (
       result.status === "answered" &&
       result.coverage === "live_official_source"
