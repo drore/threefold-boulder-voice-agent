@@ -46,6 +46,53 @@ function speechForAction(action: LocalConfirmResult): string {
   }
 }
 
+/**
+ * Simulates a phone transfer: a short ring tone, then the department desk
+ * answers in one short line before the demo's outcome note. Audio is
+ * best-effort; the routing is still reported in speech and on screen.
+ */
+async function announceSimulatedTransfer(
+  voice: LiveVoice,
+  delegationId: string,
+  departmentName: string,
+): Promise<void> {
+  await playRingTone();
+  try {
+    voice.sendCommentary(
+      delegationId,
+      `For this reply only, you are the ${departmentName} desk answering a transferred call. In one short sentence, greet the caller and confirm the report was received. Do not mention being an AI, a demo, or a simulation.`,
+    );
+  } catch {
+    // The spoken demo outcome that follows still reports the routing honestly.
+  }
+  await new Promise((resolve) => setTimeout(resolve, 3200));
+}
+
+/** Input: none. Output: a short synthesized ring, or silence when audio is unavailable. */
+async function playRingTone(): Promise<void> {
+  try {
+    const context = new AudioContext();
+    const start = context.currentTime;
+    for (const offset of [0, 0.7]) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 440;
+      gain.gain.setValueAtTime(0.0001, start + offset);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + offset + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.45);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start + offset);
+      oscillator.stop(start + offset + 0.5);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await context.close();
+  } catch {
+    // Audio is optional; the spoken transfer note still runs.
+  }
+}
+
 /** Input: a browser visitor starts a microphone session. Output: spoken replies and the same reviewed results shown by the text UI. */
 export function VoicePanel({
   onResult,
@@ -86,9 +133,27 @@ export function VoicePanel({
       status !== "ready"
     )
       return;
+    announcedActionRef.current = action;
+    const activeVoice = voice;
+    const delegationId = delegation.id;
+    if (action.status === "simulated_route") {
+      void announceSimulatedTransfer(
+        activeVoice,
+        delegationId,
+        action.department.name,
+      ).then(() => {
+        try {
+          activeVoice.sendCommentary(delegationId, speechForAction(action));
+        } catch {
+          setError(
+            "The action is shown on screen, but the voice update could not be sent.",
+          );
+        }
+      });
+      return;
+    }
     try {
-      voice.sendCommentary(delegation.id, speechForAction(action));
-      announcedActionRef.current = action;
+      activeVoice.sendCommentary(delegationId, speechForAction(action));
     } catch {
       setError(
         "The action is shown on screen, but the voice update could not be sent.",
@@ -189,6 +254,16 @@ export function VoicePanel({
           };
         }
         if (result.result) onResult(result.result);
+      }
+      if (
+        result.status === "completed" &&
+        result.result?.status === "simulated_route"
+      ) {
+        await announceSimulatedTransfer(
+          voice,
+          id,
+          result.result.department.name,
+        );
       }
       voice.sendCommentary(id, result.speech);
     } catch {

@@ -91,7 +91,7 @@ First ConversationStore and CityConfigStore: conversations, current request/conf
 
 P0 selects the correct department and its database-configured mock number after confirmation, and presents the outcome as a simulation in text and voice. Proposed destinations: Transportation & Mobility `+1 303-555-0101`, Parks & Recreation `+1 303-555-0102`. Never dial fictional numbers. A multi-state transfer simulation (pending/answered/failed/cancelled) can be added later if it serves a concrete demo need; the assignment explicitly permits a mock number.
 
-The previously accepted tone and representative view move to P1 under Dror's assignment-first scope instruction. P0 already stores context needed later. Tone alone is not transfer completion. Actual telephony/contact-center integration is P2.
+P0 simulates the handoff: after a confirmed open-hours route, the voice channel plays a brief ring tone and a short department-side acknowledgment (the desk answers the transferred report) before the demo-scope note. The multi-state transfer lifecycle (pending/answered/failed/cancelled) and a fuller representative view remain P1; actual telephony/contact-center integration is P2.
 
 ### ADR-006 — Browser voice
 

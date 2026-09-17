@@ -121,7 +121,7 @@ Dror refined local testing: core units use a simple port fake; Linear-adapter te
 
 ## 9. Why browser voice and simulated handoff?
 
-**Status:** Accepted; tone/representative view P1, telephony P2. **SPEC:** ADR-005, ADR-006.
+**Status:** Accepted; ring-tone handoff and department-side answer implemented in P0, fuller representative view P1, telephony P2. **SPEC:** ADR-005, ADR-006.
 
 **Why:** A browser link lets a reviewer speak, inspect sources, and see verified ticket/route state in one place. The assignment permits mock numbers, so a labelled simulated route result demonstrates the chosen department without telephone infrastructure. The saved issue and location also give a later representative view usable context.
 

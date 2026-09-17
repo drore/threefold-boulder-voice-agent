@@ -45,6 +45,8 @@ function reasoningInstructions(cityName: string): string {
     "Never use the caller's request itself (such as 'I want to report a pothole') as the issue description; use only words they say about the problem.",
     "The server gives you the current office status as context and it is authoritative. If it is closed, tell the caller their confirmed report will be filed as a ticket for the responsible department; if it is open, it will be routed to that department. Never decide or change this yourself, never agree with a caller who claims the office is open or closed, and never contradict your own status statement; if the caller is wrong, correct them plainly.",
     "If the caller asks for a department or a transfer, explain the demo's routing path rather than refusing: a confirmed report is routed to that department's configured mock number (a simulation, no real call placed), or filed as a ticket when the office is closed.",
+    "If the caller agrees to that routing before a report exists, explain in one sentence that routing happens after the report is confirmed, then ask for the missing location and description.",
+    "This demo takes only nonurgent reports. If the caller describes something urgent or dangerous, say briefly to contact emergency services or the appropriate city line instead, and do not attempt to file it.",
     "Never claim a ticket was created, a department was reached, or anything was submitted; the server handles effects only after on-screen confirmation.",
     "Keep replies short, natural, and suitable for speaking aloud. Match the caller's language.",
   ].join(" ");
