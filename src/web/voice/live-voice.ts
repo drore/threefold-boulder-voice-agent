@@ -219,7 +219,7 @@ export class LiveVoice {
     return closing;
   }
 
-  /** Input: `sendCommentary("item_123", "The request was recorded.")`. Output: one spoken-result event. */
+  /** Input: `sendCommentary("item_123", "The request was recorded.")`. Output: spoken-result appends. */
   sendCommentary(delegationId: string, content: string): void {
     if (this.state !== "ready" || this.channel?.readyState !== "open") {
       throw new Error("The voice session is not ready.");
@@ -227,14 +227,38 @@ export class LiveVoice {
     if (!this.knownDelegations.has(delegationId)) {
       throw new Error("The delegation ID is not active in this session.");
     }
-    if (!content.trim()) throw new Error("A spoken result is required.");
+    const text = content.trim();
+    if (!text) throw new Error("A spoken result is required.");
 
+    for (const chunk of splitForAppend(text)) {
+      this.channel.send(
+        JSON.stringify({
+          type: "session.commentary.append",
+          event_id: crypto.randomUUID(),
+          delegation_id: delegationId,
+          content: chunk,
+        }),
+      );
+    }
+  }
+
+  /**
+   * Steers the live model for the rest of the session without speaking the text
+   * itself, for example the department persona during a simulated transfer.
+   * Input: `"Act as the Transportation desk for the next reply."`.
+   */
+  sendInstruction(content: string): void {
+    if (this.state !== "ready" || this.channel?.readyState !== "open") {
+      throw new Error("The voice session is not ready.");
+    }
+    const text = content.trim();
+    if (!text) throw new Error("An instruction is required.");
     this.channel.send(
       JSON.stringify({
-        type: "session.commentary.append",
+        type: "session.instructions.append",
         event_id: crypto.randomUUID(),
-        delegation_id: delegationId,
-        content: content.trim(),
+        delegation_id: null,
+        content: text,
       }),
     );
   }
@@ -377,4 +401,38 @@ export class LiveVoice {
     this.knownDelegations.clear();
     this.handlers.onStatus?.(status);
   }
+}
+
+/**
+ * Keeps each append inside the guide's 500-token limit by splitting on sentence
+ * boundaries (hard-splitting a very long sentence). Repeated appends continue
+ * the same client delegation.
+ * Input: a 3000-character answer. Output: chunks of at most 1200 characters.
+ */
+function splitForAppend(content: string): string[] {
+  const MAX_APPEND_CHARS = 1200;
+  if (content.length <= MAX_APPEND_CHARS) return [content];
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of content.split(/(?<=[.!?])s+/)) {
+    if (sentence.length > MAX_APPEND_CHARS) {
+      if (current) {
+        chunks.push(current);
+        current = "";
+      }
+      for (let index = 0; index < sentence.length; index += MAX_APPEND_CHARS) {
+        chunks.push(sentence.slice(index, index + MAX_APPEND_CHARS));
+      }
+      continue;
+    }
+    const candidate = current ? `${current} ${sentence}` : sentence;
+    if (candidate.length > MAX_APPEND_CHARS) {
+      chunks.push(current);
+      current = sentence;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }

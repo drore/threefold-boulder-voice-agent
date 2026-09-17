@@ -6,7 +6,15 @@
  * channels must produce the same outcome for the same clock and request.
  */
 import { Pool } from "pg";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { PostgresCityKnowledgeStore } from "../../src/adapters/postgres/city-knowledge-store.js";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
@@ -78,343 +86,357 @@ function ticketProvider() {
 
 type ScenarioClock = () => Date;
 
-describe.skipIf(!databaseUrl)("business-hours decision matrix (HTTP path)", () => {
-  let pool: Pool;
-  beforeAll(() => {
-    pool = new Pool({ connectionString: databaseUrl });
-  });
+describe.skipIf(!databaseUrl)(
+  "business-hours decision matrix (HTTP path)",
+  () => {
+    let pool: Pool;
+    beforeAll(() => {
+      pool = new Pool({ connectionString: databaseUrl });
+    });
 
-  afterAll(async () => {
-    await pool?.end();
-  });
+    afterAll(async () => {
+      await pool?.end();
+    });
 
-  const sessions: Array<{
-    app: Awaited<ReturnType<typeof buildLocalApp>>;
-    context: ReportContext;
-  }> = [];
+    const sessions: Array<{
+      app: Awaited<ReturnType<typeof buildLocalApp>>;
+      context: ReportContext;
+    }> = [];
 
-  afterEach(async () => {
-    for (const session of sessions.splice(0)) {
-      await session.app.close();
-      for (const table of [
-        "app.ticket_operations",
-        "app.request_drafts",
-        "app.observations",
-      ]) {
-        await pool.query(`delete from ${table} where conversation_id = $1`, [
+    afterEach(async () => {
+      for (const session of sessions.splice(0)) {
+        await session.app.close();
+        for (const table of [
+          "app.ticket_operations",
+          "app.request_drafts",
+          "app.observations",
+        ]) {
+          await pool.query(`delete from ${table} where conversation_id = $1`, [
+            session.context.conversationId,
+          ]);
+        }
+        await pool.query("delete from app.conversations where id = $1", [
           session.context.conversationId,
         ]);
       }
-      await pool.query("delete from app.conversations where id = $1", [
-        session.context.conversationId,
-      ]);
-    }
-  });
-
-  /** Input: a fixed clock and ticketing fakes. Output: an isolated app for one scenario. */
-  async function openScenarioApp(clock: ScenarioClock, ticketing: {
-    operations: PostgresTicketOperationStore;
-    provider: TicketProvider;
-  }) {
-    const store = new PostgresDraftStore(pool);
-    const opened = await store.openConversation("boulder-co");
-    if (opened.status !== "created") throw new Error("Local DB unavailable");
-    const city: CityRuntime = {
-      cityId: "boulder-co",
-      displayName: "Boulder",
-      timeZone: "America/Denver",
-      eventsListingUrl: "https://example.test/events",
-      knowledge: new PostgresCityKnowledgeStore(pool),
-    };
-    const app = buildLocalApp(
-      store,
-      opened.context,
-      new PostgresCityPolicyStore(pool),
-      city,
-      clock,
-      ticketing,
-    );
-    await app.ready();
-    sessions.push({ app, context: opened.context });
-    return app;
-  }
-
-  const cases = [
-    {
-      name: "open weekday routes a pothole to Transportation",
-      clock: "2026-09-16T16:00:00Z",
-      fields: POTHOLE,
-      expected: {
-        status: "simulated_route",
-        department: TRANSPORTATION,
-        providerCalls: 0,
-      },
-    },
-    {
-      name: "open weekday routes a park issue to Parks & Recreation",
-      clock: "2026-09-16T16:00:00Z",
-      fields: PARK,
-      expected: {
-        status: "simulated_route",
-        department: PARKS,
-        providerCalls: 0,
-      },
-    },
-    {
-      name: "the opening instant counts as open and routes",
-      clock: "2026-09-16T14:00:00Z",
-      fields: PARK,
-      expected: {
-        status: "simulated_route",
-        department: PARKS,
-        providerCalls: 0,
-      },
-    },
-    {
-      name: "the closing instant counts as closed and files a ticket",
-      clock: "2026-09-16T23:00:00Z",
-      fields: POTHOLE,
-      expected: {
-        status: "linear_ticket_created",
-        ticketTitle: "Boulder demo: pothole report",
-        providerCalls: 1,
-      },
-    },
-    {
-      name: "a weekend day is closed and files a park ticket",
-      clock: "2026-09-20T16:00:00Z",
-      fields: PARK,
-      expected: {
-        status: "linear_ticket_created",
-        ticketTitle: "Boulder demo: park maintenance report",
-        providerCalls: 1,
-      },
-    },
-    {
-      name: "a configured closure files a ticket",
-      clock: "2026-11-26T17:00:00Z",
-      fields: POTHOLE,
-      expected: {
-        status: "linear_ticket_created",
-        ticketTitle: "Boulder demo: pothole report",
-        providerCalls: 1,
-      },
-    },
-  ] as const;
-
-  it.each(cases)("$name", async ({ clock, fields, expected }) => {
-    const tickets = ticketProvider();
-    const app = await openScenarioApp(() => new Date(clock), {
-      operations: new PostgresTicketOperationStore(pool),
-      provider: tickets.provider,
     });
 
-    const saved = await app.inject({
-      method: "POST",
-      url: "/api/local/report",
-      payload: fields,
-    });
-    expect(saved.json()).toMatchObject({ status: "needs_confirmation" });
-    const { draftId, revision } = saved.json();
-
-    const confirmed = await app.inject({
-      method: "POST",
-      url: "/api/local/report/confirm",
-      payload: { draftId, revision },
-    });
-    expect(confirmed.statusCode).toBe(200);
-    const outcome = confirmed.json();
-    expect(outcome.status).toBe(expected.status);
-    expect(outcome.policyRevision).toBe(1);
-
-    if (expected.status === "simulated_route") {
-      expect(outcome.department).toMatchObject(expected.department);
-      expect(tickets.createTicket).not.toHaveBeenCalled();
-    } else {
-      expect(tickets.createTicket).toHaveBeenCalledTimes(expected.providerCalls);
-      expect(tickets.created()).toBe(expected.ticketTitle);
-      expect(outcome.currentDetails).toBe("fresh");
-    }
-  });
-
-  it("never files a ticket for an unconfirmed draft", async () => {
-    const tickets = ticketProvider();
-    const app = await openScenarioApp(() => new Date("2026-09-16T23:00:00Z"), {
-      operations: new PostgresTicketOperationStore(pool),
-      provider: tickets.provider,
-    });
-    const saved = await app.inject({
-      method: "POST",
-      url: "/api/local/report",
-      payload: POTHOLE,
-    });
-    expect(saved.json()).toMatchObject({ status: "needs_confirmation" });
-    expect(tickets.createTicket).not.toHaveBeenCalled();
-  });
-});
-
-describe.skipIf(!databaseUrl)("business-hours decision matrix (voice path)", () => {
-  let pool: Pool;
-  beforeAll(() => {
-    pool = new Pool({ connectionString: databaseUrl });
-  });
-
-  afterAll(async () => {
-    await pool?.end();
-  });
-
-  const sessions: Array<{
-    app: Awaited<ReturnType<typeof buildLocalApp>>;
-    context: ReportContext;
-  }> = [];
-
-  afterEach(async () => {
-    for (const session of sessions.splice(0)) {
-      await session.app.close();
-      for (const table of [
-        "app.ticket_operations",
-        "app.request_drafts",
-        "app.observations",
-      ]) {
-        await pool.query(`delete from ${table} where conversation_id = $1`, [
-          session.context.conversationId,
-        ]);
-      }
-      await pool.query("delete from app.conversations where id = $1", [
-        session.context.conversationId,
-      ]);
-    }
-  });
-
-  /** Input: output items. Output: a Responses envelope the app consumes. */
-  function modelOutput(output: unknown[]): Response {
-    return new Response(JSON.stringify({ status: "completed", output }), {
-      status: 200,
-    });
-  }
-
-  function toolCall(
-    name: string,
-    args: Record<string, unknown>,
-    callId: string,
-  ): Response {
-    return modelOutput([
-      {
-        type: "function_call",
-        name,
-        arguments: JSON.stringify(args),
-        call_id: callId,
+    /** Input: a fixed clock and ticketing fakes. Output: an isolated app for one scenario. */
+    async function openScenarioApp(
+      clock: ScenarioClock,
+      ticketing: {
+        operations: PostgresTicketOperationStore;
+        provider: TicketProvider;
       },
-    ]);
-  }
-
-  function message(text: string): Response {
-    return modelOutput([
-      { type: "message", content: [{ type: "output_text", text }] },
-    ]);
-  }
-
-  /** Input: the report turn and confirm turn. Output: the confirm outcome for that channel. */
-  async function runVoiceScenario(options: {
-    clock: string;
-    utterance: string;
-    toolArguments: Record<string, unknown>;
-    tickets: ReturnType<typeof ticketProvider>;
-  }) {
-    const responses = [
-      toolCall("prepareServiceReport", options.toolArguments, "call-1"),
-      message("The report is ready for your confirmation."),
-      toolCall("confirmReport", {}, "call-2"),
-      message("Your report was handled."),
-    ];
-    const request: typeof fetch = async () => responses.shift() as Response;
-    const store = new PostgresDraftStore(pool);
-    const opened = await store.openConversation("boulder-co");
-    if (opened.status !== "created") throw new Error("Local DB unavailable");
-    const app = buildLocalApp(
-      store,
-      opened.context,
-      new PostgresCityPolicyStore(pool),
-      {
+    ) {
+      const store = new PostgresDraftStore(pool);
+      const opened = await store.openConversation("boulder-co");
+      if (opened.status !== "created") throw new Error("Local DB unavailable");
+      const city: CityRuntime = {
         cityId: "boulder-co",
         displayName: "Boulder",
         timeZone: "America/Denver",
         eventsListingUrl: "https://example.test/events",
         knowledge: new PostgresCityKnowledgeStore(pool),
-      },
-      () => new Date(options.clock),
+      };
+      const app = buildLocalApp(
+        store,
+        opened.context,
+        new PostgresCityPolicyStore(pool),
+        city,
+        clock,
+        ticketing,
+      );
+      await app.ready();
+      sessions.push({ app, context: opened.context });
+      return app;
+    }
+
+    const cases = [
       {
-        operations: new PostgresTicketOperationStore(pool),
-        provider: options.tickets.provider,
+        name: "open weekday routes a pothole to Transportation",
+        clock: "2026-09-16T16:00:00Z",
+        fields: POTHOLE,
+        expected: {
+          status: "simulated_route",
+          department: TRANSPORTATION,
+          providerCalls: 0,
+        },
       },
-      { apiKey: "synthetic-key", request },
-    );
-    await app.ready();
-    sessions.push({ app, context: opened.context });
+      {
+        name: "open weekday routes a park issue to Parks & Recreation",
+        clock: "2026-09-16T16:00:00Z",
+        fields: PARK,
+        expected: {
+          status: "simulated_route",
+          department: PARKS,
+          providerCalls: 0,
+        },
+      },
+      {
+        name: "the opening instant counts as open and routes",
+        clock: "2026-09-16T14:00:00Z",
+        fields: PARK,
+        expected: {
+          status: "simulated_route",
+          department: PARKS,
+          providerCalls: 0,
+        },
+      },
+      {
+        name: "the closing instant counts as closed and files a ticket",
+        clock: "2026-09-16T23:00:00Z",
+        fields: POTHOLE,
+        expected: {
+          status: "linear_ticket_created",
+          ticketTitle: "Boulder demo: pothole report",
+          providerCalls: 1,
+        },
+      },
+      {
+        name: "a weekend day is closed and files a park ticket",
+        clock: "2026-09-20T16:00:00Z",
+        fields: PARK,
+        expected: {
+          status: "linear_ticket_created",
+          ticketTitle: "Boulder demo: park maintenance report",
+          providerCalls: 1,
+        },
+      },
+      {
+        name: "a configured closure files a ticket",
+        clock: "2026-11-26T17:00:00Z",
+        fields: POTHOLE,
+        expected: {
+          status: "linear_ticket_created",
+          ticketTitle: "Boulder demo: pothole report",
+          providerCalls: 1,
+        },
+      },
+    ] as const;
 
-    const prepared = await app.inject({
-      method: "POST",
-      url: "/api/local/delegation",
-      headers: { origin: LOCAL_ORIGIN },
-      payload: { utterance: options.utterance },
-    });
-    expect(prepared.json()).toMatchObject({
-      status: "completed",
-      result: { status: "needs_confirmation" },
+    it.each(cases)("$name", async ({ clock, fields, expected }) => {
+      const tickets = ticketProvider();
+      const app = await openScenarioApp(() => new Date(clock), {
+        operations: new PostgresTicketOperationStore(pool),
+        provider: tickets.provider,
+      });
+
+      const saved = await app.inject({
+        method: "POST",
+        url: "/api/local/report",
+        payload: fields,
+      });
+      expect(saved.json()).toMatchObject({ status: "needs_confirmation" });
+      const { draftId, revision } = saved.json();
+
+      const confirmed = await app.inject({
+        method: "POST",
+        url: "/api/local/report/confirm",
+        payload: { draftId, revision },
+      });
+      expect(confirmed.statusCode).toBe(200);
+      const outcome = confirmed.json();
+      expect(outcome.status).toBe(expected.status);
+
+      if (expected.status === "simulated_route") {
+        expect(outcome.policyRevision).toBe(1);
+        expect(outcome.department).toMatchObject(expected.department);
+        expect(tickets.createTicket).not.toHaveBeenCalled();
+      } else {
+        expect(tickets.createTicket).toHaveBeenCalledTimes(
+          expected.providerCalls,
+        );
+        expect(tickets.created()).toBe(expected.ticketTitle);
+        expect(outcome.currentDetails).toBe("fresh");
+      }
     });
 
-    const confirmed = await app.inject({
-      method: "POST",
-      url: "/api/local/delegation",
-      headers: { origin: LOCAL_ORIGIN },
-      payload: { utterance: "Yes, please confirm it." },
+    it("never files a ticket for an unconfirmed draft", async () => {
+      const tickets = ticketProvider();
+      const app = await openScenarioApp(
+        () => new Date("2026-09-16T23:00:00Z"),
+        {
+          operations: new PostgresTicketOperationStore(pool),
+          provider: tickets.provider,
+        },
+      );
+      const saved = await app.inject({
+        method: "POST",
+        url: "/api/local/report",
+        payload: POTHOLE,
+      });
+      expect(saved.json()).toMatchObject({ status: "needs_confirmation" });
+      expect(tickets.createTicket).not.toHaveBeenCalled();
     });
-    return confirmed.json();
-  }
+  },
+);
 
-  it("routes a spoken report to Transportation during business hours", async () => {
-    const tickets = ticketProvider();
-    const outcome = await runVoiceScenario({
-      clock: "2026-09-16T16:00:00Z",
-      utterance: "There is a large pothole at 15th and Pine",
-      toolArguments: POTHOLE,
-      tickets,
+describe.skipIf(!databaseUrl)(
+  "business-hours decision matrix (voice path)",
+  () => {
+    let pool: Pool;
+    beforeAll(() => {
+      pool = new Pool({ connectionString: databaseUrl });
     });
-    expect(outcome).toMatchObject({
-      status: "completed",
-      result: { status: "simulated_route", department: TRANSPORTATION },
-    });
-    expect(tickets.createTicket).not.toHaveBeenCalled();
-  });
 
-  it("routes a spoken park report to Parks & Recreation during business hours", async () => {
-    const tickets = ticketProvider();
-    const outcome = await runVoiceScenario({
-      clock: "2026-09-16T16:00:00Z",
-      utterance: "There is a broken swing at North Boulder Park",
-      toolArguments: PARK,
-      tickets,
+    afterAll(async () => {
+      await pool?.end();
     });
-    expect(outcome).toMatchObject({
-      status: "completed",
-      result: { status: "simulated_route", department: PARKS },
-    });
-    expect(tickets.createTicket).not.toHaveBeenCalled();
-  });
 
-  it("files a spoken report as a ticket outside business hours", async () => {
-    const tickets = ticketProvider();
-    const outcome = await runVoiceScenario({
-      clock: "2026-09-16T23:00:00Z",
-      utterance: "There is a large pothole at 15th and Pine",
-      toolArguments: POTHOLE,
-      tickets,
+    const sessions: Array<{
+      app: Awaited<ReturnType<typeof buildLocalApp>>;
+      context: ReportContext;
+    }> = [];
+
+    afterEach(async () => {
+      for (const session of sessions.splice(0)) {
+        await session.app.close();
+        for (const table of [
+          "app.ticket_operations",
+          "app.request_drafts",
+          "app.observations",
+        ]) {
+          await pool.query(`delete from ${table} where conversation_id = $1`, [
+            session.context.conversationId,
+          ]);
+        }
+        await pool.query("delete from app.conversations where id = $1", [
+          session.context.conversationId,
+        ]);
+      }
     });
-    expect(outcome).toMatchObject({
-      status: "completed",
-      result: { status: "linear_ticket_created", currentDetails: "fresh" },
+
+    /** Input: output items. Output: a Responses envelope the app consumes. */
+    function modelOutput(output: unknown[]): Response {
+      return new Response(JSON.stringify({ status: "completed", output }), {
+        status: 200,
+      });
+    }
+
+    function toolCall(
+      name: string,
+      args: Record<string, unknown>,
+      callId: string,
+    ): Response {
+      return modelOutput([
+        {
+          type: "function_call",
+          name,
+          arguments: JSON.stringify(args),
+          call_id: callId,
+        },
+      ]);
+    }
+
+    function message(text: string): Response {
+      return modelOutput([
+        { type: "message", content: [{ type: "output_text", text }] },
+      ]);
+    }
+
+    /** Input: the report turn and confirm turn. Output: the confirm outcome for that channel. */
+    async function runVoiceScenario(options: {
+      clock: string;
+      utterance: string;
+      toolArguments: Record<string, unknown>;
+      tickets: ReturnType<typeof ticketProvider>;
+    }) {
+      const responses = [
+        toolCall("prepareServiceReport", options.toolArguments, "call-1"),
+        message("The report is ready for your confirmation."),
+        toolCall("confirmReport", {}, "call-2"),
+        message("Your report was handled."),
+      ];
+      const request: typeof fetch = async () => responses.shift() as Response;
+      const store = new PostgresDraftStore(pool);
+      const opened = await store.openConversation("boulder-co");
+      if (opened.status !== "created") throw new Error("Local DB unavailable");
+      const app = buildLocalApp(
+        store,
+        opened.context,
+        new PostgresCityPolicyStore(pool),
+        {
+          cityId: "boulder-co",
+          displayName: "Boulder",
+          timeZone: "America/Denver",
+          eventsListingUrl: "https://example.test/events",
+          knowledge: new PostgresCityKnowledgeStore(pool),
+        },
+        () => new Date(options.clock),
+        {
+          operations: new PostgresTicketOperationStore(pool),
+          provider: options.tickets.provider,
+        },
+        { apiKey: "synthetic-key", request },
+      );
+      await app.ready();
+      sessions.push({ app, context: opened.context });
+
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/api/local/delegation",
+        headers: { origin: LOCAL_ORIGIN },
+        payload: { utterance: options.utterance },
+      });
+      expect(prepared.json()).toMatchObject({
+        status: "completed",
+        result: { status: "needs_confirmation" },
+      });
+
+      const confirmed = await app.inject({
+        method: "POST",
+        url: "/api/local/delegation",
+        headers: { origin: LOCAL_ORIGIN },
+        payload: { utterance: "Yes, please confirm it." },
+      });
+      return confirmed.json();
+    }
+
+    it("routes a spoken report to Transportation during business hours", async () => {
+      const tickets = ticketProvider();
+      const outcome = await runVoiceScenario({
+        clock: "2026-09-16T16:00:00Z",
+        utterance: "There is a large pothole at 15th and Pine",
+        toolArguments: { ...POTHOLE, description: "large pothole" },
+        tickets,
+      });
+      expect(outcome).toMatchObject({
+        status: "completed",
+        result: { status: "simulated_route", department: TRANSPORTATION },
+      });
+      expect(tickets.createTicket).not.toHaveBeenCalled();
     });
-    expect(tickets.createTicket).toHaveBeenCalledTimes(1);
-    expect(tickets.created()).toBe("Boulder demo: pothole report");
-  });
-});
+
+    it("routes a spoken park report to Parks & Recreation during business hours", async () => {
+      const tickets = ticketProvider();
+      const outcome = await runVoiceScenario({
+        clock: "2026-09-16T16:00:00Z",
+        utterance: "There is a broken swing at North Boulder Park",
+        toolArguments: { ...PARK, description: "broken swing" },
+        tickets,
+      });
+      expect(outcome).toMatchObject({
+        status: "completed",
+        result: { status: "simulated_route", department: PARKS },
+      });
+      expect(tickets.createTicket).not.toHaveBeenCalled();
+    });
+
+    it("files a spoken report as a ticket outside business hours", async () => {
+      const tickets = ticketProvider();
+      const outcome = await runVoiceScenario({
+        clock: "2026-09-16T23:00:00Z",
+        utterance: "There is a large pothole at 15th and Pine",
+        toolArguments: { ...POTHOLE, description: "large pothole" },
+        tickets,
+      });
+      expect(outcome).toMatchObject({
+        status: "completed",
+        result: { status: "linear_ticket_created", currentDetails: "fresh" },
+      });
+      expect(tickets.createTicket).toHaveBeenCalledTimes(1);
+      expect(tickets.created()).toBe("Boulder demo: pothole report");
+    });
+  },
+);

@@ -58,9 +58,8 @@ async function announceSimulatedTransfer(
 ): Promise<void> {
   await playRingTone();
   try {
-    voice.sendCommentary(
-      delegationId,
-      `For this reply only, you are the ${departmentName} desk answering a transferred call. In one short sentence, greet the caller and confirm the report was received. Do not mention being an AI, a demo, or a simulation.`,
+    voice.sendInstruction(
+      `For the next reply only, act as the ${departmentName} desk answering a transferred call: greet the caller and confirm the report was received in one short sentence. Do not mention being an AI, a demo, or a simulation.`,
     );
   } catch {
     // The spoken demo outcome that follows still reports the routing honestly.

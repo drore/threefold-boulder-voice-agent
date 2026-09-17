@@ -21,7 +21,7 @@ Assistant: Lemme try to get a list of city services. I don't have a current, vet
 
 | Defect | Expected behavior |
 | --- | --- |
-| Paraphrased and truncated the backend events answer ("Here are a few... and [cut]") instead of speaking the returned text | Speak the exact backend commentary, nothing added or removed |
+| Paraphrased and truncated the backend events answer ("Here are a few... and [cut]") instead of speaking the returned text | Speak the backend result faithfully: no added, dropped, or changed fact, ID, date, limitation, or outcome |
 | Invented a family/children filter ("I'll narrow it down to family stuff") that does not exist | Never state a capability the demo lacks; limited-coverage only |
 | Invented "streetlight issue" as a report option | Only the two supported report types exist (pothole, park maintenance) |
 | Announced "Lemme try to get a list of city services" before the backend answered | Say only a short "One moment." and then the backend's exact text |
