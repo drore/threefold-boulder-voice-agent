@@ -8,7 +8,7 @@ import {
   prepareServiceReport,
   type DraftStore,
   type PrepareReportResult,
-} from "../core/prepare-service-report.js";
+} from "../../core/prepare-service-report.js";
 
 /**
  * Backend tools available to the reasoning agent through any conversation channel.

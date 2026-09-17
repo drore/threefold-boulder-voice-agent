@@ -3,8 +3,8 @@ import {
   collectCallerText,
   matchesReportDelegation,
   waitForCallerText,
-} from "../../src/web/voice-helpers.js";
-import type { TranscriptDelta } from "../../src/web/live-voice.js";
+} from "../../src/web/voice/voice-helpers.js";
+import type { TranscriptDelta } from "../../src/web/voice/live-voice.js";
 
 describe("delegated caller transcript", () => {
   it("includes a late final caller fragment that started before delegation", () => {

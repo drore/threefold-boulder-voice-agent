@@ -3,16 +3,16 @@
  * Turns a confirmed draft revision into one durable Linear create/readback
  * attempt, classifies created/uncertain/rejected, and never blind-retries.
  */
-import type { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
+import type { LinearTicketProvider } from "../../adapters/linear/linear-ticket-provider.js";
 import type {
   ReportContext,
   SupportedReportType,
-} from "../core/prepare-service-report.js";
+} from "../../core/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
   TicketOperationStore,
-} from "../core/ticket-operation.js";
+} from "../../core/ticket-operation.js";
 
 export type TicketProvider = Pick<
   LinearTicketProvider,

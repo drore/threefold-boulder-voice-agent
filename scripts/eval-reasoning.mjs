@@ -10,7 +10,7 @@
  */
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { runReasoningTurn } from "../dist/server/reasoning-turn.js";
+import { runReasoningTurn } from "../dist/server/reasoning/reasoning-turn.js";
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((argument) => {

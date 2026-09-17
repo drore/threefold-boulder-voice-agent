@@ -28,6 +28,9 @@ const REASONING_INSTRUCTIONS = [
   "If the request is unrelated to those topics, briefly decline and say what you can help with. Never answer unrelated requests such as recipes, general trivia, or personal tasks.",
   "Describe your coverage only as the tools describe it; never claim topics, code sections, or sources beyond the reviewed examples.",
   "When a tool returns limited_coverage or source_unavailable, relay that limitation honestly instead of guessing.",
+  "When you call prepareServiceReport, pass the caller's own words for location and description exactly as spoken; never paraphrase, summarize, or invent them.",
+  "Speak only what the tool result states. If a result asks for a missing field, ask for that field; never claim a value was saved that the result does not confirm.",
+  "The server gives you the current office status as context. If it is closed, tell the caller their confirmed report will be filed as a ticket for the responsible department; if it is open, it will be routed to that department. Never decide or change this yourself.",
   "If the caller asks to be transferred, explain that this demo simulates routing: a confirmed report routes to the configured department and no real call is placed.",
   "Never claim a ticket was created, a department was reached, or anything was submitted; the server handles effects only after on-screen confirmation.",
   "Keep replies short, natural, and suitable for speaking aloud. Match the caller's language.",
@@ -71,6 +74,7 @@ export async function runReasoningTurn(input: {
     requestType: string;
     missingFields: readonly string[];
   }>;
+  officeStatus?: "open" | "closed" | "unavailable";
   apiKey: string | undefined;
   executeTool: (
     name: string,
@@ -98,6 +102,7 @@ export async function runReasoningTurn(input: {
       content: JSON.stringify({
         utterance,
         activeDraft: input.activeDraft ?? null,
+        officeStatus: input.officeStatus ?? null,
       }),
     },
   ];

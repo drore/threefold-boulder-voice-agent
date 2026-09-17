@@ -7,8 +7,8 @@ import type {
   ServiceReportData,
 } from "../../src/core/prepare-service-report.js";
 import type { CityPolicyReader } from "../../src/core/confirm-service-report.js";
-import { buildLocalApp } from "../../src/server/local-app.js";
-import { registerLocalLiveSession } from "../../src/server/live-session.js";
+import { buildLocalApp } from "../../src/server/build-app.js";
+import { registerLocalLiveSession } from "../../src/server/voice/live-session.js";
 import type { VisitorAccess } from "../../src/server/visitor-sessions.js";
 
 const ORIGIN = "https://boulder-demo.example";

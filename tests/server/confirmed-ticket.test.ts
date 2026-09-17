@@ -8,7 +8,7 @@ import type {
 import {
   submitConfirmedTicket,
   type TicketProvider,
-} from "../../src/server/confirmed-ticket.js";
+} from "../../src/server/workflow/confirmed-ticket.js";
 
 const CONTEXT: ReportContext = {
   conversationId: "conversation-1",

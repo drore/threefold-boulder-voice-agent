@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runReasoningTurn } from "../../src/server/reasoning-turn.js";
+import { runReasoningTurn } from "../../src/server/reasoning/reasoning-turn.js";
 
 /** Input: response output items. Output: the Responses API envelope the loop consumes. */
 function modelReply(output: unknown[]): Response {

@@ -11,8 +11,8 @@ import {
   createReportToolHandler,
   type AgentToolContext,
   type AgentToolHandlers,
-} from "../../src/server/agent-tools.js";
-import { createKnowledgeToolHandlers } from "../../src/server/knowledge-tools.js";
+} from "../../src/server/reasoning/agent-tools.js";
+import { createKnowledgeToolHandlers } from "../../src/server/reasoning/knowledge-tools.js";
 
 const CONTEXT: AgentToolContext = {
   conversationId: "server-owned-conversation",

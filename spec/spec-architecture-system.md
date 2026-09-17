@@ -113,7 +113,13 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 │   ├── core/               # Provider-neutral contracts, policy, workflow
 │   ├── adapters/           # Provider-specific implementations
 │   ├── server/             # Composition, auth, configuration, sessions
+│   │   ├── reasoning/      # Model turn, tool boundary, knowledge handlers
+│   │   ├── voice/          # GPT-Live session setup
+│   │   └── workflow/       # Confirmed-report ticket submission
 │   └── web/                # React UI, browser interaction, presentation
+│       ├── components/     # Demo screen pieces
+│       ├── hooks/          # Report, knowledge, scenario state
+│       └── voice/          # Browser WebRTC client and transcript helpers
 ├── tests/                  # Core, contract, DB, browser checks and fixtures
 ├── eval/                   # Model/voice scenarios, rubrics, safe evidence
 ├── prompts/                # Versioned model instructions/procedures

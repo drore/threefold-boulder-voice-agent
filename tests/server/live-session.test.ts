@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createLiveSession,
   registerLocalLiveSession,
-} from "../../src/server/live-session.js";
+} from "../../src/server/voice/live-session.js";
 
 const SDP_OFFER = "v=0\r\no=browser 1 1 IN IP4 127.0.0.1";
 const SDP_ANSWER = "v=0\r\no=openai 1 1 IN IP4 127.0.0.1";

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LiveVoice } from "../../src/web/live-voice.js";
+import { LiveVoice } from "../../src/web/voice/live-voice.js";
 
 class FakeChannel extends EventTarget {
   readyState: RTCDataChannelState = "open";

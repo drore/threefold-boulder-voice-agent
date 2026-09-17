@@ -16,8 +16,8 @@ import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
 import type { ReportContext } from "../../src/core/prepare-service-report.js";
-import type { TicketProvider } from "../../src/server/confirmed-ticket.js";
-import { buildLocalApp } from "../../src/server/local-app.js";
+import type { TicketProvider } from "../../src/server/workflow/confirmed-ticket.js";
+import { buildLocalApp } from "../../src/server/build-app.js";
 
 const localDatabaseUrl = process.env.LOCAL_DATABASE_URL;
 if (localDatabaseUrl) {

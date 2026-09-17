@@ -30,8 +30,8 @@ Assistant: Lemme try to get a list of city services. I don't have a current, vet
 
 ## Fix
 
-- `src/server/live-session.ts` `LIVE_INSTRUCTIONS` rewritten: fixed greeting listing options, delegate-then-speak-exactly, no capability invention, short "One moment." acknowledgment, ignore noise, no premature success claims.
-- `src/server/knowledge-tools.ts` events answer capped to 3 occurrences so the returned list is short enough to speak verbatim.
+- `src/server/voice/live-session.ts` `LIVE_INSTRUCTIONS` rewritten: fixed greeting listing options, delegate-then-speak-exactly, no capability invention, short "One moment." acknowledgment, ignore noise, no premature success claims.
+- `src/server/reasoning/knowledge-tools.ts` events answer capped to 3 occurrences so the returned list is short enough to speak verbatim.
 
 ## Re-test
 

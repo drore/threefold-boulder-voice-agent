@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { AgentToolResult } from "../server/agent-tools.js";
-import type { LocalConfirmResult } from "../server/local-app.js";
+import type { AgentToolResult } from "../../server/reasoning/agent-tools.js";
+import type { LocalConfirmResult } from "../../server/build-app.js";
 import {
   LiveVoice,
   type LiveVoiceStatus,
   type TranscriptDelta,
-} from "./live-voice.js";
+} from "../voice/live-voice.js";
 import {
   collectCallerText,
   matchesReportDelegation,
   waitForCallerText,
   type ReportDelegation,
-} from "./voice-helpers.js";
+} from "../voice/voice-helpers.js";
 
 type DelegationResult =
   | { status: "completed"; speech: string; result?: AgentToolResult }

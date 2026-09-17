@@ -10,6 +10,7 @@ import {
   type CityEventsProvider,
 } from "../adapters/boulder/events.js";
 import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
+import { isWithinBusinessHours } from "../core/business-hours.js";
 import {
   confirmServiceReport,
   type CityPolicyReader,
@@ -26,15 +27,15 @@ import {
   createReportToolHandler,
   type AgentToolContext,
   type AgentToolResult,
-} from "./agent-tools.js";
+} from "./reasoning/agent-tools.js";
 import {
   submitConfirmedTicket,
   type ConfirmedTicketResult,
   type TicketProvider,
-} from "./confirmed-ticket.js";
-import { isLocalVoiceOrigin } from "./live-session.js";
-import { createKnowledgeToolHandlers } from "./knowledge-tools.js";
-import { runReasoningTurn } from "./reasoning-turn.js";
+} from "./workflow/confirmed-ticket.js";
+import { isLocalVoiceOrigin } from "./voice/live-session.js";
+import { createKnowledgeToolHandlers } from "./reasoning/knowledge-tools.js";
+import { runReasoningTurn } from "./reasoning/reasoning-turn.js";
 import {
   newVisitorSession,
   registerVisitorSessions,
@@ -334,9 +335,31 @@ export function buildLocalApp(
         );
       }
 
+      /** Server-owned office status for the model to speak; never model-selected. */
+      async function currentOfficeStatus(): Promise<
+        "open" | "closed" | "unavailable"
+      > {
+        try {
+          const loaded = await policyStore.load(session.context.cityId);
+          if (loaded.status !== "available") return "unavailable";
+          const open = isWithinBusinessHours(
+            loaded.policy.schedule,
+            effectiveClock(),
+          );
+          return open === true
+            ? "open"
+            : open === false
+              ? "closed"
+              : "unavailable";
+        } catch {
+          return "unavailable";
+        }
+      }
+
       const turn = await runReasoningTurn({
         utterance,
         ...(activeDraft ? { activeDraft } : {}),
+        officeStatus: await currentOfficeStatus(),
         apiKey: reasoning?.apiKey,
         ...(reasoning?.request ? { request: reasoning.request } : {}),
         ...(reasoning?.model ? { model: reasoning.model } : {}),

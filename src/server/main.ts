@@ -9,8 +9,8 @@ import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.
 import { PostgresCityPolicyStore } from "../adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
-import { registerLocalLiveSession } from "./live-session.js";
-import { buildLocalApp } from "./local-app.js";
+import { registerLocalLiveSession } from "./voice/live-session.js";
+import { buildLocalApp } from "./build-app.js";
 import { readRuntimeConfig } from "./runtime-config.js";
 import { registerStaticWeb } from "./static-web.js";
 import type { VisitorAccess } from "./visitor-sessions.js";

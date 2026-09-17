@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
 import type { ReportContext } from "../../src/core/prepare-service-report.js";
-import { buildLocalApp } from "../../src/server/local-app.js";
+import { buildLocalApp } from "../../src/server/build-app.js";
 
 const databaseUrl = process.env.LOCAL_DATABASE_URL;
 const LOCAL_ORIGIN = "http://127.0.0.1:5173";
