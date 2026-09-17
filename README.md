@@ -98,7 +98,7 @@ To run the opt-in paid reasoning checks with the development OpenAI key, use `np
 
 ## Git
 
-Repository history starts with one reviewed planning baseline and continues in tested behavior commits. A GitHub Actions workflow now runs offline checks, build, and dependency audit without provider credentials; it has not run remotely because no Git remote is configured. Local database tests and opt-in live evaluations remain distinct gates. Before repository changes, follow the applicable personal Git/worktree guide and use an isolated worktree.
+Repository history starts with one reviewed planning baseline and continues in tested behavior commits. A GitHub Actions workflow runs offline checks, build, and dependency audit without provider credentials; it passed remotely on the public repository on 2026-09-17. Local database tests and opt-in live evaluations remain distinct gates. Before repository changes, follow the applicable personal Git/worktree guide and use an isolated worktree.
 
 Commit discipline (details and examples in the development plan):
 
