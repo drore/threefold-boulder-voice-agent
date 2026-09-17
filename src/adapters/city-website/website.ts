@@ -7,6 +7,7 @@
  * URLs from the official sitemap, so no caller or model can cause an arbitrary
  * fetch.
  */
+import type { PageSelector } from "./page-selector.js";
 import * as cheerio from "cheerio";
 
 export type CityWebsitePage = Readonly<{
@@ -29,6 +30,7 @@ const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_SITEMAP_PAGES = 6;
 const MAX_URLS = 20_000;
 const MAX_TEXT_LENGTH = 6_000;
+const MAX_SELECTION_CANDIDATES = 8;
 
 const STOPWORDS = new Set([
   "the",
@@ -100,13 +102,16 @@ export function extractKeywords(query: string): string[] {
 
 /**
  * Scores one sitemap URL against the caller's keywords.
- * Input: `"/services/parking"` and `["park", "downtown"]`. Output: `1.5`.
- * Service pages get a small bonus; unmatched or excluded URLs score 0.
+ * A URL whose final slug equals the whole phrase wins clearly; curated
+ * sections (/services/, /locations/) outrank legacy root slugs.
+ * Input: `"/locations/boulder-reservoir"` and `["boulder", "reservoir"]`.
+ * Output: `3.5`.
  */
 export function scoreUrlMatch(
   url: string,
   keywords: readonly string[],
 ): number {
+  if (keywords.length === 0) return 0;
   let path: string;
   try {
     path = new URL(url).pathname.toLowerCase();
@@ -120,10 +125,12 @@ export function scoreUrlMatch(
     return 0;
   }
   const matched = keywords.filter((keyword) => path.includes(keyword)).length;
-  if (matched === 0 || keywords.length === 0) return 0;
-  const specificity = matched / keywords.length;
-  const bonus = path.startsWith("/services/") ? 0.5 : 0;
-  return specificity + bonus;
+  if (matched === 0) return 0;
+  const slug = path.split("/").filter(Boolean).pop() ?? "";
+  const exactSlugBonus = slug === keywords.join("-") ? 2 : 0;
+  const sectionBonus =
+    path.startsWith("/services/") || path.startsWith("/locations/") ? 0.5 : 0;
+  return exactSlugBonus + matched / keywords.length + sectionBonus;
 }
 
 /** Input: a sitemap XML document. Output: same-host page URLs, or `[]`. */
@@ -189,11 +196,13 @@ export function createCityWebsiteProvider(options: {
   clock?: () => Date;
   ttlMs?: number;
   maxSitemapPages?: number;
+  selectPage?: PageSelector;
 }): CityWebsiteProvider {
   const fetchText = options.fetchText ?? fetch;
   const clock = options.clock ?? (() => new Date());
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
   const maxSitemapPages = options.maxSitemapPages ?? MAX_SITEMAP_PAGES;
+  const selectPage = options.selectPage;
   const baseUrl = options.baseUrl.replace(/\/$/, "");
 
   let sitemapCache: CacheEntry<string[]> | null = null;
@@ -264,8 +273,16 @@ export function createCityWebsiteProvider(options: {
             a.url.split("/").length - b.url.split("/").length ||
             a.url.length - b.url.length,
         );
-      const best = scored[0];
-      if (!best) return { status: "no_match" };
+      if (scored.length === 0) return { status: "no_match" };
+      const candidates = scored
+        .slice(0, MAX_SELECTION_CANDIDATES)
+        .map((entry) => entry.url);
+      let chosen = candidates[0] as string;
+      if (selectPage && candidates.length > 1) {
+        const picked = await selectPage({ query, candidates });
+        if (picked && candidates.includes(picked)) chosen = picked;
+      }
+      const best = { url: chosen };
 
       const cachedPage = pageCache.get(best.url);
       if (cachedPage && cachedPage.expiresAt > now) {

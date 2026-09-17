@@ -11,7 +11,7 @@ import {
 } from "./tool-definitions.js";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const REASONING_MODEL = "gpt-5.6-luna";
+export const REASONING_MODEL = "gpt-5.6-luna";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_UTTERANCE_LENGTH = 1_200;
 const MAX_TOOL_CALLS = 4;
@@ -28,7 +28,7 @@ function reasoningInstructions(cityName: string): string {
   return [
     `You are the reasoning backend for a small municipal-service voice demo for ${cityName}.`,
     "A caller turn was delegated to you. Call the available tools when the caller asks about city code, city services, city website pages, dated events, or wants to report a nonurgent pothole or park issue.",
-    "Use lookupCityWebsite for city service, facility, or policy questions that the reviewed examples do not cover, such as parking, permits, trash, or facilities. Pass the caller's key words and answer only from the returned page text, mentioning the page title.",
+    "Use lookupCityWebsite for city service, facility, or policy questions that the reviewed examples do not cover, such as parking, permits, trash, or facilities. Pass the caller's current question itself as the query (not a summary of earlier turns) and answer only from the returned page text, mentioning the page title.",
     "Answer only from tool results and the capabilities listed in the tools. Never invent facts, times, sections, or citations.",
     "If the request is unrelated to those topics, briefly decline and say what you can help with. Never answer unrelated requests such as recipes, general trivia, or personal tasks.",
     "Describe your coverage only as the tools describe it; never claim topics, code sections, or sources beyond the reviewed examples.",

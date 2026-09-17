@@ -6,6 +6,7 @@
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { createCityEventsProvider } from "../adapters/city-website/events.js";
+import { createPageSelector } from "../adapters/city-website/page-selector.js";
 import { createCityWebsiteProvider } from "../adapters/city-website/website.js";
 import { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
 import { PostgresCityKnowledgeStore } from "../adapters/postgres/city-knowledge-store.js";
@@ -14,6 +15,7 @@ import { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../adapters/postgres/ticket-operation-store.js";
 import { registerLocalLiveSession } from "./voice/live-session.js";
 import { buildLocalApp } from "./build-app.js";
+import { REASONING_MODEL } from "./reasoning/reasoning-turn.js";
 import { readRuntimeConfig } from "./runtime-config.js";
 import { registerStaticWeb } from "./static-web.js";
 import type { VisitorAccess } from "./visitor-sessions.js";
@@ -83,7 +85,13 @@ async function startApi(): Promise<void> {
       },
       access,
       createCityEventsProvider({ listingUrl: policy.eventsListingUrl }),
-      createCityWebsiteProvider({ baseUrl: policy.websiteBaseUrl }),
+      createCityWebsiteProvider({
+        baseUrl: policy.websiteBaseUrl,
+        selectPage: createPageSelector({
+          apiKey: config.openAiApiKey,
+          model: config.reasoningModel ?? REASONING_MODEL,
+        }),
+      }),
     );
     registerLocalLiveSession(app, config.openAiApiKey, policy.displayName);
     if (config.mode === "reviewer") registerStaticWeb(app, BUILT_WEB_ROOT);

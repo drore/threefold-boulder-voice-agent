@@ -24,6 +24,9 @@ const SITEMAP_PAGE = `<?xml version="1.0"?>
 <urlset>
   <loc>${BASE}/services/parking</loc>
   <loc>${BASE}/services/neighborhood-parking-permits</loc>
+  <loc>${BASE}/locations/boulder-reservoir</loc>
+  <loc>${BASE}/boulder-reservoir-cafe</loc>
+  <loc>${BASE}/boulder-reservoir-general-rules-and-faqs</loc>
   <loc>${BASE}/events/digital-permitting-town-hall</loc>
   <loc>${BASE}/services/parking-guide.pdf</loc>
   <loc>https://other.example.net/services/parking</loc>
@@ -57,11 +60,37 @@ describe("city website matching", () => {
     );
   });
 
+  it("prefers the page whose slug is the whole phrase", () => {
+    const keywords = ["boulder", "reservoir"];
+    expect(
+      scoreUrlMatch(
+        "https://example.gov/locations/boulder-reservoir",
+        keywords,
+      ),
+    ).toBeGreaterThan(
+      scoreUrlMatch("https://example.gov/boulder-reservoir-cafe", keywords),
+    );
+    expect(
+      scoreUrlMatch(
+        "https://example.gov/boulder-reservoir-general-rules-and-faqs",
+        keywords,
+      ),
+    ).toBeLessThan(
+      scoreUrlMatch(
+        "https://example.gov/locations/boulder-reservoir",
+        keywords,
+      ),
+    );
+  });
+
   it("keeps only same-host page URLs from a sitemap document", () => {
     const urls = parseSitemap(SITEMAP_PAGE, BASE);
     expect(urls).toEqual([
       `${BASE}/services/parking`,
       `${BASE}/services/neighborhood-parking-permits`,
+      `${BASE}/locations/boulder-reservoir`,
+      `${BASE}/boulder-reservoir-cafe`,
+      `${BASE}/boulder-reservoir-general-rules-and-faqs`,
     ]);
   });
 
@@ -78,6 +107,9 @@ describe("city website matching", () => {
   });
 });
 
+const RESERVOIR_PAGE = `<!doctype html><html><head><title>Boulder Reservoir | City of Boulder</title></head>
+<body><main><h1>Boulder Reservoir</h1><p>Swimming, boating, and fishing information for the reservoir.</p></main></body></html>`;
+
 describe("city website provider", () => {
   /** Input: optional failure mode. Output: an injected fetch and its calls. */
   function fetchFixture() {
@@ -87,6 +119,13 @@ describe("city website provider", () => {
         return new Response(SITEMAP_INDEX, { status: 200 });
       if (url.includes("page=1"))
         return new Response(SITEMAP_PAGE, { status: 200 });
+      if (url.endsWith("/boulder-reservoir-cafe"))
+        return new Response(
+          RESERVOIR_PAGE.replace("Boulder Reservoir", "Cafe"),
+          { status: 200 },
+        );
+      if (url.endsWith("/locations/boulder-reservoir"))
+        return new Response(RESERVOIR_PAGE, { status: 200 });
       if (url.endsWith("/services/parking"))
         return new Response(PARKING_PAGE, { status: 200 });
       return new Response("missing", { status: 404 });
@@ -116,6 +155,52 @@ describe("city website provider", () => {
     const second = await provider.lookup("parking downtown");
     expect(second).toMatchObject({ status: "found" });
     expect(fetchText).toHaveBeenCalledTimes(callsAfterFirst);
+  });
+
+  it("resolves a location phrase to its canonical page", async () => {
+    const provider = createCityWebsiteProvider({
+      baseUrl: BASE,
+      fetchText: fetchFixture(),
+      clock: () => new Date("2026-09-17T12:00:00Z"),
+    });
+    const result = await provider.lookup(
+      "Can you tell me about the Boulder Reservoir?",
+    );
+    expect(result).toMatchObject({
+      status: "found",
+      page: { url: `${BASE}/locations/boulder-reservoir` },
+    });
+  });
+
+  it("lets the selector choose among official candidates", async () => {
+    const fetchText = fetchFixture();
+    const selectPage = vi.fn(async () => `${BASE}/boulder-reservoir-cafe`);
+    const provider = createCityWebsiteProvider({
+      baseUrl: BASE,
+      fetchText,
+      clock: () => new Date("2026-09-17T12:00:00Z"),
+      selectPage,
+    });
+    const result = await provider.lookup("Boulder Reservoir");
+    expect(selectPage).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      status: "found",
+      page: { url: `${BASE}/boulder-reservoir-cafe` },
+    });
+  });
+
+  it("ignores a selector choice that is not an official candidate", async () => {
+    const provider = createCityWebsiteProvider({
+      baseUrl: BASE,
+      fetchText: fetchFixture(),
+      clock: () => new Date("2026-09-17T12:00:00Z"),
+      selectPage: async () => "https://evil.example/phishing",
+    });
+    const result = await provider.lookup("Boulder Reservoir");
+    expect(result).toMatchObject({
+      status: "found",
+      page: { url: `${BASE}/locations/boulder-reservoir` },
+    });
   });
 
   it("returns no_match for a topic with no official page", async () => {
