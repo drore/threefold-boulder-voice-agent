@@ -1,0 +1,124 @@
+[
+  {
+    "id": "pothole-open-hours",
+    "kind": "report",
+    "hours": "open",
+    "maxTurns": 5,
+    "goal": "Report a deep pothole at 15th and Pine so the draft is ready for on-screen confirmation.",
+    "notes": "Give the location and a short description early, then confirm when asked.",
+    "expect": {
+      "draftFields": {
+        "description": "deep",
+        "location": "15th and Pine"
+      },
+      "confirmOutcome": "simulated_route",
+      "speechContains": ["confirm"]
+    }
+  },
+  {
+    "id": "pothole-closed-hours",
+    "kind": "report",
+    "hours": "closed",
+    "maxTurns": 5,
+    "goal": "Report a pothole at 15th and Pine so the draft is ready for on-screen confirmation.",
+    "notes": "Give the location and a short description early.",
+    "expect": {
+      "draftFields": {
+        "location": "15th and Pine"
+      },
+      "confirmOutcome": null,
+      "speechContains": ["closed", "ticket"]
+    }
+  },
+  {
+    "id": "park-open-hours",
+    "kind": "report",
+    "hours": "open",
+    "maxTurns": 6,
+    "goal": "Report a broken swing at North Boulder Park near the playground.",
+    "notes": "Make clear this is a park maintenance issue, not a pothole.",
+    "expect": {
+      "draftFields": {
+        "location": "North Boulder Park"
+      },
+      "confirmOutcome": "simulated_route"
+    }
+  },
+  {
+    "id": "correction-before-confirmation",
+    "kind": "report",
+    "hours": "open",
+    "maxTurns": 7,
+    "goal": "Report a pothole, then correct the location from 15th and Pine to Pearl Street before confirming.",
+    "notes": "After the first location, say you gave the wrong street and it is actually Pearl Street.",
+    "expect": {
+      "draftFields": {
+        "location": "Pearl"
+      }
+    }
+  },
+  {
+    "id": "glass-code-question",
+    "kind": "answer",
+    "hours": "live",
+    "maxTurns": 3,
+    "goal": "Ask whether you can bring a glass bottle into a Boulder city park.",
+    "expect": {
+      "tool": "lookupMunicipalCode",
+      "answerContains": ["prescription"]
+    }
+  },
+  {
+    "id": "events-question",
+    "kind": "answer",
+    "hours": "live",
+    "maxTurns": 3,
+    "goal": "Ask what City Council events are coming up.",
+    "expect": {
+      "tool": "findCityEvents",
+      "answerContains": ["council"]
+    }
+  },
+  {
+    "id": "specific-event-follow-up",
+    "kind": "answer",
+    "hours": "live",
+    "maxTurns": 4,
+    "goal": "Ask what events are coming up, then ask for details about one event the assistant just listed.",
+    "expect": {
+      "tool": "findCityEvents"
+    }
+  },
+  {
+    "id": "capabilities",
+    "kind": "answer",
+    "hours": "live",
+    "maxTurns": 2,
+    "goal": "Ask what the assistant can help with.",
+    "expect": {
+      "tool": null,
+      "speechContains": ["glass", "pothole"]
+    }
+  },
+  {
+    "id": "out-of-scope-recipe",
+    "kind": "refusal",
+    "hours": "live",
+    "maxTurns": 2,
+    "goal": "Ask for a chocolate cake recipe.",
+    "expect": {
+      "tool": null,
+      "speechContains": ["Boulder"]
+    }
+  },
+  {
+    "id": "transfer-request",
+    "kind": "explain",
+    "hours": "live",
+    "maxTurns": 2,
+    "goal": "Ask to be transferred to the transportation department.",
+    "expect": {
+      "speechContains": ["simulat"]
+    }
+  }
+]

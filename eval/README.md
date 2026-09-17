@@ -26,3 +26,30 @@ Failures, all tool selection (not application correctness):
 These findings are the reason this evaluation exists. Tool selection is one axis; it does not establish factual answer quality, grounding, latency under load, or cost. The server executes every call through validated, server-owned handlers, so a wrong choice is bounded by scope and authorization rather than dangerous.
 
 Before delivery, exercise actual microphone input/output and check the cited answer content and source freshness in a fresh browser session.
+
+
+## Automated conversation loop
+
+`npm run eval:conversations` runs the improvement loop end to end against a
+**locally running server** (and `OPENAI_API_KEY` in `.env.dev`):
+
+1. A simulated caller (LLM) pursues a versioned goal from
+   [conversation-scenarios.json](conversation-scenarios.json) over the text
+   delegation path — the same reasoning turn, tools, and session as voice.
+2. The runner checks deterministic expectations (draft fields, chosen tool,
+   route/ticket branch, spoken phrases). It never confirms while the scenario
+   clock is closed, so the loop cannot create an external ticket.
+3. A critic scores the transcript against [conversation-rubric.md](conversation-rubric.md)
+   and reports quotable issues with a likely `fixTarget`.
+4. `eval/results/conversations-latest.md` is the coder-facing report; the full
+   JSON record lands beside it.
+
+Iterate: run → fix the reported targets → re-run (`--scenarios=id1,id2` to focus)
+→ compare assertions and scores.
+
+First full run (2026-09-17, `gpt-5.6-luna`): 7/10 scenarios passed. Findings and
+fixes: event questions failed because the model sent empty strings for optional
+tool arguments and the boundary rejected them (fixed in `areValidArguments`);
+the free-text event guard was narrowed so relative phrasing ("this week") is
+answered from the trusted window; report flows no longer demand dates. After the
+fixes, `events-question` and `specific-event-follow-up` pass 2/2.
