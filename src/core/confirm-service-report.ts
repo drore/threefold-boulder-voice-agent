@@ -1,3 +1,9 @@
+/**
+ * Confirmation use case.
+ * From a confirmed draft revision, the DB-backed policy, and the trusted server
+ * clock, decides whether to simulate a route or require a durable ticket
+ * operation. It never performs the provider effect itself.
+ */
 import {
   decideBusinessHoursAction,
   isWithinBusinessHours,

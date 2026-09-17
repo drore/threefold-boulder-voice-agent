@@ -1,3 +1,9 @@
+/**
+ * Postgres-backed DraftStore.
+ * Implements the provider-neutral draft/observation port with conversation and
+ * admission scope checks plus atomic revision comparison, so intakes persist
+ * across server restarts.
+ */
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import type {

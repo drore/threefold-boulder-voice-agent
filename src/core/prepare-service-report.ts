@@ -1,3 +1,9 @@
+/**
+ * Service-report intake use case.
+ * Validates untrusted location/description against server-owned observations,
+ * merges them into a revisioned draft, and returns missing fields or a
+ * confirmation summary. It never submits a ticket or routes a call.
+ */
 /** Scope resolved by the server, never copied from a model tool argument. */
 export type ReportContext = Readonly<{
   conversationId: string;

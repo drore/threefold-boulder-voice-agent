@@ -1,3 +1,9 @@
+/**
+ * Postgres-backed TicketOperationStore.
+ * Persists one create attempt per confirmed draft revision with unique keys, so
+ * a confirmed report cannot be submitted twice and uncertain outcomes can be
+ * reconciled instead of duplicated.
+ */
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import type {

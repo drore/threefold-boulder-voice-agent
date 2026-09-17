@@ -1,3 +1,8 @@
+/**
+ * Ticket-operation contract.
+ * Defines the durable operation/receipt types and state shared by the
+ * confirmation and provider layers, keeping provider SDK shapes out of core.
+ */
 import type {
   ReportContext,
   SupportedReportType,

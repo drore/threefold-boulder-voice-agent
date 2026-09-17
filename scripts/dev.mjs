@@ -1,3 +1,9 @@
+/**
+ * Local development runner.
+ * Builds the server once, then runs the API process (with `.env.local` and an
+ * optional `.env.dev` for secrets) alongside the Vite web server, and stops
+ * both when either exits or the process is interrupted.
+ */
 import { spawn, spawnSync } from "node:child_process";
 
 const build = spawnSync(

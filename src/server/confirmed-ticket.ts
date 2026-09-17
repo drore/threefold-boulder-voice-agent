@@ -1,3 +1,8 @@
+/**
+ * Confirmed-ticket submission.
+ * Turns a confirmed draft revision into one durable Linear create/readback
+ * attempt, classifies created/uncertain/rejected, and never blind-retries.
+ */
 import type { LinearTicketProvider } from "../adapters/linear/linear-ticket-provider.js";
 import type {
   ReportContext,

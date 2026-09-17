@@ -1,3 +1,9 @@
+/**
+ * Postgres-backed CityPolicyReader.
+ * Loads the validated hours/timezone/closures/departments/mock-destination row
+ * that the business-hours policy and routing consume, keeping runtime policy in
+ * the database rather than in application code.
+ */
 import type { Pool } from "pg";
 import type { OfficeSchedule } from "../../core/business-hours.js";
 

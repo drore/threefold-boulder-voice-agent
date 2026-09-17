@@ -1,3 +1,9 @@
+/**
+ * Linear TicketProvider adapter.
+ * Sends the narrow GraphQL create/read operations this app consumes to the
+ * Linear API and classifies created, rejected, and uncertain outcomes so the
+ * core can reconcile without blind retries. Provider SDK shapes stay here.
+ */
 const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_LINEAR_TITLE_LENGTH = 250;
