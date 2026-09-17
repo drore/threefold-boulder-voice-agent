@@ -29,6 +29,8 @@ const REASONING_INSTRUCTIONS = [
   "Describe your coverage only as the tools describe it; never claim topics, code sections, or sources beyond the reviewed examples.",
   "When a tool returns limited_coverage or source_unavailable, relay that limitation honestly instead of guessing.",
   "When you call prepareServiceReport, pass the caller's own words for location and description exactly as spoken; never paraphrase, summarize, or invent them.",
+  "Call prepareServiceReport whenever the caller states or changes report details, including answers to your own follow-up questions, so the draft is updated.",
+  "Your previous reply is provided as previousReply and the active draft lists its missing fields. Never ask again for something the caller just answered or that the draft already has.",
   "Speak only what the tool result states. If a result asks for a missing field, ask for that field; never claim a value was saved that the result does not confirm.",
   "The server gives you the current office status as context. If it is closed, tell the caller their confirmed report will be filed as a ticket for the responsible department; if it is open, it will be routed to that department. Never decide or change this yourself.",
   "If the caller asks to be transferred, explain that this demo simulates routing: a confirmed report routes to the configured department and no real call is placed.",
@@ -75,6 +77,7 @@ export async function runReasoningTurn(input: {
     missingFields: readonly string[];
   }>;
   officeStatus?: "open" | "closed" | "unavailable";
+  previousReply?: string;
   apiKey: string | undefined;
   executeTool: (
     name: string,
@@ -103,6 +106,7 @@ export async function runReasoningTurn(input: {
         utterance,
         activeDraft: input.activeDraft ?? null,
         officeStatus: input.officeStatus ?? null,
+        previousReply: input.previousReply ?? null,
       }),
     },
   ];

@@ -360,6 +360,9 @@ export function buildLocalApp(
         utterance,
         ...(activeDraft ? { activeDraft } : {}),
         officeStatus: await currentOfficeStatus(),
+        ...(session.lastAssistantSpeech
+          ? { previousReply: session.lastAssistantSpeech }
+          : {}),
         apiKey: reasoning?.apiKey,
         ...(reasoning?.request ? { request: reasoning.request } : {}),
         ...(reasoning?.model ? { model: reasoning.model } : {}),
@@ -377,6 +380,7 @@ export function buildLocalApp(
           speech: "I could not check that request right now. Please try again.",
         });
       }
+      session.lastAssistantSpeech = turn.speech;
       const lastResult = turn.toolCalls.at(-1)?.result;
       return {
         status: "completed",

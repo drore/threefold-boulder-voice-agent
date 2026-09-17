@@ -20,6 +20,8 @@ export type VisitorSession = {
   liveSessionCount: number;
   reportGeneration: number;
   reportWork: Promise<void>;
+  /** Last spoken reply, so the next reasoning turn can avoid repeating itself. */
+  lastAssistantSpeech: string | null;
 };
 
 export type VisitorAccess = {
@@ -49,6 +51,7 @@ export function newVisitorSession(context: ReportContext): VisitorSession {
     liveSessionCount: 0,
     reportGeneration: 0,
     reportWork: Promise.resolve(),
+    lastAssistantSpeech: null,
   };
 }
 
