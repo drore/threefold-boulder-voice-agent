@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type {
   ReportContext,
   SupportedReportType,
-} from "../core/prepare-service-report.js";
+} from "../core/service-report/prepare-service-report.js";
 
 const SESSION_LIFETIME_SECONDS = 30 * 60;
 const MAX_ACTIVE_VISITORS = 30;

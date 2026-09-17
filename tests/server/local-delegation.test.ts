@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
-import type { ReportContext } from "../../src/core/prepare-service-report.js";
+import type { ReportContext } from "../../src/core/service-report/prepare-service-report.js";
 import { buildLocalApp } from "../../src/server/build-app.js";
 
 const databaseUrl = process.env.LOCAL_DATABASE_URL;

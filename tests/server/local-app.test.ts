@@ -15,7 +15,7 @@ import type {
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
-import type { ReportContext } from "../../src/core/prepare-service-report.js";
+import type { ReportContext } from "../../src/core/service-report/prepare-service-report.js";
 import type { TicketProvider } from "../../src/server/workflow/confirmed-ticket.js";
 import { buildLocalApp } from "../../src/server/build-app.js";
 

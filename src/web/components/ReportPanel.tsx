@@ -3,7 +3,7 @@
  * Renders the report form, revision notices, and the confirmed route/ticket
  * outcome. All state and calls come from the report-flow hook.
  */
-import type { SupportedReportType } from "../../core/prepare-service-report.js";
+import type { SupportedReportType } from "../../core/service-report/prepare-service-report.js";
 import type { ReportFlow } from "../hooks/useReportFlow.js";
 
 export function ReportPanel({ flow }: { flow: ReportFlow }) {

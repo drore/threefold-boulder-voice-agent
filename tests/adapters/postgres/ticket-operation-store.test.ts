@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { PostgresDraftStore } from "../../../src/adapters/postgres/draft-store.js";
 import { PostgresTicketOperationStore } from "../../../src/adapters/postgres/ticket-operation-store.js";
-import type { ReportContext } from "../../../src/core/prepare-service-report.js";
-import type { SupportedReportType } from "../../../src/core/prepare-service-report.js";
+import type { ReportContext } from "../../../src/core/service-report/prepare-service-report.js";
+import type { SupportedReportType } from "../../../src/core/service-report/prepare-service-report.js";
 
 const localDatabaseUrl = process.env.LOCAL_DATABASE_URL;
 if (localDatabaseUrl) {

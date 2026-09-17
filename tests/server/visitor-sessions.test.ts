@@ -5,8 +5,8 @@ import type {
   ReportContext,
   ReportDraft,
   ServiceReportData,
-} from "../../src/core/prepare-service-report.js";
-import type { CityPolicyReader } from "../../src/core/confirm-service-report.js";
+} from "../../src/core/service-report/prepare-service-report.js";
+import type { CityPolicyStore } from "../../src/core/service-report/confirm-service-report.js";
 import { buildLocalApp } from "../../src/server/build-app.js";
 import { registerLocalLiveSession } from "../../src/server/voice/live-session.js";
 import type { VisitorAccess } from "../../src/server/visitor-sessions.js";
@@ -101,7 +101,7 @@ describe("visitor admission and isolation", () => {
     const app = buildLocalApp(
       store,
       null,
-      {} as CityPolicyReader,
+      {} as CityPolicyStore,
       () => new Date("2026-09-16T16:00:00Z"),
       undefined,
       undefined,

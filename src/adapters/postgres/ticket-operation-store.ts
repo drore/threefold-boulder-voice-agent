@@ -5,18 +5,22 @@
  * reconciled instead of duplicated.
  */
 import { randomUUID } from "node:crypto";
-import type { Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
 import type {
   ReportContext,
   SupportedReportType,
-} from "../../core/prepare-service-report.js";
+} from "../../core/service-report/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
   TicketOperationLookup,
   TicketOperationRead,
   TicketOperationStore,
-} from "../../core/ticket-operation.js";
+} from "../../core/service-report/ticket-operation.js";
+import { logDatabaseError } from "./log-database-error.js";
+import { commit, rollback, runInTransaction } from "./run-in-transaction.js";
+
+const STORE_NAME = "PostgresTicketOperationStore";
 
 type DraftRow = {
   revision: number;
@@ -68,7 +72,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
         ? { status: "found", operation: toOperation(operation) }
         : { status: "blocked", code: "revision_conflict" };
     } catch (error) {
-      logDatabaseError("findByDraft", error);
+      logDatabaseError(STORE_NAME, "findByDraft", error);
       return { status: "unavailable" };
     }
   }
@@ -80,102 +84,102 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
     expectedRevision: number,
     policyRevision: number,
   ): Promise<TicketOperationRead> {
-    let client: PoolClient | undefined;
-    let transactionStarted = false;
-    try {
-      client = await this.pool.connect();
-      await client.query("begin");
-      transactionStarted = true;
-
-      const conversation = await client.query(
-        `select id from app.conversations
-         where id = $1 and city_id = $2 and admission_id = $3`,
-        [context.conversationId, context.cityId, context.admissionId],
-      );
-      if (conversation.rowCount !== 1) {
-        await client.query("rollback");
-        return { status: "blocked", code: "scope_mismatch" };
-      }
-
-      const draftResult = await client.query<DraftRow>(
-        `select revision, request_type, location_text, description_text
-         from app.request_drafts
-         where id = $1 and conversation_id = $2
-         for update`,
-        [draftId, context.conversationId],
-      );
-      const draft = draftResult.rows[0];
-      if (!draft) {
-        await client.query("rollback");
-        return { status: "blocked", code: "missing_draft" };
-      }
-      if (draft.revision !== expectedRevision) {
-        await client.query("rollback");
-        return { status: "blocked", code: "revision_conflict" };
-      }
-      if (!draft.location_text?.trim() || !draft.description_text?.trim()) {
-        await client.query("rollback");
-        return { status: "blocked", code: "incomplete_draft" };
-      }
-
-      // A repeat reads its durable operation even if city policy changed later.
-      const existing = await client.query<OperationRow>(
-        `select * from app.ticket_operations where draft_id = $1`,
-        [draftId],
-      );
-      const existingOperation = existing.rows[0];
-      if (existingOperation) {
-        await client.query("commit");
-        return existingOperation.draft_revision === expectedRevision
-          ? { status: "found", operation: toOperation(existingOperation) }
-          : { status: "blocked", code: "revision_conflict" };
-      }
-
-      const policy = await client.query(
-        `select revision from app.city_policies
-         where city_id = $1 and revision = $2`,
-        [context.cityId, policyRevision],
-      );
-      if (policy.rowCount !== 1) {
-        await client.query("rollback");
-        return { status: "blocked", code: "policy_unavailable" };
-      }
-
-      const created = await client.query<OperationRow>(
-        `insert into app.ticket_operations
-           (id, conversation_id, draft_id, draft_revision, policy_revision,
-            request_type, location_text, description_text)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)
-         returning *`,
-        [
-          randomUUID(),
-          context.conversationId,
-          draftId,
-          expectedRevision,
-          policyRevision,
-          draft.request_type,
-          draft.location_text,
-          draft.description_text,
-        ],
-      );
-      const createdOperation = created.rows[0];
-      if (!createdOperation)
-        throw new Error("Operation insert returned no row");
-      await client.query("commit");
-      return { status: "found", operation: toOperation(createdOperation) };
-    } catch (error) {
-      if (client && transactionStarted) {
-        try {
-          await client.query("rollback");
-        } catch {
-          // A broken connection cannot establish a successful authorization.
+    return runInTransaction<TicketOperationRead>(
+      this.pool,
+      STORE_NAME,
+      "authorize",
+      async (client) => {
+        const conversation = await client.query(
+          `select id from app.conversations
+           where id = $1 and city_id = $2 and admission_id = $3`,
+          [context.conversationId, context.cityId, context.admissionId],
+        );
+        if (conversation.rowCount !== 1) {
+          return rollback({
+            status: "blocked",
+            code: "scope_mismatch",
+          } as const);
         }
-      }
-      logDatabaseError("authorize", error);
-      return { status: "unavailable" };
-    } finally {
-      client?.release();
-    }
+
+        const draftResult = await client.query<DraftRow>(
+          `select revision, request_type, location_text, description_text
+           from app.request_drafts
+           where id = $1 and conversation_id = $2
+           for update`,
+          [draftId, context.conversationId],
+        );
+        const draft = draftResult.rows[0];
+        if (!draft) {
+          return rollback({
+            status: "blocked",
+            code: "missing_draft",
+          } as const);
+        }
+        if (draft.revision !== expectedRevision) {
+          return rollback({
+            status: "blocked",
+            code: "revision_conflict",
+          } as const);
+        }
+        if (!draft.location_text?.trim() || !draft.description_text?.trim()) {
+          return rollback({
+            status: "blocked",
+            code: "incomplete_draft",
+          } as const);
+        }
+
+        // A repeat reads its durable operation even if city policy changed later.
+        const existing = await client.query<OperationRow>(
+          `select * from app.ticket_operations where draft_id = $1`,
+          [draftId],
+        );
+        const existingOperation = existing.rows[0];
+        if (existingOperation) {
+          return commit(
+            existingOperation.draft_revision === expectedRevision
+              ? { status: "found", operation: toOperation(existingOperation) }
+              : { status: "blocked", code: "revision_conflict" },
+          );
+        }
+
+        const policy = await client.query(
+          `select revision from app.city_policies
+           where city_id = $1 and revision = $2`,
+          [context.cityId, policyRevision],
+        );
+        if (policy.rowCount !== 1) {
+          return rollback({
+            status: "blocked",
+            code: "policy_unavailable",
+          } as const);
+        }
+
+        const created = await client.query<OperationRow>(
+          `insert into app.ticket_operations
+             (id, conversation_id, draft_id, draft_revision, policy_revision,
+              request_type, location_text, description_text)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           returning *`,
+          [
+            randomUUID(),
+            context.conversationId,
+            draftId,
+            expectedRevision,
+            policyRevision,
+            draft.request_type,
+            draft.location_text,
+            draft.description_text,
+          ],
+        );
+        const createdOperation = created.rows[0];
+        if (!createdOperation)
+          throw new Error("Operation insert returned no row");
+        return commit({
+          status: "found",
+          operation: toOperation(createdOperation),
+        });
+      },
+    );
   }
 
   /** Input: a scoped ready operation ID. Output: `started` for the sole winning caller. */
@@ -205,7 +209,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
         ? { status: "started", operation: toOperation(started) }
         : await this.readScoped(context, operationId);
     } catch (error) {
-      logDatabaseError("start", error);
+      logDatabaseError(STORE_NAME, "start", error);
       return { status: "unavailable" };
     }
   }
@@ -265,7 +269,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
         ? { status: "found", operation: toOperation(finished) }
         : await this.readScoped(context, operationId);
     } catch (error) {
-      logDatabaseError("finish", error);
+      logDatabaseError(STORE_NAME, "finish", error);
       return { status: "unavailable" };
     }
   }
@@ -313,16 +317,4 @@ function toOperation(row: OperationRow): TicketOperation {
     providerFetchedAt: row.provider_fetched_at?.toISOString() ?? null,
     reason: row.reason,
   };
-}
-
-/** Input: a failed database operation. Output: a safe error code for diagnostics. */
-function logDatabaseError(operation: string, error: unknown): void {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-      ? error.code
-      : "unknown";
-  console.error(`PostgresTicketOperationStore.${operation} failed`, { code });
 }

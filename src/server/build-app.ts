@@ -13,14 +13,13 @@ import type { PostgresDraftStore } from "../adapters/postgres/draft-store.js";
 import { isWithinBusinessHours } from "../core/business-hours.js";
 import {
   confirmServiceReport,
-  type CityPolicyReader,
-  type ConfirmServiceReportDecision,
-} from "../core/confirm-service-report.js";
+  type CityPolicyStore,
+} from "../core/service-report/confirm-service-report.js";
 import type {
   ReportContext,
   SupportedReportType,
-} from "../core/prepare-service-report.js";
-import type { TicketOperationStore } from "../core/ticket-operation.js";
+} from "../core/service-report/prepare-service-report.js";
+import type { TicketOperationStore } from "../core/service-report/ticket-operation.js";
 import {
   callAgentTool,
   createAgentToolStubs,
@@ -83,7 +82,7 @@ type DemoScenario = "live" | "open" | "closed";
 export function buildLocalApp(
   store: PostgresDraftStore,
   initialContext: ReportContext | null,
-  policyStore: CityPolicyReader,
+  policyStore: CityPolicyStore,
   clock: () => Date = () => new Date(),
   ticketing?: { operations: TicketOperationStore; provider: TicketProvider },
   reasoning?: {

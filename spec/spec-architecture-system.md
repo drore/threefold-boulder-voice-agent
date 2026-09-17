@@ -111,6 +111,7 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 ├── design/                 # Reviewable UI proposals, assets, generation prompts
 ├── src/
 │   ├── core/               # Provider-neutral contracts, policy, workflow
+│   │   └── service-report/ # Report intake, confirmation, and operation contracts
 │   ├── adapters/           # Provider-specific implementations
 │   ├── server/             # Composition, auth, configuration, sessions
 │   │   ├── reasoning/      # Model turn, tool boundary, knowledge handlers

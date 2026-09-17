@@ -5,14 +5,18 @@
  * across server restarts.
  */
 import { randomUUID } from "node:crypto";
-import type { Pool, PoolClient, QueryResult } from "pg";
+import type { Pool, QueryResult } from "pg";
 import type {
   DraftStore,
+  DraftWrite,
   ReportContext,
   ReportDraft,
   ServiceReportData,
-} from "../../core/prepare-service-report.js";
+} from "../../core/service-report/prepare-service-report.js";
+import { logDatabaseError } from "./log-database-error.js";
+import { commit, rollback, runInTransaction } from "./run-in-transaction.js";
 
+const STORE_NAME = "PostgresDraftStore";
 const MAX_OBSERVATION_LENGTH = 4000;
 
 type DraftRow = {
@@ -53,7 +57,7 @@ export class PostgresDraftStore implements DraftStore {
       );
       return { status: "created", context };
     } catch (error) {
-      logDatabaseError("openConversation", error);
+      logDatabaseError(STORE_NAME, "openConversation", error);
       return { status: "unavailable" };
     }
   }
@@ -96,7 +100,7 @@ export class PostgresDraftStore implements DraftStore {
         ? { status: "recorded", observationId }
         : { status: "denied" };
     } catch (error) {
-      logDatabaseError("recordObservation", error);
+      logDatabaseError(STORE_NAME, "recordObservation", error);
       return { status: "unavailable" };
     }
   }
@@ -124,7 +128,7 @@ export class PostgresDraftStore implements DraftStore {
       if (!row) return { status: "denied" as const };
       return { status: "found" as const, draft: toDraft(context, row) };
     } catch (error) {
-      logDatabaseError("load", error);
+      logDatabaseError(STORE_NAME, "load", error);
       return { status: "unavailable" as const };
     }
   }
@@ -135,131 +139,114 @@ export class PostgresDraftStore implements DraftStore {
     draftId: string | null,
     expectedRevision: number | null,
     fields: ServiceReportData,
-  ) {
-    let client: PoolClient | undefined;
-    let transactionStarted = false;
-    try {
-      client = await this.pool.connect();
-      await client.query("begin");
-      transactionStarted = true;
-
-      // Check admission scope; the draft update below uses its revision as a guard.
-      const scope = await client.query(
-        `select id from app.conversations
-         where id = $1 and city_id = $2 and admission_id = $3`,
-        [context.conversationId, context.cityId, context.admissionId],
-      );
-      if (scope.rowCount !== 1) {
-        await client.query("rollback");
-        return { status: "denied" as const };
-      }
-
-      const observationIds = [
-        ...new Set(
-          [
-            fields.location?.observationId,
-            fields.description?.observationId,
-          ].filter((id): id is string => id !== undefined),
-        ),
-      ];
-      if (observationIds.length > 0) {
-        const observations = await client.query(
-          `select id from app.observations
-           where conversation_id = $1 and id = any($2::uuid[])`,
-          [context.conversationId, observationIds],
+  ): Promise<DraftWrite> {
+    return runInTransaction<DraftWrite>(
+      this.pool,
+      STORE_NAME,
+      "save",
+      async (client) => {
+        // Check admission scope; the draft update below uses its revision as a guard.
+        const scope = await client.query(
+          `select id from app.conversations
+           where id = $1 and city_id = $2 and admission_id = $3`,
+          [context.conversationId, context.cityId, context.admissionId],
         );
-        if (observations.rowCount !== observationIds.length) {
-          await client.query("rollback");
-          return { status: "denied" as const };
+        if (scope.rowCount !== 1) {
+          return rollback({ status: "denied" as const });
         }
-      }
 
-      const values = [
-        context.conversationId,
-        fields.requestType,
-        fields.location?.text ?? null,
-        fields.location?.observationId ?? null,
-        fields.description?.text ?? null,
-        fields.description?.observationId ?? null,
-      ];
-      let result: QueryResult<DraftRow>;
-      if (draftId === null && expectedRevision === null) {
-        result = await client.query<DraftRow>(
-          `insert into app.request_drafts
-             (id, conversation_id, request_type, revision,
-              location_text, location_observation_id,
-              description_text, description_observation_id)
-           values ($7, $1, $2, 1, $3, $4, $5, $6)
-           returning id, revision, request_type, location_text,
-                     location_observation_id, description_text,
-                     description_observation_id`,
-          [...values, randomUUID()],
-        );
-      } else if (draftId !== null && expectedRevision !== null) {
-        // Authorization locks this same row. Check for its operation only after
-        // the lock is acquired, using a fresh statement snapshot.
-        const locked = await client.query(
-          `select id from app.request_drafts
-           where id = $1 and conversation_id = $2 and request_type = $3
-             and revision = $4
-           for update`,
-          [
-            draftId,
-            context.conversationId,
-            fields.requestType,
-            expectedRevision,
-          ],
-        );
-        if (locked.rowCount !== 1) {
-          await client.query("rollback");
-          return { status: "conflict" as const };
+        const observationIds = [
+          ...new Set(
+            [
+              fields.location?.observationId,
+              fields.description?.observationId,
+            ].filter((id): id is string => id !== undefined),
+          ),
+        ];
+        if (observationIds.length > 0) {
+          const observations = await client.query(
+            `select id from app.observations
+             where conversation_id = $1 and id = any($2::uuid[])`,
+            [context.conversationId, observationIds],
+          );
+          if (observations.rowCount !== observationIds.length) {
+            return rollback({ status: "denied" as const });
+          }
         }
-        const ticket = await client.query(
-          "select 1 from app.ticket_operations where draft_id = $1",
-          [draftId],
-        );
-        if (ticket.rowCount) {
-          await client.query("rollback");
-          return { status: "conflict" as const };
-        }
-        result = await client.query<DraftRow>(
-          `update app.request_drafts
-           set revision = revision + 1,
-               location_text = $3, location_observation_id = $4,
-               description_text = $5, description_observation_id = $6,
-               updated_at = now()
-           where id = $7 and conversation_id = $1
-             and request_type = $2 and revision = $8
-           returning id, revision, request_type, location_text,
-                     location_observation_id, description_text,
-                     description_observation_id`,
-          [...values, draftId, expectedRevision],
-        );
-      } else {
-        await client.query("rollback");
-        return { status: "conflict" as const };
-      }
 
-      const row = result.rows[0];
-      if (!row) {
-        await client.query("rollback");
-        return { status: "conflict" as const };
-      }
-      await client.query("commit");
-      return { status: "saved" as const, draft: toDraft(context, row) };
-    } catch (error) {
-      if (client && transactionStarted) {
-        try {
-          await client.query("rollback");
-        } catch {
-          // The connection may already be gone; the caller receives unavailable.
+        const values = [
+          context.conversationId,
+          fields.requestType,
+          fields.location?.text ?? null,
+          fields.location?.observationId ?? null,
+          fields.description?.text ?? null,
+          fields.description?.observationId ?? null,
+        ];
+        let result: QueryResult<DraftRow>;
+        if (draftId === null && expectedRevision === null) {
+          result = await client.query<DraftRow>(
+            `insert into app.request_drafts
+               (id, conversation_id, request_type, revision,
+                location_text, location_observation_id,
+                description_text, description_observation_id)
+             values ($7, $1, $2, 1, $3, $4, $5, $6)
+             returning id, revision, request_type, location_text,
+                       location_observation_id, description_text,
+                       description_observation_id`,
+            [...values, randomUUID()],
+          );
+        } else if (draftId !== null && expectedRevision !== null) {
+          // Authorization locks this same row. Check for its operation only after
+          // the lock is acquired, using a fresh statement snapshot.
+          const locked = await client.query(
+            `select id from app.request_drafts
+             where id = $1 and conversation_id = $2 and request_type = $3
+               and revision = $4
+             for update`,
+            [
+              draftId,
+              context.conversationId,
+              fields.requestType,
+              expectedRevision,
+            ],
+          );
+          if (locked.rowCount !== 1) {
+            return rollback({ status: "conflict" as const });
+          }
+          const ticket = await client.query(
+            "select 1 from app.ticket_operations where draft_id = $1",
+            [draftId],
+          );
+          if (ticket.rowCount) {
+            return rollback({ status: "conflict" as const });
+          }
+          result = await client.query<DraftRow>(
+            `update app.request_drafts
+             set revision = revision + 1,
+                 location_text = $3, location_observation_id = $4,
+                 description_text = $5, description_observation_id = $6,
+                 updated_at = now()
+             where id = $7 and conversation_id = $1
+               and request_type = $2 and revision = $8
+             returning id, revision, request_type, location_text,
+                       location_observation_id, description_text,
+                       description_observation_id`,
+            [...values, draftId, expectedRevision],
+          );
+        } else {
+          return rollback({ status: "conflict" as const });
         }
-      }
-      logDatabaseError("save", error);
-      return { status: "unavailable" as const };
-    } finally {
-      client?.release();
-    }
+
+        const row = result.rows[0];
+        if (!row) {
+          return rollback({ status: "conflict" as const });
+        }
+        return commit({
+          status: "saved" as const,
+          draft: toDraft(context, row),
+        });
+      },
+    );
   }
 }
 
@@ -287,15 +274,4 @@ function toDraft(context: ReportContext, row: DraftRow): ReportDraft {
         }
       : {}),
   };
-}
-
-function logDatabaseError(operation: string, error: unknown): void {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-      ? error.code
-      : "unknown";
-  console.error(`PostgresDraftStore.${operation} failed`, { code });
 }

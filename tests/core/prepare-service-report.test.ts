@@ -5,7 +5,7 @@ import {
   type ReportContext,
   type ReportDraft,
   type ServiceReportData,
-} from "../../src/core/prepare-service-report.js";
+} from "../../src/core/service-report/prepare-service-report.js";
 
 const CONTEXT: ReportContext = {
   conversationId: "conversation-1",

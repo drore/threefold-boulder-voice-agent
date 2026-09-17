@@ -8,7 +8,7 @@ import {
   decideBusinessHoursAction,
   isWithinBusinessHours,
   type OfficeSchedule,
-} from "./business-hours.js";
+} from "../business-hours.js";
 import type {
   DraftStore,
   ReportContext,
@@ -28,7 +28,7 @@ type RoutePolicy = Readonly<{
   departments: Readonly<Record<string, RouteDestination | undefined>>;
 }>;
 
-export interface CityPolicyReader {
+export interface CityPolicyStore {
   /** Input: server-owned city ID `"boulder-co"`. Output: validated policy or `unavailable`. */
   load(
     cityId: string,
@@ -72,7 +72,7 @@ export async function confirmServiceReport(
   draftId: string | null,
   expectedRevision: number,
   draftStore: Pick<DraftStore, "load">,
-  policyStore: CityPolicyReader,
+  policyStore: CityPolicyStore,
   clock: () => Date,
 ): Promise<ConfirmServiceReportDecision> {
   if (!draftId) return { status: "blocked", code: "missing_draft" };

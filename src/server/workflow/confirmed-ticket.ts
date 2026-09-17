@@ -7,12 +7,12 @@ import type { LinearTicketProvider } from "../../adapters/linear/linear-ticket-p
 import type {
   ReportContext,
   SupportedReportType,
-} from "../../core/prepare-service-report.js";
+} from "../../core/service-report/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
   TicketOperationStore,
-} from "../../core/ticket-operation.js";
+} from "../../core/service-report/ticket-operation.js";
 
 export type TicketProvider = Pick<
   LinearTicketProvider,

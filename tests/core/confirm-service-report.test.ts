@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { OfficeSchedule } from "../../src/core/business-hours.js";
 import {
   confirmServiceReport,
-  type CityPolicyReader,
-} from "../../src/core/confirm-service-report.js";
+  type CityPolicyStore,
+} from "../../src/core/service-report/confirm-service-report.js";
 import type {
   DraftStore,
   ReportDraft,
-} from "../../src/core/prepare-service-report.js";
+} from "../../src/core/service-report/prepare-service-report.js";
 
 const CONTEXT = {
   conversationId: "conversation-1",
@@ -72,7 +72,7 @@ async function decide(
   const drafts: Pick<DraftStore, "load"> = {
     load: async () => ({ status: "found", draft }),
   };
-  const policies: CityPolicyReader = {
+  const policies: CityPolicyStore = {
     load: async () => ({
       status: "available",
       policy: { ...POLICY, requestTypes },

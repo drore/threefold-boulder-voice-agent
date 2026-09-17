@@ -41,7 +41,8 @@ type DraftRead =
   | { status: "denied" }
   | { status: "unavailable" };
 
-type DraftWrite =
+/** The outcome of one atomic draft save; adapters implement it explicitly. */
+export type DraftWrite =
   | { status: "saved"; draft: ReportDraft }
   | { status: "conflict" }
   | { status: "denied" }

@@ -6,7 +6,7 @@
 import type {
   PrepareReportResult,
   SupportedReportType,
-} from "../core/prepare-service-report.js";
+} from "../core/service-report/prepare-service-report.js";
 import type { AgentToolResult } from "../server/reasoning/agent-tools.js";
 import type { LocalConfirmResult } from "../server/build-app.js";
 

@@ -1,11 +1,14 @@
 /**
- * Postgres-backed CityPolicyReader.
+ * Postgres-backed CityPolicyStore.
  * Loads the validated hours/timezone/closures/departments/mock-destination row
  * that the business-hours policy and routing consume, keeping runtime policy in
  * the database rather than in application code.
  */
 import type { Pool } from "pg";
 import type { OfficeSchedule } from "../../core/business-hours.js";
+import { logDatabaseError } from "./log-database-error.js";
+
+const STORE_NAME = "PostgresCityPolicyStore";
 
 const WEEKDAYS = [
   "monday",
@@ -81,7 +84,7 @@ export class PostgresCityPolicyStore {
         ? { status: "available", policy }
         : { status: "unavailable" };
     } catch (error) {
-      logDatabaseError("load", error);
+      logDatabaseError(STORE_NAME, "load", error);
       return { status: "unavailable" };
     }
   }
@@ -308,16 +311,4 @@ function isValidTimeZone(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** Input: `"load"` and a database error. Output: compact safe console error. */
-function logDatabaseError(operation: string, error: unknown): void {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-      ? error.code
-      : "unknown";
-  console.error(`PostgresCityPolicyStore.${operation} failed`, { code });
 }

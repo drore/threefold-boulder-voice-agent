@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ReportContext } from "../../src/core/prepare-service-report.js";
+import type { ReportContext } from "../../src/core/service-report/prepare-service-report.js";
 import type {
   TicketOperation,
   TicketOperationOutcome,
   TicketOperationStore,
-} from "../../src/core/ticket-operation.js";
+} from "../../src/core/service-report/ticket-operation.js";
 import {
   submitConfirmedTicket,
   type TicketProvider,
