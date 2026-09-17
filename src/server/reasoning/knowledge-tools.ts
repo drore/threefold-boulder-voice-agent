@@ -82,8 +82,8 @@ const POTHOLE_ANSWER =
 const EMPTY_EVENTS_ANSWER =
   "No Boulder events appear on the official calendar in the checked date range.";
 
-const EMPTY_COUNCIL_EVENTS_ANSWER =
-  "No upcoming City Council events appear on the official Boulder calendar in the checked date range.";
+const EMPTY_NAMED_EVENTS_ANSWER =
+  "No event by that name appears on the official city calendar in the checked window.";
 
 /**
  * Creates reviewed local knowledge handlers for the P0 examples plus a live
@@ -117,7 +117,7 @@ export function createKnowledgeToolHandlers(
             ["This is service guidance, not a municipal-code citation."],
           )
         : limitedCoverage("unsupported_query"),
-    findCityEvents: async ({ query, startDate, endDate }) => {
+    findCityEvents: async ({ query, title, startDate, endDate }) => {
       if (hasUnverifiableEventQualifier(query)) {
         return limitedCoverage("unsupported_query");
       }
@@ -148,30 +148,37 @@ export function createKnowledgeToolHandlers(
             occurrence.date <= rangeEnd,
         )
         .sort((a, b) => a.date.localeCompare(b.date));
-      const named = namedEventMatches(query, upcoming);
-      if (named.length > 0) {
-        const lines = named.slice(0, MAX_EVENT_ANSWERS).map(formatEventLine);
+      if (title) {
+        const named = upcoming.filter((occurrence) =>
+          matchesEventTitle(title, occurrence),
+        );
+        const shownNamed = named.slice(0, MAX_EVENT_ANSWERS);
+        if (shownNamed.length === 0) {
+          return answered(
+            EMPTY_NAMED_EVENTS_ANSWER,
+            [eventsListingSource(result.fetchedAtUtc)],
+            [
+              "The calendar may still list the event outside the checked window or under a different name.",
+            ],
+            "live_official_source",
+          );
+        }
+        const namedLines = shownNamed.map(formatEventLine);
         return answered(
-          named.length === 1
-            ? `Here's what the city calendar shows for that: ${lines[0]}.`
-            : `Here's what the city calendar shows for that: ${lines.join(" ")}`,
-          named
-            .slice(0, MAX_EVENT_ANSWERS)
-            .map((occurrence) =>
-              eventSourceCard(occurrence, result.fetchedAtUtc),
-            ),
+          `Here's what the city calendar shows for that: ${namedLines.join(" ")}`,
+          shownNamed.map((occurrence) =>
+            eventSourceCard(occurrence, result.fetchedAtUtc),
+          ),
           [
             "Times and cancellations may appear only on the event's official detail page.",
           ],
           "live_official_source",
         );
       }
-      const councilOnly = matchesCouncilEventQuery(query);
-      const matches = councilOnly ? upcoming.filter(isCouncilEvent) : upcoming;
-      const shown = matches.slice(0, MAX_EVENT_ANSWERS);
+      const shown = upcoming.slice(0, MAX_EVENT_ANSWERS);
       if (shown.length === 0) {
         return answered(
-          councilOnly ? EMPTY_COUNCIL_EVENTS_ANSWER : EMPTY_EVENTS_ANSWER,
+          EMPTY_EVENTS_ANSWER,
           [eventsListingSource(result.fetchedAtUtc)],
           [
             "An empty listing result is not proof that no events exist; check the official calendar.",
@@ -298,59 +305,22 @@ function formatEventLine(occurrence: BoulderEventOccurrence): string {
  * Detects City Council series events by their official calendar title.
  * Input: `"City Council Study Session"`. Output: `true`.
  */
-function isCouncilEvent(occurrence: BoulderEventOccurrence): boolean {
-  const title = occurrence.title.toLowerCase();
-  return title.includes("council") || title.includes("study session");
-}
-
-const GENERIC_EVENT_WORDS = new Set([
-  "the",
-  "a",
-  "an",
-  "and",
-  "or",
-  "of",
-  "for",
-  "at",
-  "in",
-  "on",
-  "to",
-  "with",
-  "city",
-  "council",
-  "meeting",
-  "session",
-  "study",
-  "committee",
-  "board",
-  "event",
-  "public",
-  "special",
-  "hearing",
-]);
-
 /**
- * Matches a caller's query to specific calendar events by their distinctive
- * title words. This is server-side evidence selection: the caller names an
- * event, and we return only the occurrence whose title words are all present
- * in the query. Category words ("council", "meeting") are ignored so a broad
- * category question is not mistaken for one specific event.
- * Input: `"tell me about the landmarks design review committee"`.
- * Output: the `Landmarks Design Review Committee` occurrence, if upcoming.
+ * Matches a caller-named event against a calendar occurrence. The model
+ * supplies the name; the server only checks that every significant word of it
+ * appears in the stored title, so no per-city word list is needed.
+ * Input: `"city council"` and `"City Council Study Session"`. Output: `true`.
  */
-function namedEventMatches(
-  query: string,
-  occurrences: readonly BoulderEventOccurrence[],
-): BoulderEventOccurrence[] {
-  const normalizedQuery = normalizeQuery(query);
-  return occurrences.filter((occurrence) => {
-    const title = normalizeQuery(occurrence.title.replace(/\([^)]*\)/g, " "));
-    const distinctive = title
-      .split(/\s+/)
-      .filter((word) => word.length > 2 && !GENERIC_EVENT_WORDS.has(word));
-    if (distinctive.length === 0) return false;
-    return distinctive.every((word) => normalizedQuery.includes(word));
-  });
+function matchesEventTitle(
+  title: string,
+  occurrence: BoulderEventOccurrence,
+): boolean {
+  const words = normalizeQuery(title)
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  if (words.length === 0) return false;
+  const haystack = normalizeQuery(occurrence.title);
+  return words.every((word) => haystack.includes(word));
 }
 
 /**
@@ -397,19 +367,6 @@ function matchesPotholeQuery(query: string): boolean {
     text.includes("pothole") &&
     /\b(report|submit|request)\b/.test(text) &&
     !/\b(claim|claims|who|person|staff|handles)\b/.test(text)
-  );
-}
-
-/**
- * Detects City Council event queries against the live calendar.
- * Input: `"Any city council events coming up?"`. Output: `true`.
- */
-function matchesCouncilEventQuery(query: string): boolean {
-  const text = normalizeQuery(query);
-  return (
-    text.includes("study session") ||
-    (text.includes("council") &&
-      (text.includes("upcoming") || text.includes("coming up")))
   );
 }
 

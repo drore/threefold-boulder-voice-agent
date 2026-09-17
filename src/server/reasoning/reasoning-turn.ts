@@ -32,7 +32,7 @@ const REASONING_INSTRUCTIONS = [
   "Call prepareServiceReport whenever the caller states or changes report details, including answers to your own follow-up questions, so the draft is updated.",
   "Never ask the caller for internal parameters such as a date range or today's date; the tools use the server clock and their own default windows.",
   "If the caller names a date, pass it as startDate/endDate in YYYY-MM-DD; never put dates in the query text.",
-  "For event questions, call findCityEvents immediately instead of saying you cannot retrieve events.",
+  "For event questions, call findCityEvents immediately instead of saying you cannot retrieve events. If the caller names a specific meeting, committee, or event, pass that name as the title argument rather than declining.",
   'When describing what you can do, name the reviewed glass-container code example rather than a vague "city-code examples".',
   "Your previous reply is provided as previousReply and the active draft lists its missing fields. Never ask again for something the caller just answered or that the draft already has.",
   "Speak only what the tool result states. If a result asks for a missing field, ask for that field; never claim a value was saved that the result does not confirm.",

@@ -456,7 +456,7 @@ describe("agent tool boundary", () => {
   it("answers upcoming council events from the live official calendar", async () => {
     const result = await callAgentTool(
       "findCityEvents",
-      { query: "Any upcoming city council event?" },
+      { query: "Any upcoming city council event?", title: "city council" },
       CONTEXT,
       {
         ...createAgentToolStubs(),
@@ -524,6 +524,7 @@ describe("agent tool boundary", () => {
       {
         query:
           "Can you tell me about the beverage licensing authority hearing?",
+        title: "beverage licensing authority hearing",
       },
       CONTEXT,
       {
@@ -546,7 +547,7 @@ describe("agent tool boundary", () => {
   it("does not present past-dated calendar entries as upcoming", async () => {
     const result = await callAgentTool(
       "findCityEvents",
-      { query: "Any upcoming city council event?" },
+      { query: "Any upcoming city council event?", title: "city council" },
       CONTEXT,
       {
         ...createAgentToolStubs(),
@@ -555,7 +556,7 @@ describe("agent tool boundary", () => {
     );
 
     expect(result.status === "answered" && result.answer).toBe(
-      "No upcoming City Council events appear on the official Boulder calendar in the checked date range.",
+      "No event by that name appears on the official city calendar in the checked window.",
     );
   });
 
@@ -575,7 +576,7 @@ describe("agent tool boundary", () => {
     );
 
     expect(result.status === "answered" && result.answer).toBe(
-      "No upcoming City Council events appear on the official Boulder calendar in the checked date range.",
+      "No Boulder events appear on the official calendar in the checked date range.",
     );
   });
 

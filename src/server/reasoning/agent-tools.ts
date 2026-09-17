@@ -46,6 +46,10 @@ export const agentToolDefinitions = [
       type: "object",
       properties: {
         query: { type: "string" },
+        title: {
+          type: "string",
+          description: "Specific event name the caller mentioned, if any",
+        },
         startDate: { type: "string", description: "YYYY-MM-DD, if known" },
         endDate: { type: "string", description: "YYYY-MM-DD, if known" },
       },
@@ -88,7 +92,12 @@ export type AgentToolInput =
   | { name: "lookupCityInformation"; arguments: { query: string } }
   | {
       name: "findCityEvents";
-      arguments: { query: string; startDate?: string; endDate?: string };
+      arguments: {
+        query: string;
+        title?: string;
+        startDate?: string;
+        endDate?: string;
+      };
     }
   | { name: "confirmReport"; arguments: Record<string, never> }
   | {
@@ -265,14 +274,16 @@ export async function callAgentTool(
         context,
       );
     case "findCityEvents": {
-      const { query, startDate, endDate } = rawArguments as {
+      const { query, title, startDate, endDate } = rawArguments as {
         query: string;
+        title?: string;
         startDate?: string;
         endDate?: string;
       };
       return handlers.findCityEvents(
         {
           query,
+          ...(title ? { title } : {}),
           ...(startDate ? { startDate } : {}),
           ...(endDate ? { endDate } : {}),
         },
