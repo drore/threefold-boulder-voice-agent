@@ -141,6 +141,7 @@ describe.skipIf(!localDatabaseUrl)(
           description: "Large pothole in the driving lane",
           state: "ready",
           providerIssueId: null,
+          providerIssueKey: null,
         },
       });
       if (first.status !== "found") return;
@@ -332,6 +333,7 @@ describe.skipIf(!localDatabaseUrl)(
       const result = await operations.finish(context, operationId, {
         state: "created",
         providerIssueId: "linear-issue-1",
+        providerIssueKey: "DRO-1",
         providerTitle: "Pothole at 15th and Pine",
         providerDescription: "Large pothole in the driving lane",
         providerFetchedAt: "2026-09-16T12:00:00.000Z",
@@ -341,6 +343,7 @@ describe.skipIf(!localDatabaseUrl)(
         operation: {
           state: "created",
           providerIssueId: "linear-issue-1",
+          providerIssueKey: "DRO-1",
           providerTitle: "Pothole at 15th and Pine",
           providerFetchedAt: "2026-09-16T12:00:00.000Z",
         },
@@ -431,6 +434,7 @@ describe.skipIf(!localDatabaseUrl)(
         await operations.finish(context, operationId, {
           state: "created",
           providerIssueId: "issue-other",
+          providerIssueKey: "DRO-3",
           providerTitle: "Wrong issue",
           providerDescription: "Wrong details",
           providerFetchedAt: "2026-09-16T12:00:00.000Z",
@@ -440,6 +444,7 @@ describe.skipIf(!localDatabaseUrl)(
         await operations.finish(context, operationId, {
           state: "created",
           providerIssueId: "issue-known",
+          providerIssueKey: "DRO-2",
           providerTitle: "Boulder demo: pothole report",
           providerDescription: `Demo operation: ${operationId}`,
           providerFetchedAt: "2026-09-16T12:00:00.000Z",

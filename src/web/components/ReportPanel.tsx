@@ -100,7 +100,8 @@ export function ReportPanel({ flow }: { flow: ReportFlow }) {
         <div className="notice" role="status">
           <strong>Demo ticket created in Linear</strong>
           <p>
-            Issue ID: {action.issueId}. Operation: {action.operationId}.
+            Reference: {action.issueKey ?? action.issueId}. Operation:{" "}
+            {action.operationId}.
             {action.currentDetails === "fresh"
               ? " Details were read back from Linear."
               : action.currentDetails === "changed"

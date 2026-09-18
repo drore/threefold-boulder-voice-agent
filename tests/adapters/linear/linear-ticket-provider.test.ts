@@ -39,7 +39,11 @@ describe("LinearTicketProvider", () => {
         data: {
           issueCreate: {
             success: true,
-            issue: { id: "issue-123", title: "Pothole report" },
+            issue: {
+              id: "issue-123",
+              identifier: "DRO-123",
+              title: "Pothole report",
+            },
           },
         },
       });
@@ -79,7 +83,11 @@ describe("LinearTicketProvider", () => {
         data: {
           issueCreate: {
             success: true,
-            issue: { id: "issue-should-not-count", title: "Ignored" },
+            issue: {
+              id: "issue-should-not-count",
+              identifier: "DRO-999",
+              title: "Ignored",
+            },
           },
         },
         errors: [{ message: "Validation failed" }],
@@ -106,7 +114,11 @@ describe("LinearTicketProvider", () => {
         data: {
           issueCreate: {
             success: true,
-            issue: { id: "issue-should-not-count", title: "Ignored" },
+            issue: {
+              id: "issue-should-not-count",
+              identifier: "DRO-999",
+              title: "Ignored",
+            },
           },
         },
         errors: { message: "Unexpected shape" },
@@ -151,7 +163,11 @@ describe("LinearTicketProvider", () => {
           data: {
             issueCreate: {
               success: true,
-              issue: { id: "late-issue", title: "Late issue" },
+              issue: {
+                id: "late-issue",
+                identifier: "DRO-LATE",
+                title: "Late issue",
+              },
             },
           },
         });
@@ -217,6 +233,7 @@ describe("LinearTicketProvider", () => {
         data: {
           issue: {
             id: "issue-456",
+            identifier: "DRO-456",
             title: "Existing ticket",
             description: null,
             team: { id: "team-123" },
@@ -263,6 +280,7 @@ describe("LinearTicketProvider", () => {
         }
         const issue = {
           id: "issue-created-1",
+          identifier: "DRO-CREATED-1",
           title: String(input.title),
           description: String(input.description),
           team: { id: String(input.teamId) },
@@ -309,6 +327,7 @@ describe("LinearTicketProvider", () => {
         data: {
           issue: {
             id: "other-issue",
+            identifier: "DRO-OTHER",
             title: "Wrong ticket",
             description: "Wrong description",
           },
@@ -333,6 +352,7 @@ describe("LinearTicketProvider", () => {
         data: {
           issue: {
             id: "issue-456",
+            identifier: "DRO-456",
             title: "Existing ticket",
             description: "Location: 13th and Pearl",
             team: { id: field === "team" ? id : "team-123" },
@@ -356,6 +376,7 @@ describe("LinearTicketProvider", () => {
         data: {
           issue: {
             id: "issue-oversized",
+            identifier: "DRO-OVERSIZED",
             title: "Existing ticket",
             description: "x".repeat(5001),
             team: { id: "team-123" },

@@ -19,6 +19,8 @@ export type TicketOperation = Readonly<{
   description: string;
   state: "ready" | "attempting" | "created" | "uncertain" | "rejected";
   providerIssueId: string | null;
+  /** Linear's short human identifier for the caller, for example `DRO-5`. */
+  providerIssueKey: string | null;
   providerTitle: string | null;
   providerDescription: string | null;
   providerFetchedAt: string | null;
@@ -29,6 +31,7 @@ export type TicketOperationOutcome =
   | Readonly<{
       state: "created";
       providerIssueId: string;
+      providerIssueKey: string;
       providerTitle: string;
       providerDescription: string;
       providerFetchedAt: string;

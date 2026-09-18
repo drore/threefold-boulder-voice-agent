@@ -26,6 +26,7 @@ const READY_OPERATION: TicketOperation = {
   description: "Large pothole in the driving lane",
   state: "ready",
   providerIssueId: null,
+  providerIssueKey: null,
   providerTitle: null,
   providerDescription: null,
   providerFetchedAt: null,
@@ -83,6 +84,7 @@ function providerFixture() {
         ticket: {
           provider: "linear" as const,
           id: "issue-1",
+          identifier: "DRO-1",
           title: input.title,
         },
       };
@@ -93,6 +95,7 @@ function providerFixture() {
     ticket: {
       provider: "linear" as const,
       id: issueId,
+      identifier: "DRO-1",
       title: createdTitle,
       description: createdDescription,
       fetchedAt: "2026-09-17T00:00:00.000Z",
@@ -236,6 +239,7 @@ describe("confirmed closed-hours ticket", () => {
     expect(operations.current()).toMatchObject({
       state: "uncertain",
       providerIssueId: "issue-1",
+      providerIssueKey: null,
     });
   });
 
@@ -303,6 +307,7 @@ describe("confirmed closed-hours ticket", () => {
         ticket: {
           provider: "linear",
           id: issueId,
+          identifier: "DRO-1",
           title: "Pothole report assigned",
           description: "Staff added the repair date",
           fetchedAt: "2026-09-17T01:00:00.000Z",

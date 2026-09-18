@@ -24,6 +24,8 @@ export type ConfirmedTicketResult =
       status: "linear_ticket_created";
       operationId: string;
       issueId: string;
+      /** Short human reference for the caller, for example `DRO-5`. */
+      issueKey: string | null;
       title: string;
       fetchedAt: string;
       currentDetails: "fresh" | "changed" | "unavailable";
@@ -101,10 +103,12 @@ export async function submitConfirmedTicket(
       readback.status === "found" &&
       readback.ticket.id === creation.ticket.id &&
       readback.ticket.title === title &&
-      readback.ticket.description === description
+      readback.ticket.description === description &&
+      readback.ticket.identifier === creation.ticket.identifier
         ? {
             state: "created",
             providerIssueId: readback.ticket.id,
+            providerIssueKey: readback.ticket.identifier,
             providerTitle: readback.ticket.title,
             providerDescription: readback.ticket.description,
             providerFetchedAt: readback.ticket.fetchedAt,
@@ -177,6 +181,7 @@ async function describeExistingTicket(
         {
           state: "created",
           providerIssueId: current.ticket.id,
+          providerIssueKey: current.ticket.identifier,
           providerTitle: current.ticket.title,
           providerDescription: current.ticket.description,
           providerFetchedAt: current.ticket.fetchedAt,
@@ -209,6 +214,7 @@ async function describeExistingTicket(
       status: "linear_ticket_created",
       operationId: operation.operationId,
       issueId: operation.providerIssueId,
+      issueKey: current.ticket.identifier ?? operation.providerIssueKey,
       title: current.ticket.title,
       fetchedAt: current.ticket.fetchedAt,
       currentDetails:
@@ -222,6 +228,7 @@ async function describeExistingTicket(
     status: "linear_ticket_created",
     operationId: operation.operationId,
     issueId: operation.providerIssueId,
+    issueKey: operation.providerIssueKey,
     title: operation.providerTitle,
     fetchedAt: operation.providerFetchedAt,
     currentDetails: "unavailable",
@@ -242,6 +249,7 @@ function describeRecordedTicket(
       status: "linear_ticket_created",
       operationId: operation.operationId,
       issueId: operation.providerIssueId,
+      issueKey: operation.providerIssueKey,
       title: operation.providerTitle,
       fetchedAt: operation.providerFetchedAt,
       currentDetails: "fresh",

@@ -7,6 +7,7 @@
 const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_LINEAR_TITLE_LENGTH = 250;
+const MAX_LINEAR_IDENTIFIER_LENGTH = 40;
 const MAX_LINEAR_DESCRIPTION_LENGTH = 5000;
 
 export const LINEAR_CREATE_ISSUE_MUTATION = `
@@ -15,6 +16,7 @@ mutation CreateIssue($input: IssueCreateInput!) {
     success
     issue {
       id
+      identifier
       title
     }
   }
@@ -25,6 +27,7 @@ export const LINEAR_READ_ISSUE_QUERY = `
 query ReadIssue($id: String!) {
   issue(id: $id) {
     id
+    identifier
     title
     description
     team { id }
@@ -41,12 +44,14 @@ export type LinearTicketInput = Readonly<{
 export type LinearCreatedTicket = Readonly<{
   provider: "linear";
   id: string;
+  identifier: string;
   title: string;
 }>;
 
 export type LinearTicketSnapshot = Readonly<{
   provider: "linear";
   id: string;
+  identifier: string;
   title: string;
   description: string | null;
   fetchedAt: string;
@@ -224,13 +229,19 @@ function parseCreateEnvelope(
   if (
     !isRecord(issue) ||
     !isUsableText(issue.id) ||
+    !isBoundedText(issue.identifier, MAX_LINEAR_IDENTIFIER_LENGTH) ||
     !isUsableText(issue.title)
   ) {
     return { status: "uncertain", reason: "linear_created_issue_invalid" };
   }
   return {
     status: "created",
-    ticket: { provider: "linear", id: issue.id, title: issue.title },
+    ticket: {
+      provider: "linear",
+      id: issue.id,
+      identifier: issue.identifier,
+      title: issue.title,
+    },
   };
 }
 
@@ -260,6 +271,7 @@ function parseReadEnvelope(
   }
   if (
     !isUsableText(data.issue.id) ||
+    !isBoundedText(data.issue.identifier, MAX_LINEAR_IDENTIFIER_LENGTH) ||
     data.issue.id !== expectedIssueId ||
     !isBoundedText(data.issue.title, MAX_LINEAR_TITLE_LENGTH)
   ) {
@@ -293,6 +305,7 @@ function parseReadEnvelope(
     ticket: {
       provider: "linear",
       id: data.issue.id,
+      identifier: data.issue.identifier,
       title: data.issue.title,
       description: data.issue.description,
       fetchedAt: fetchedAt.toISOString(),

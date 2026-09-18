@@ -65,6 +65,7 @@ function ticketProvider() {
         ticket: {
           provider: "linear" as const,
           id: "issue-scenario-1",
+          identifier: "DRO-9",
           title: input.title,
         },
       };
@@ -75,6 +76,7 @@ function ticketProvider() {
     ticket: {
       provider: "linear" as const,
       id,
+      identifier: "DRO-9",
       title: lastTitle,
       description: lastDescription,
       fetchedAt: "2026-09-17T00:00:00.000Z",

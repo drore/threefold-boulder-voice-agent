@@ -23,7 +23,7 @@ Implement the first draft/configuration stores on Supabase Postgres, TicketProvi
 - INT-002: Scope state queries by server-authorized conversation/city, not caller-supplied IDs. Configuration mutation is not an agent tool.
 - INT-003: Use DB atomic transitions/unique constraints for revisions, confirmation, operation creation, and quota accounting. In-memory mutex alone is insufficient across restart/instances.
 - INT-004: Linear team and dedicated project are server-configured. Ticket text is bounded untrusted content, never an instruction to another executor.
-- INT-005: Store actual receipt and display it only after provider success. Transport HTTP success alone is not GraphQL mutation success.
+ - INT-005: Store actual receipt and display it only after provider success. Transport HTTP success alone is not GraphQL mutation success. The verified create receipt retains Linear's human identifier (for example DRO-5) as the caller-facing reference; the internal issue UUID stays server-side for reconciliation, and a confirmed-revision readback accepts an issue only when its identifier also matches.
 - INT-006: Writes that may have committed become uncertain and enter reconciliation; no blind recreate loop. Do not promise cross-system exactly-once delivery without provider proof.
 - INT-007: Classify errors by operation kind/provider semantics. The first slice makes one bounded read attempt per user request; an explicit repeat may read again. Writes do not retry without authoritative no-commit evidence or verified native idempotency.
 - INT-008: Transfer simulation has an observable lifecycle and distinct configured department. Never dial fictional numbers or claim real Boulder staff answered.

@@ -484,6 +484,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
           ticket: {
             provider: "linear" as const,
             id: "issue-1",
+            identifier: "DRO-1",
             title: input.title,
           },
         };
@@ -494,6 +495,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
       ticket: {
         provider: "linear" as const,
         id,
+        identifier: "DRO-1",
         title: "Boulder demo: pothole report",
         description: createdDescription,
         fetchedAt: "2026-09-17T00:00:00.000Z",
@@ -515,6 +517,7 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     expect(first.json()).toMatchObject({
       status: "linear_ticket_created",
       issueId: "issue-1",
+      issueKey: "DRO-1",
       currentDetails: "fresh",
     });
     expect(createdDescription).toContain("Location: 15th and Pine");

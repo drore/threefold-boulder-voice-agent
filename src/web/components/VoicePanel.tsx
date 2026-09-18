@@ -31,10 +31,14 @@ function speechForAction(action: LocalConfirmResult): string {
   switch (action.status) {
     case "simulated_route":
       return `Since it's during business hours, this would go to ${action.department.name}. This is a demo, so no call is actually made.`;
-    case "linear_ticket_created":
+    case "linear_ticket_created": {
+      const reference = action.issueKey
+        ? ` Its reference is ${action.issueKey}.`
+        : "";
       return action.currentDetails === "unavailable"
-        ? `I filed this as a test ticket in Linear. Its ID is ${action.issueId}, but I can't check its current status right now.`
-        : `I filed this as a test ticket in Linear and verified it. Its ID is ${action.issueId}.`;
+        ? `I filed this as a test ticket in Linear, but I can't check its current status right now.${reference}`
+        : `I filed this as a test ticket in Linear and verified it.${reference}`;
+    }
     case "ticket_path_unavailable":
       return "The office is closed and the ticket system isn't set up right now, so nothing was filed.";
     case "ticket_uncertain":

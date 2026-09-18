@@ -39,6 +39,7 @@ type OperationRow = {
   description_text: string;
   state: TicketOperation["state"];
   provider_issue_id: string | null;
+  provider_issue_key: string | null;
   provider_title: string | null;
   provider_description: string | null;
   provider_fetched_at: Date | null;
@@ -226,6 +227,8 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
         : outcome.state === "uncertain"
           ? (outcome.providerIssueId ?? null)
           : null;
+    const providerIssueKey =
+      outcome.state === "created" ? outcome.providerIssueKey : null;
     const providerTitle =
       outcome.state === "created" ? outcome.providerTitle : null;
     const providerDescription =
@@ -237,9 +240,9 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
     try {
       const updated = await this.pool.query<OperationRow>(
         `update app.ticket_operations as operation
-         set state = $5, provider_issue_id = $6, provider_title = $7,
-             provider_description = $8, provider_fetched_at = $9,
-             reason = $10, updated_at = now()
+         set state = $5, provider_issue_id = $6, provider_issue_key = $7,
+             provider_title = $8, provider_description = $9,
+             provider_fetched_at = $10, reason = $11, updated_at = now()
          from app.conversations as conversation
          where operation.id = $1
            and (
@@ -258,6 +261,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
           context.admissionId,
           outcome.state,
           providerIssueId,
+          providerIssueKey,
           providerTitle,
           providerDescription,
           providerFetchedAt,
@@ -312,6 +316,7 @@ function toOperation(row: OperationRow): TicketOperation {
     description: row.description_text,
     state: row.state,
     providerIssueId: row.provider_issue_id,
+    providerIssueKey: row.provider_issue_key,
     providerTitle: row.provider_title,
     providerDescription: row.provider_description,
     providerFetchedAt: row.provider_fetched_at?.toISOString() ?? null,
