@@ -298,6 +298,22 @@ export function buildLocalApp(
           return runConfirmation(session, current.draftId, current.revision);
         }
         if (name === "prepareServiceReport") {
+          // A prior confirmation freezes its draft (one operation per draft).
+          // When the caller starts another report, use a fresh draft instead of
+          // failing every update against the frozen one.
+          if (ticketing && session.currentDraft) {
+            const frozen = await ticketing.operations.findByDraft(
+              session.context,
+              session.currentDraft.draftId,
+              session.currentDraft.revision,
+            );
+            if (
+              frozen.status !== "missing" &&
+              frozen.status !== "unavailable"
+            ) {
+              session.currentDraft = null;
+            }
+          }
           const location =
             typeof args.location === "string" ? args.location : undefined;
           const description =

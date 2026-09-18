@@ -3,8 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresCityKnowledgeStore } from "../../src/adapters/postgres/city-knowledge-store.js";
 import { PostgresCityPolicyStore } from "../../src/adapters/postgres/city-policy-store.js";
 import { PostgresDraftStore } from "../../src/adapters/postgres/draft-store.js";
+import { PostgresTicketOperationStore } from "../../src/adapters/postgres/ticket-operation-store.js";
 import type { ReportContext } from "../../src/core/service-report/prepare-service-report.js";
 import { buildLocalApp, type CityRuntime } from "../../src/server/build-app.js";
+import type { TicketProvider } from "../../src/server/workflow/confirmed-ticket.js";
 
 const databaseUrl = process.env.LOCAL_DATABASE_URL;
 const LOCAL_ORIGIN = "http://127.0.0.1:5173";
@@ -374,5 +376,152 @@ describe.skipIf(!databaseUrl)("local voice delegation", () => {
       releaseSave();
       await delayedApp.close();
     }
+  });
+});
+
+describe.skipIf(!databaseUrl)("frozen confirmed draft", () => {
+  let pool: Pool;
+  let app: ReturnType<typeof buildLocalApp>;
+  let context: ReportContext;
+  let createdTickets = 0;
+  let createdTitle = "";
+  let createdDescription = "";
+  const responses: Response[] = [
+    toolCall(
+      "prepareServiceReport",
+      {
+        requestType: "pothole",
+        location: "15th and Pine",
+        description: "deep pothole",
+      },
+      "call-frozen-1",
+    ),
+    message("I saved that. Please confirm on screen."),
+    toolCall(
+      "prepareServiceReport",
+      {
+        requestType: "pothole",
+        location: "19th and Pearl",
+        description: "deep pothole",
+      },
+      "call-frozen-2",
+    ),
+    message("I've moved the report. Please confirm on screen."),
+  ];
+
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: databaseUrl });
+    const store = new PostgresDraftStore(pool);
+    const opened = await store.openConversation("boulder-co");
+    if (opened.status !== "created") throw new Error("Local DB unavailable");
+    context = opened.context;
+    const request: typeof fetch = async () => {
+      const response = responses.shift();
+      if (!response) throw new Error("Unexpected model request");
+      return response;
+    };
+    const provider: TicketProvider = {
+      /** Input: report fields. Output: one recorded synthetic Linear creation. */
+      createTicket: async (input) => {
+        createdTickets += 1;
+        createdTitle = input.title;
+        createdDescription = input.description;
+        return {
+          status: "created",
+          ticket: {
+            provider: "linear",
+            id: "issue-frozen-1",
+            identifier: "DRO-11",
+            title: input.title,
+          },
+        };
+      },
+      /** Input: a recorded issue ID. Output: the matching verified readback. */
+      readTicket: async (id) => ({
+        status: "found",
+        ticket: {
+          provider: "linear",
+          id,
+          identifier: "DRO-11",
+          title: createdTitle,
+          description: createdDescription,
+          fetchedAt: "2026-09-17T00:00:00.000Z",
+        },
+      }),
+    };
+    app = buildLocalApp(
+      store,
+      context,
+      new PostgresCityPolicyStore(pool),
+      cityRuntime(pool),
+      () => new Date("2026-09-16T23:00:00Z"),
+      { operations: new PostgresTicketOperationStore(pool), provider },
+      { apiKey: "synthetic-key", request },
+    );
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    if (context) {
+      await pool.query(
+        "delete from app.ticket_operations where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query(
+        "delete from app.request_drafts where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query(
+        "delete from app.observations where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query("delete from app.conversations where id = $1", [
+        context.conversationId,
+      ]);
+    }
+    await pool?.end();
+  });
+
+  it("starts a fresh draft when the caller changes a confirmed report", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/local/delegation",
+      headers: { origin: LOCAL_ORIGIN },
+      payload: { utterance: "There is a deep pothole at 15th and Pine" },
+    });
+    const firstResult = first.json().result;
+    expect(firstResult).toMatchObject({
+      status: "needs_confirmation",
+      summary: { location: "15th and Pine" },
+    });
+
+    const confirmation = await app.inject({
+      method: "POST",
+      url: "/api/local/report/confirm",
+      payload: { draftId: firstResult.draftId, revision: firstResult.revision },
+    });
+    expect(confirmation.json()).toMatchObject({
+      status: "linear_ticket_created",
+      issueKey: "DRO-11",
+    });
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/local/delegation",
+      headers: { origin: LOCAL_ORIGIN },
+      payload: {
+        utterance: "Actually there is a deep pothole at 19th and Pearl",
+      },
+    });
+    expect(second.json()).toMatchObject({
+      status: "completed",
+      result: {
+        status: "needs_confirmation",
+        summary: { location: "19th and Pearl", description: "deep pothole" },
+      },
+    });
+    expect(second.json().result.draftId).not.toBe(firstResult.draftId);
+    expect(createdTickets).toBe(1);
   });
 });
