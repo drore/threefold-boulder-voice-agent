@@ -31,6 +31,9 @@ const MAX_SITEMAP_PAGES = 6;
 const MAX_URLS = 20_000;
 const MAX_TEXT_LENGTH = 6_000;
 const MAX_SELECTION_CANDIDATES = 8;
+/** Bound a single page fetch so a hung or oversized response cannot stall the server. */
+const FETCH_TIMEOUT_MS = 10_000;
+const MAX_PAGE_BYTES = 512 * 1024;
 
 const STOPWORDS = new Set([
   "the",
@@ -162,6 +165,15 @@ export function parseSitemap(xml: string, baseUrl: string): string[] {
   return urls;
 }
 
+/** Input: a candidate URL and the base URL. Output: true only for the same host. */
+function sameHost(url: string, baseUrl: string): boolean {
+  try {
+    return new URL(url).host === new URL(baseUrl).host;
+  } catch {
+    return false;
+  }
+}
+
 /** Input: a rendered page. Output: its title and bounded main text. */
 export function extractPageText(
   html: string,
@@ -213,9 +225,11 @@ export function createCityWebsiteProvider(options: {
     try {
       const response = await fetchText(url, {
         headers: { "user-agent": "city-services-demo/0.1" },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (!response.ok) return null;
-      return await response.text();
+      const text = await response.text();
+      return text.length <= MAX_PAGE_BYTES ? text : null;
     } catch {
       return null;
     }
@@ -233,6 +247,7 @@ export function createCityWebsiteProvider(options: {
     ]
       .map((match) => match[1])
       .filter((value): value is string => typeof value === "string")
+      .filter((value) => sameHost(value, baseUrl))
       .slice(0, maxSitemapPages);
     for (const page of nested) {
       const document = await fetchDocument(page);

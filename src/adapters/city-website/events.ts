@@ -41,6 +41,8 @@ const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_PAGES = 2;
 const MAX_TITLE_LENGTH = 160;
 const MAX_LOCATION_LENGTH = 200;
+const FETCH_TIMEOUT_MS = 10_000;
+const MAX_PAGE_BYTES = 512 * 1024;
 
 type EventsCache = {
   occurrences: CityEventOccurrence[];
@@ -125,6 +127,7 @@ export function createCityEventsProvider(options: {
       try {
         response = await fetchHtml(`${listingUrl}?page=${page}`, {
           headers: { "user-agent": "city-services-demo/0.1" },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
       } catch {
         return { status: "source_unavailable" };
@@ -136,6 +139,7 @@ export function createCityEventsProvider(options: {
       } catch {
         return { status: "source_unavailable" };
       }
+      if (html.length > MAX_PAGE_BYTES) return { status: "source_unavailable" };
       const pageOccurrences = parseCityEventsListing(html, listingUrl);
       if (pageOccurrences.length === 0) break;
       for (const occurrence of pageOccurrences) {

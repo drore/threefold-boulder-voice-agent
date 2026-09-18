@@ -32,6 +32,12 @@ async function startApi(): Promise<void> {
   const pool = new pg.Pool({
     connectionString: config.databaseUrl,
     max: 5,
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 30_000,
+    statement_timeout: 10_000,
+    query_timeout: 10_000,
+    lock_timeout: 10_000,
+    application_name: "threefold-boulder-agent",
     ...(config.mode === "reviewer"
       ? { ssl: { rejectUnauthorized: true } }
       : {}),
