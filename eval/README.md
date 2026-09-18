@@ -47,7 +47,7 @@ Before delivery, exercise actual microphone input/output and check the cited ans
 Iterate: run → fix the reported targets → re-run (`--scenarios=id1,id2` to focus)
 → compare assertions and scores.
 
-Latest full run (2026-09-17, `gpt-5.6-luna`): **11/11 scenarios pass**, including the open-hours department routing and the closed-hours ticket path; the only prior critic note was resolved by treating deterministic assertions as authoritative.
+Latest full run (2026-09-17, `gpt-5.6-luna`): **11/11 scenarios pass** (25/25 deterministic assertions) across the open-hours department routing and the closed-hours ticket-outcome messaging (the runner never confirms while closed, so no ticket is actually created); the full JSON record is `eval/results/conversations-2026-09-17T17-20-50-437Z.json`. The suite has since grown to 12 scenarios in [conversation-scenarios.json](conversation-scenarios.json) (`website-follow-up` was added after that run). Note: `eval/results/conversations-latest.md` is overwritten by focused re-runs and currently shows only the single `website-follow-up` scenario — use the full-run JSON above for the complete 11-scenario result.
 
 First full run (2026-09-17, `gpt-5.6-luna`): 7/10 scenarios passed. Findings and
 fixes: event questions failed because the model sent empty strings for optional

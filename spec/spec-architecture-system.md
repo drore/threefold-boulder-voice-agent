@@ -2,7 +2,7 @@
 title: System architecture and provider-neutral contracts
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-16
+last_updated: 2026-09-18
 owner: Dror Elovits
 tags: [architecture, contracts]
 ---
@@ -112,10 +112,9 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 ├── src/
 │   ├── core/               # Provider-neutral contracts, policy, workflow
 │   │   ├── city.ts         # City settings and knowledge-corpus contracts
-│   │   └── service-report/ # Intake, confirmation, and operation contracts
 │   │   └── service-report/ # Report intake, confirmation, and operation contracts
 │   ├── adapters/           # Provider-specific implementations
-│   │   ├── city-website/   # Config-driven city calendar adapter
+│   │   ├── city-website/   # City website lookup + live events
 │   │   ├── linear/         # Linear ticket provider
 │   │   └── postgres/       # Policy, knowledge, draft, and operation stores
 │   ├── server/             # Composition, auth, configuration, sessions
@@ -128,8 +127,8 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 │       └── voice/          # Browser WebRTC client and transcript helpers
 ├── tests/                  # Core, contract, DB, browser checks and fixtures
 ├── eval/                   # Model/voice scenarios, rubrics, safe evidence
-├── prompts/                # Versioned model instructions/procedures
-├── knowledge/              # Reviewed corpus and provenance manifests
+├── prompts/                # Planned versioned model instructions/procedures; currently inline in src/server/reasoning/*
+├── knowledge/              # Planned reviewed corpus + provenance manifests; currently held in the Postgres corpus
 └── supabase/               # Versioned DB configuration, migrations, seeds
 ```
 

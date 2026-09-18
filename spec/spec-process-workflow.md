@@ -2,7 +2,7 @@
 title: Intake, confirmation, deterministic routing, and workflow control
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-16
+last_updated: 2026-09-18
 owner: Dror Elovits
 tags: [process, policy, configuration]
 ---
@@ -35,7 +35,7 @@ Define P0 information and nonurgent service-report behavior, DB configuration, a
 
 The local policy slice uses **one private database row for Boulder**, containing a migration-managed revision and one compact policy document. There is no configuration editor, generic multi-city registry, cache, or policy-version service. The migration seeds reviewed weekday hours, specific city holidays within a finite validity horizon, and two fictional mock destinations. A narrow store reads the row and returns either a validated schedule plus request-to-department map or `unavailable`; it performs no transfer or ticket mutation. Invalid or missing configuration and the unsupported `alwaysOpenTicket=true` setting fail at the store boundary. After the validity horizon, the pure hours policy returns `undefined`, and action mapping returns `unavailable`. General city office hours are a documented demo proxy for department transfer availability, not a claim that a particular employee will answer.
 
-The intake core and local Postgres adapter prepare pothole and park-maintenance drafts through the same contract. A complete draft returns a revision-bound summary for a later confirmation request; this is not yet a persisted confirmation prompt or an accepted request. Missing location or description returns `needs_input`. Corrections create a new revision, so any summary for an earlier revision is stale. A draft cannot change report type. The offline fake and local Postgres adapter check scoped observation references and expected revisions. The local browser supports both report types; voice still requires on-screen confirmation, and deployment-ready session handling remains to be implemented.
+The intake core and local Postgres adapter prepare pothole and park-maintenance drafts through the same contract. A complete draft returns a revision-bound summary for a later confirmation request; this is not yet a persisted confirmation prompt or an accepted request. Missing location or description returns `needs_input`. Corrections create a new revision, so any summary for an earlier revision is stale. A draft cannot change report type. The offline fake and local Postgres adapter check scoped observation references and expected revisions. The local browser supports both report types; voice confirms through the server-owned `confirmReport` tool (spoken confirmation), while the text channel keeps on-screen confirmation, and deployment-ready session handling remains to be implemented.
 
 Recommended P0 schedule: Mon–Fri 08:00–17:00 America/Denver, closed weekends; official verified holiday overrides with a known validity range. Office hours are different from park opening hours. Record gaps as unavailable; do not invent future holiday dates.
 

@@ -2,7 +2,7 @@
 title: Browser voice, reasoning delegation, and conversation updates
 version: 1.0-review
 date_created: 2026-09-15
-last_updated: 2026-09-16
+last_updated: 2026-09-18
 owner: Dror Elovits
 tags: [design, voice, reasoning]
 ---
@@ -64,7 +64,7 @@ The reasoning backend runs one bounded tool-calling turn per delegated utterance
 
 Conversation/city scope, trusted time, observations, source allowlists, department mappings, and provider settings are supplied by the server. The model cannot pass URLs, source IDs, Linear destinations, permissions, confirmation booleans, or a business-hours outcome. Only the confirmed core `executeRequest` flow may cause a ticket or simulated route. Tool definitions are backend-owned in client delegation; GPT-Live delegates the conversation task rather than executing these application tools itself. The [knowledge spec](spec-data-knowledge.md) owns code/site evidence and event data rules.
 
-For client delegation, the browser correlates `session.delegation.created` with recent timed transcript fragments, and the server runs the bounded reasoning/tool workflow. The browser sends verified speakable results with `session.commentary.append` and the matching delegation ID. The current transcript assembly waits for a short quiet period and asks the caller to repeat if it has no usable text; because fragments have no completion event, actual delayed-fragment behavior needs empirical evaluation. A delegation captures the active report generation when the event arrives; a reset during queuing, transcript assembly, or backend work discards its stale result. Report writes and reset are serialized in the local session so a late write cannot restore an old active report. On-screen confirmation remains required before the app sends a verified route/ticket result back under the matching draft's delegation ID. An append acknowledgment is not proof of playback. M1 validates actual event ordering and correction behavior. Responses delegation remains an alternative only if client delegation proves unworkable.
+For client delegation, the browser correlates `session.delegation.created` with recent timed transcript fragments, and the server runs the bounded reasoning/tool workflow. The browser sends verified speakable results with `session.commentary.append` and the matching delegation ID. The current transcript assembly waits for a short quiet period and asks the caller to repeat if it has no usable text; because fragments have no completion event, actual delayed-fragment behavior needs empirical evaluation. A delegation captures the active report generation when the event arrives; a reset during queuing, transcript assembly, or backend work discards its stale result. Report writes and reset are serialized in the local session so a late write cannot restore an old active report. For voice, spoken confirmation via the server-owned `confirmReport` tool is sufficient before the app sends a verified route/ticket result back under the matching draft's delegation ID; the text channel keeps on-screen confirmation. An append acknowledgment is not proof of playback. M1 validates actual event ordering and correction behavior. Responses delegation remains an alternative only if client delegation proves unworkable.
 
 Live prompt skeleton (specification guidance, not exact mandated speech):
 

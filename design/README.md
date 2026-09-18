@@ -1,6 +1,6 @@
 # Boulder interface concept
 
-**Status: selected P0 visual direction. Planning only; no interface is implemented.** Generated with the built-in imagegen tool. All displayed conversation text, office state, location, and action details are synthetic scenario examples.
+**Status: selected P0 visual direction; the single-screen demo UI is implemented.** The mockup below was generated with the built-in imagegen tool. All displayed conversation text, office state, location, and action details are synthetic scenario examples.
 
 The [simple responsive concept](boulder-simple-concept.png) is the implementation target. It is deliberately a developer-demo interface: one screen makes the required behavior easy to inspect without spending the assignment window on a broader product shell.
 

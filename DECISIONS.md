@@ -1,7 +1,7 @@
 ---
 title: Decision rationale for the Boulder municipal voice agent
 version: 1.0-review
-last_updated: 2026-09-16
+last_updated: 2026-09-18
 owner: Dror Elovits
 ---
 
@@ -312,6 +312,54 @@ The SPEC Q1–Q9 register owns the complete prerequisites. Client delegation and
 **Tradeoff:** One capable tool-calling call typically costs two model calls (tool round + reply) and adds a little latency versus a single cheap classification; the model composes answers, so "answer only from tool results" must be enforced by instruction and bounded tool exposure. The server still owns validation, the draft pointer, and the confirmed route/ticket effect, so a wrong tool choice is bounded rather than dangerous.
 
 **Reconsider when:** Latency or cost proves unacceptable for the demo, or tool selection proves unreliable on the evaluation cases; then revisit managed delegation or a smaller tool set.
+
+## 24. Why spoken confirmation is sufficient for voice?
+
+**Status:** Accepted. **SPEC:** ADR-007; voice spec; WFL-003/004.
+
+**Why:** Voice is a phone-call metaphor: a caller who has just heard the collected details re-read back says "yes" and expects that to confirm the report. Requiring a separate on-screen tap after a spoken exchange breaks the metaphor and would stall a hands-free call. The `confirmReport` tool is server-owned and revision-bound — it confirms the current draft revision through the validated workflow, never a model-supplied boolean — so a spoken confirmation reaches the same authorized effect path as a screen click. The text channel keeps on-screen confirmation because its input surface is the screen itself. Both channels bind evidence to the draft ID/revision under WFL-003/004; neither a spoken nor an on-screen "yes" alone authorizes an effect — only the server's revision-bound confirmation of a permitted draft does.
+
+**Alternatives:** Require an on-screen tap for voice too (return `needs_confirmation`). This keeps a single visible gate but makes the voice channel depend on the screen and contradicts the phone-call metaphor Dror selected.
+
+**Tradeoff:** A spoken "yes" is subject to ASR error and paraphrase, so critical fields still need an explicit re-read before confirmation; this decision removes only the separate on-screen gate, not field-level confirmation. Voice-confirmed outcomes must also render in the visible panel so the screen never contradicts the spoken result.
+
+**Reconsider when:** Voice evidence shows spoken confirmations are unreliable for critical fields, or a safety review requires a screen tap for consequential actions; then return `needs_confirmation` for voice as well.
+
+## 25. Why in-process visitor sessions (long-lived backend, not serverless)?
+
+**Status:** Accepted. **SPEC:** Q2/Q8; infrastructure-runtime.
+
+**Why:** SPEC Q2 selects a single long-lived HTTPS Node runtime serving the UI and same-origin API, and §162 runs the built UI on a long-lived backend with managed Supabase. In that topology a process-local session map (active-draft pointer, per-visitor quota, write serialization) is correct and simplest; the durable authority for drafts, operations, and receipts already lives in Postgres. The 2026-09-18 audit flagged that a *serverless* multi-instance deployment would silently break session continuity and quotas; this decision keeps the long-lived backend so that risk does not apply.
+
+**Alternatives:** Persist the active-draft pointer and quota counters in Postgres so sessions survive restart and share across instances. Deferred until a serverless/multi-instance host is actually selected; it would otherwise add a session-state store and admission-cookie indirection for no current host.
+
+**Tradeoff:** A single long-lived process loses sessions on restart (a visitor must start a fresh conversation), which is acceptable for the reviewer demo; the durable draft/operation state is unaffected. A future serverless host must first persist sessions or scope to a single instance.
+
+**Reconsider when:** A serverless or multi-instance host is selected for D2; then persist the session state in Postgres before claiming the deployment.
+
+## 26. Why a 30-day retention horizon for caller data?
+
+**Status:** Accepted. **SPEC:** security/observability; ADR-013.
+
+**Why:** `observations.observed_text` (caller speech), conversations, drafts, and operations are the minimum state needed to run a conversation and reconcile a durable ticket. A demo retains them for reconciliation and review; unbounded retention is not needed and accumulates personal data. A 30-day horizon bounds exposure while keeping enough history to debug a failed ticket during the assignment.
+
+**Alternatives:** Retain forever (simplest, but unbounded PII), or purge immediately on close (loses reconciliation/debug context).
+
+**Tradeoff:** P0 has no scheduled purge job; the runtime role `app_runtime` cannot delete, so a `supabase/purge.sql` script run by an admin provides the manual path. Low volume makes a scheduled job unnecessary now.
+
+**Reconsider when:** Multi-city or higher volume, or a privacy review requires a shorter horizon or automatic purge.
+
+## 27. Why table grants instead of row-level security?
+
+**Status:** Accepted (documented trust boundary). **SPEC:** tool-integrations INT; security/observability.
+
+**Why:** The schema is single-tenant: the browser and Supabase Data API never touch it, and only the Node backend holds the `app_runtime` role, which is granted narrow table/column privileges and no delete. Row-level security would add per-row policies without changing the single-tenant access model. The audit confirmed this is a documented boundary, not an omission.
+
+**Alternatives:** Enable RLS with an `app_runtime` policy as defense-in-depth, bounding a leaked `app_runtime` credential to its own rows.
+
+**Tradeoff:** RLS would bound a leaked credential's blast radius but adds policy maintenance and a risk of accidentally denying the runtime. Deferred; a leaked `app_runtime` credential is already scoped by the narrow grants.
+
+**Reconsider when:** The schema becomes multi-tenant (shared tables across cities/customers), or a credential is exposed; then enable RLS with per-row policies.
 
 ## Keeping the rationale current
 
