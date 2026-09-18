@@ -25,6 +25,7 @@ const READY_OPERATION: TicketOperation = {
   location: "15th and Pine",
   description: "Large pothole in the driving lane",
   state: "ready",
+  startedAt: null,
   providerIssueId: null,
   providerIssueKey: null,
   providerTitle: null,
@@ -41,7 +42,11 @@ function operationFixture(initial: TicketOperation = READY_OPERATION) {
     authorize: async () => ({ status: "found", operation }),
     start: async () => {
       if (operation.state !== "ready") return { status: "found", operation };
-      operation = { ...operation, state: "attempting" };
+      operation = {
+        ...operation,
+        state: "attempting",
+        startedAt: "2026-09-17T00:00:00.000Z",
+      };
       return { status: "started", operation };
     },
     finish: async (_context, _id, outcome: TicketOperationOutcome) => {
@@ -355,5 +360,59 @@ describe("confirmed closed-hours ticket", () => {
     expect(result).toEqual({ status: "blocked", code: "revision_conflict" });
     expect(linear.createTicket).not.toHaveBeenCalled();
     expect(linear.readTicket).not.toHaveBeenCalled();
+  });
+
+  it("reports an in-flight attempt without creating again", async () => {
+    const operations = operationFixture({
+      ...READY_OPERATION,
+      state: "attempting",
+      startedAt: "2026-09-17T00:00:00.000Z",
+    });
+    const linear = providerFixture();
+
+    const result = await submitConfirmedTicket(
+      CONTEXT,
+      "draft-1",
+      2,
+      1,
+      operations.store,
+      linear.provider,
+      "Testville",
+      () => new Date("2026-09-17T00:00:30.000Z"),
+    );
+
+    expect(result).toMatchObject({
+      status: "ticket_uncertain",
+      reason: "operation_in_progress",
+    });
+    expect(linear.createTicket).not.toHaveBeenCalled();
+    expect(operations.current().state).toBe("attempting");
+  });
+
+  it("expires a stale interrupted attempt to an explicit uncertain result", async () => {
+    const operations = operationFixture({
+      ...READY_OPERATION,
+      state: "attempting",
+      startedAt: "2026-09-17T00:00:00.000Z",
+    });
+    const linear = providerFixture();
+
+    const result = await submitConfirmedTicket(
+      CONTEXT,
+      "draft-1",
+      2,
+      1,
+      operations.store,
+      linear.provider,
+      "Testville",
+      () => new Date("2026-09-17T00:05:00.000Z"),
+    );
+
+    expect(result).toMatchObject({
+      status: "ticket_uncertain",
+      reason: "attempt_expired",
+    });
+    expect(linear.createTicket).not.toHaveBeenCalled();
+    expect(operations.current().state).toBe("uncertain");
   });
 });

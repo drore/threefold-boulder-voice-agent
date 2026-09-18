@@ -38,6 +38,7 @@ type OperationRow = {
   location_text: string;
   description_text: string;
   state: TicketOperation["state"];
+  started_at: Date | null;
   provider_issue_id: string | null;
   provider_issue_key: string | null;
   provider_title: string | null;
@@ -191,7 +192,7 @@ export class PostgresTicketOperationStore implements TicketOperationStore {
     try {
       const updated = await this.pool.query<OperationRow>(
         `update app.ticket_operations as operation
-         set state = 'attempting', updated_at = now()
+         set state = 'attempting', started_at = now(), updated_at = now()
          from app.conversations as conversation
          where operation.id = $1 and operation.state = 'ready'
            and operation.conversation_id = conversation.id
@@ -315,6 +316,7 @@ function toOperation(row: OperationRow): TicketOperation {
     location: row.location_text,
     description: row.description_text,
     state: row.state,
+    startedAt: row.started_at?.toISOString() ?? null,
     providerIssueId: row.provider_issue_id,
     providerIssueKey: row.provider_issue_key,
     providerTitle: row.provider_title,

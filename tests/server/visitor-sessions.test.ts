@@ -239,7 +239,7 @@ describe("visitor admission and isolation", () => {
     });
     expect(foreignConfirm.json()).toMatchObject({
       status: "blocked",
-      code: "missing_draft",
+      code: "scope_mismatch",
     });
     expect(observations).toEqual(["conversation-1"]);
 

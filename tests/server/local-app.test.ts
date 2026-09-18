@@ -321,11 +321,11 @@ describe.skipIf(!localDatabaseUrl)("local report confirmation", () => {
     const noDraft = await app.inject({
       method: "POST",
       url: "/api/local/report/confirm",
-      payload: { draftId: "not-saved", revision: 1 },
+      payload: { draftId: "00000000-0000-0000-0000-000000000000", revision: 1 },
     });
     expect(noDraft.json()).toEqual({
       status: "blocked",
-      code: "missing_draft",
+      code: "scope_mismatch",
     });
 
     const draft = await saveReport(app);

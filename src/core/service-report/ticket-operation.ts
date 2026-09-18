@@ -18,6 +18,8 @@ export type TicketOperation = Readonly<{
   location: string;
   description: string;
   state: "ready" | "attempting" | "created" | "uncertain" | "rejected";
+  /** When the sole winning caller claimed the attempt, or null before claim. */
+  startedAt: string | null;
   providerIssueId: string | null;
   /** Linear's short human identifier for the caller, for example `DRO-5`. */
   providerIssueKey: string | null;
@@ -57,6 +59,49 @@ export type TicketOperationRead =
   | { status: "unavailable" };
 
 export type TicketOperationLookup = TicketOperationRead | { status: "missing" };
+
+/**
+ * Provider-neutral ticket port. Owned by core so the workflow depends on the
+ * contract, not on a concrete adapter's return types. A provider adapter
+ * implements this; the first one is Linear.
+ */
+export type TicketCreateInput = Readonly<{
+  title: string;
+  description: string;
+}>;
+
+export type TicketProviderTicket = Readonly<{
+  id: string;
+  identifier: string;
+  title: string;
+}>;
+
+export type TicketProviderSnapshot = Readonly<{
+  id: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  fetchedAt: string;
+}>;
+
+export type TicketCreateResult =
+  | { status: "created"; ticket: TicketProviderTicket }
+  | { status: "rejected"; reason: string }
+  | { status: "uncertain"; reason: string }
+  | { status: "unavailable"; reason: string };
+
+export type TicketReadResult =
+  | { status: "found"; ticket: TicketProviderSnapshot }
+  | { status: "not_found" }
+  | { status: "rejected"; reason: string }
+  | { status: "unavailable"; reason: string };
+
+export interface TicketProvider {
+  /** Input: prepared bounded ticket text. Output: a verified creation or honest failure. */
+  createTicket(input: TicketCreateInput): Promise<TicketCreateResult>;
+  /** Input: a recorded issue ID. Output: a timestamped snapshot or a classified miss. */
+  readTicket(issueId: string): Promise<TicketReadResult>;
+}
 
 /**
  * Atomic operation boundary: reserve one draft, claim one external attempt, and

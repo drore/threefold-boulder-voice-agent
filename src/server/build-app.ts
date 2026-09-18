@@ -588,7 +588,9 @@ export function buildLocalApp(
     draftId: string,
     revision: number,
   ): Promise<LocalConfirmResult> {
-    if (ticketing && session.currentDraft?.draftId === draftId) {
+    // A repeat confirm reads its durable operation even after a restart, so the
+    // confirmed draft is loadable from the request, not just the in-memory pointer.
+    if (ticketing) {
       const existing = await ticketing.operations.findByDraft(
         session.context,
         draftId,
@@ -603,6 +605,7 @@ export function buildLocalApp(
           ticketing.operations,
           ticketing.provider,
           city.displayName,
+          effectiveClock,
         );
       }
       if (existing.status === "unavailable") {
@@ -615,7 +618,7 @@ export function buildLocalApp(
         ? ({ status: "blocked", code: "revision_conflict" } as const)
         : await confirmServiceReport(
             session.context,
-            session.currentDraft?.draftId ?? null,
+            draftId,
             revision,
             store,
             policyStore,
@@ -631,6 +634,7 @@ export function buildLocalApp(
           ticketing.operations,
           ticketing.provider,
           city.displayName,
+          effectiveClock,
         )
       : { status: "ticket_path_unavailable", reason: "not_configured" };
   }

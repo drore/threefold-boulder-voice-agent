@@ -3,7 +3,6 @@
  * Turns a confirmed draft revision into one durable Linear create/readback
  * attempt, classifies created/uncertain/rejected, and never blind-retries.
  */
-import type { LinearTicketProvider } from "../../adapters/linear/linear-ticket-provider.js";
 import type {
   ReportContext,
   SupportedReportType,
@@ -12,12 +11,10 @@ import type {
   TicketOperation,
   TicketOperationOutcome,
   TicketOperationStore,
+  TicketProvider,
 } from "../../core/service-report/ticket-operation.js";
 
-export type TicketProvider = Pick<
-  LinearTicketProvider,
-  "createTicket" | "readTicket"
->;
+export type { TicketProvider } from "../../core/service-report/ticket-operation.js";
 
 export type ConfirmedTicketResult =
   | {
@@ -49,6 +46,14 @@ const TICKET_TITLES: Record<SupportedReportType, string> = {
 };
 
 /**
+ * How long a claimed attempt may sit in `attempting` before it is treated as
+ * interrupted. The create + readback path has ~8s provider timeouts, so a claim
+ * older than this window is stale and reconciles to uncertain rather than
+ * blocking the caller forever.
+ */
+const ATTEMPT_LEASE_MS = 60_000;
+
+/**
  * Creates at most one Linear issue for a confirmed closed-hours draft.
  * Input: draft ID/revision 2 and DB policy revision 1. Output: verified receipt or honest failure.
  */
@@ -60,6 +65,7 @@ export async function submitConfirmedTicket(
   operations: TicketOperationStore,
   provider: TicketProvider,
   cityName: string,
+  now: () => Date = () => new Date(),
 ): Promise<ConfirmedTicketResult> {
   const authorized = await operations.authorize(
     context,
@@ -86,6 +92,7 @@ export async function submitConfirmedTicket(
       claimed.operation,
       operations,
       provider,
+      now,
     );
   }
 
@@ -157,15 +164,19 @@ function ticketDescription(
 }
 
 /**
- * Re-reads an existing created issue without making another create call.
- * Input: recorded issue ID. Output: a fresh read flag or stored receipt limitation.
+ * Re-reads an existing operation instead of creating a second issue.
+ * Input: recorded operation. Output: fresh read, reconciliation, or honest failure.
  */
 async function describeExistingTicket(
   context: ReportContext,
   operation: TicketOperation,
   operations: TicketOperationStore,
   provider: TicketProvider,
+  now: () => Date,
 ): Promise<ConfirmedTicketResult> {
+  if (operation.state === "attempting") {
+    return describeAttemptingTicket(context, operation, operations, now);
+  }
   if (operation.state === "uncertain" && operation.providerIssueId) {
     const current = await provider.readTicket(operation.providerIssueId);
     if (
@@ -233,6 +244,43 @@ async function describeExistingTicket(
     fetchedAt: operation.providerFetchedAt,
     currentDetails: "unavailable",
   };
+}
+
+/**
+ * Handles an interrupted attempt. A fresh claim is still in flight; a stale one
+ * has no receipt and must not be blindly re-created, so it expires to an
+ * explicit uncertain result the caller can act on.
+ */
+async function describeAttemptingTicket(
+  context: ReportContext,
+  operation: TicketOperation,
+  operations: TicketOperationStore,
+  now: () => Date,
+): Promise<ConfirmedTicketResult> {
+  const startedAt = operation.startedAt
+    ? Date.parse(operation.startedAt)
+    : null;
+  const stale =
+    startedAt === null || now().getTime() - startedAt > ATTEMPT_LEASE_MS;
+  if (!stale) {
+    return {
+      status: "ticket_uncertain",
+      operationId: operation.operationId,
+      reason: "operation_in_progress",
+    };
+  }
+  const expired = await operations.finish(context, operation.operationId, {
+    state: "uncertain",
+    reason: "attempt_expired",
+  });
+  if (expired.status !== "found") {
+    return {
+      status: "ticket_uncertain",
+      operationId: operation.operationId,
+      reason: "operation_result_not_persisted",
+    };
+  }
+  return describeRecordedTicket(expired.operation);
 }
 
 /** Input: terminal operation row. Output: public created/uncertain/failed result. */
