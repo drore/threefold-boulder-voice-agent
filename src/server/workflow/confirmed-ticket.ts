@@ -13,6 +13,7 @@ import type {
   TicketOperationStore,
   TicketProvider,
 } from "../../core/service-report/ticket-operation.js";
+import { trace } from "../trace.js";
 
 export type { TicketProvider } from "../../core/service-report/ticket-operation.js";
 
@@ -287,6 +288,14 @@ async function describeAttemptingTicket(
 function describeRecordedTicket(
   operation: TicketOperation,
 ): ConfirmedTicketResult {
+  trace("ticket_outcome", {
+    operationId: operation.operationId,
+    requestType: operation.requestType,
+    state: operation.state,
+    ...(operation.providerIssueKey
+      ? { issueKey: operation.providerIssueKey }
+      : {}),
+  });
   if (
     operation.state === "created" &&
     operation.providerIssueId &&

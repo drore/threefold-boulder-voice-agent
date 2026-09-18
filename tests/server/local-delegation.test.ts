@@ -525,3 +525,124 @@ describe.skipIf(!databaseUrl)("frozen confirmed draft", () => {
     expect(createdTickets).toBe(1);
   });
 });
+
+describe.skipIf(!databaseUrl)("report type change", () => {
+  let pool: Pool;
+  let app: ReturnType<typeof buildLocalApp>;
+  let context: ReportContext;
+  const responses: Response[] = [
+    toolCall(
+      "prepareServiceReport",
+      {
+        requestType: "pothole",
+        location: "15th and Pine",
+        description: "deep pothole",
+      },
+      "call-type-1",
+    ),
+    message("Pothole saved."),
+    toolCall(
+      "prepareServiceReport",
+      {
+        requestType: "park_maintenance",
+        location: "North Boulder Park",
+        description: "broken swing",
+      },
+      "call-type-2",
+    ),
+    message("Park issue saved."),
+  ];
+
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: databaseUrl });
+    const store = new PostgresDraftStore(pool);
+    const opened = await store.openConversation("boulder-co");
+    if (opened.status !== "created") throw new Error("Local DB unavailable");
+    context = opened.context;
+    const request: typeof fetch = async () => {
+      const response = responses.shift();
+      if (!response) throw new Error("Unexpected model request");
+      return response;
+    };
+    const provider: TicketProvider = {
+      createTicket: async () => ({ status: "unavailable", reason: "unused" }),
+      readTicket: async () => ({ status: "not_found" }),
+    };
+    app = buildLocalApp(
+      store,
+      context,
+      new PostgresCityPolicyStore(pool),
+      cityRuntime(pool),
+      () => new Date("2026-09-16T16:00:00Z"),
+      { operations: new PostgresTicketOperationStore(pool), provider },
+      { apiKey: "synthetic-key", request },
+    );
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    if (context) {
+      await pool.query(
+        "delete from app.ticket_operations where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query(
+        "delete from app.request_drafts where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query(
+        "delete from app.observations where conversation_id = $1",
+        [context.conversationId],
+      );
+      await pool.query("delete from app.conversations where id = $1", [
+        context.conversationId,
+      ]);
+    }
+    await pool?.end();
+  });
+
+  it("starts a fresh draft when the caller changes the report type", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/local/delegation",
+      headers: { origin: LOCAL_ORIGIN },
+      payload: { utterance: "There is a deep pothole at 15th and Pine" },
+    });
+    expect(first.json()).toMatchObject({
+      status: "completed",
+      result: {
+        status: "needs_confirmation",
+        summary: { requestType: "pothole" },
+      },
+    });
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/local/delegation",
+      headers: { origin: LOCAL_ORIGIN },
+      payload: {
+        utterance: "Actually there is a broken swing at North Boulder Park",
+      },
+    });
+    expect(second.json()).toMatchObject({
+      status: "completed",
+      result: {
+        status: "needs_confirmation",
+        summary: {
+          requestType: "park_maintenance",
+          location: "North Boulder Park",
+        },
+      },
+    });
+
+    const drafts = await pool.query(
+      "select request_type from app.request_drafts where conversation_id = $1 order by revision",
+      [context.conversationId],
+    );
+    expect(drafts.rows.map((row) => row.request_type)).toEqual([
+      "pothole",
+      "park_maintenance",
+    ]);
+  });
+});

@@ -3,8 +3,8 @@ import type { TranscriptDelta } from "./live-voice.js";
 export type ReportDelegation = { id: string; draftId: string };
 
 const TRANSCRIPT_POLL_MS = 250;
-const QUIET_PERIOD_MS = 700;
-const TRANSCRIPT_WAIT_MS = 2_000;
+const QUIET_PERIOD_MS = 900;
+const TRANSCRIPT_WAIT_MS = 2_400;
 
 /** Input: caller fragments up to the delegation offset. Output: their text and the next unconsumed index. */
 export function collectCallerText(

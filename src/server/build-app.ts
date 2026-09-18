@@ -36,6 +36,7 @@ import type { LocalConfirmResult } from "./workflow/confirm-outcome.js";
 import { isLocalVoiceOrigin } from "./voice/live-session.js";
 import { createKnowledgeToolHandlers } from "./reasoning/knowledge-tools.js";
 import { runReasoningTurn } from "./reasoning/reasoning-turn.js";
+import { trace, traceResult } from "./trace.js";
 import {
   newVisitorSession,
   registerVisitorSessions,
@@ -318,11 +319,23 @@ export function buildLocalApp(
             typeof args.location === "string" ? args.location : undefined;
           const description =
             typeof args.description === "string" ? args.description : undefined;
-          const requestType =
+          const requestedType =
             args.requestType === "park_maintenance" ||
             args.requestType === "pothole"
               ? args.requestType
-              : (session.currentDraft?.requestType ?? "pothole");
+              : undefined;
+          // A draft's report type is fixed at creation. When the caller changes
+          // the type (for example a park issue after a pothole), start a fresh
+          // draft instead of failing every update against the old type.
+          if (
+            session.currentDraft &&
+            requestedType &&
+            requestedType !== session.currentDraft.requestType
+          ) {
+            session.currentDraft = null;
+          }
+          const requestType =
+            requestedType ?? session.currentDraft?.requestType ?? "pothole";
           const observedLocation =
             location && isSpokenSpan(utterance, location)
               ? location
@@ -406,11 +419,18 @@ export function buildLocalApp(
         }
       }
 
+      const runId = randomUUID();
+      const officeStatus = await currentOfficeStatus();
+      trace("reasoning_turn_start", {
+        runId,
+        officeStatus,
+        ...(activeDraft ? { activeDraftType: activeDraft.requestType } : {}),
+      });
       const turn = await runReasoningTurn({
         utterance,
         cityName: city.displayName,
         ...(activeDraft ? { activeDraft } : {}),
-        officeStatus: await currentOfficeStatus(),
+        officeStatus,
         ...(session.lastAssistantSpeech
           ? { previousReply: session.lastAssistantSpeech }
           : {}),
@@ -426,9 +446,21 @@ export function buildLocalApp(
         };
       }
       if (turn.status !== "completed") {
+        trace("reasoning_turn_end", { runId, turnStatus: turn.status });
         return reply.code(503).send({
           status: "unavailable",
           speech: "I could not check that request right now. Please try again.",
+        });
+      }
+      for (const call of turn.toolCalls) {
+        trace("tool_call", {
+          runId,
+          tool: call.name,
+          ...(call.name === "prepareServiceReport" &&
+          typeof call.arguments.requestType === "string"
+            ? { requestType: call.arguments.requestType }
+            : {}),
+          ...traceResult(call.result),
         });
       }
       session.lastAssistantSpeech = turn.speech;
