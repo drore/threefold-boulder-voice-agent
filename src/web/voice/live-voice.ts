@@ -7,6 +7,7 @@ const CLOSE_TIMEOUT_MS = 15_000;
 export type LiveVoiceStatus =
   | "connecting"
   | "ready"
+  | "reconnecting"
   | "closing"
   | "closed"
   | "disconnected";
@@ -119,8 +120,17 @@ export class LiveVoice {
         );
     });
     peer.addEventListener("connectionstatechange", () => {
-      if (peer.connectionState === "failed" && this.peer === peer) {
+      if (this.peer !== peer) return;
+      if (peer.connectionState === "failed") {
         this.cleanup("disconnected");
+        return;
+      }
+      if (peer.connectionState === "disconnected" && this.state === "ready") {
+        this.handlers.onStatus?.("reconnecting");
+        return;
+      }
+      if (peer.connectionState === "connected" && this.state === "ready") {
+        this.handlers.onStatus?.("ready");
       }
     });
 

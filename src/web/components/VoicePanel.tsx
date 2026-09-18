@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { AgentToolResult } from "../../server/reasoning/tool-definitions.js";
-import type { LocalConfirmResult } from "../../server/build-app.js";
+import type { LocalConfirmResult } from "../../server/workflow/confirm-outcome.js";
 import {
   LiveVoice,
   type LiveVoiceStatus,
@@ -25,6 +25,20 @@ type VoicePanelProps = {
 };
 
 const MAX_TRANSCRIPT_LENGTH = 1_500;
+
+const VOICE_STATUS_LABELS: Record<LiveVoiceStatus, string> = {
+  connecting: "Connecting to the voice assistant…",
+  ready: "Connected. You can speak.",
+  closing: "Ending the voice session…",
+  closed: "Voice is off.",
+  disconnected: "Voice connection lost.",
+  reconnecting: "Reconnecting to the voice assistant…",
+};
+
+/** Input: a fetch failure. Output: whether a superseding caller turn canceled it. */
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
 
 /** Input: a verified route or Linear outcome. Output: accurate spoken copy with demo limitations. */
 function speechForAction(action: LocalConfirmResult): string {
@@ -57,13 +71,12 @@ function speechForAction(action: LocalConfirmResult): string {
  */
 async function announceSimulatedTransfer(
   voice: LiveVoice,
-  delegationId: string,
   departmentName: string,
 ): Promise<void> {
   await playRingTone();
   try {
     voice.sendInstruction(
-      `For the next reply only, act as the ${departmentName} desk answering a transferred call: greet the caller and confirm the report was received in one short sentence. Do not mention being an AI, a demo, or a simulation.`,
+      `For the next reply only, act as the ${departmentName} desk answering a transferred call: greet the caller and confirm the report was received in one short sentence. Make clear this is a simulated routing in a demo.`,
     );
   } catch {
     // The spoken demo outcome that follows still reports the routing honestly.
@@ -113,14 +126,17 @@ export function VoicePanel({
   const announcedActionRef = useRef<LocalConfirmResult | null>(null);
   const sessionGenerationRef = useRef(0);
   const handledDelegationsRef = useRef(new Set<string>());
+  const activeFetchAbortRef = useRef<AbortController | null>(null);
   const [status, setStatus] = useState<LiveVoiceStatus>("closed");
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     return () => {
       const voice = voiceRef.current;
       voiceRef.current = null;
+      activeFetchAbortRef.current?.abort();
       if (voice) void voice.stop();
     };
   }, []);
@@ -140,19 +156,17 @@ export function VoicePanel({
     const activeVoice = voice;
     const delegationId = delegation.id;
     if (action.status === "simulated_route") {
-      void announceSimulatedTransfer(
-        activeVoice,
-        delegationId,
-        action.department.name,
-      ).then(() => {
-        try {
-          activeVoice.sendCommentary(delegationId, speechForAction(action));
-        } catch {
-          setError(
-            "The action is shown on screen, but the voice update could not be sent.",
-          );
-        }
-      });
+      void announceSimulatedTransfer(activeVoice, action.department.name).then(
+        () => {
+          try {
+            activeVoice.sendCommentary(delegationId, speechForAction(action));
+          } catch {
+            setError(
+              "The action is shown on screen, but the voice update could not be sent.",
+            );
+          }
+        },
+      );
       return;
     }
     try {
@@ -228,11 +242,16 @@ export function VoicePanel({
     }
     transcriptCursorRef.current = captured.nextCursor;
 
+    const controller = new AbortController();
+    activeFetchAbortRef.current?.abort();
+    activeFetchAbortRef.current = controller;
+    setChecking(true);
     try {
       const response = await fetch("/api/local/delegation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ utterance: captured.utterance }),
+        signal: controller.signal,
       });
       const result = (await response.json()) as DelegationResult;
       if (!response.ok || !result.speech) {
@@ -262,15 +281,12 @@ export function VoicePanel({
         result.status === "completed" &&
         result.result?.status === "simulated_route"
       ) {
-        await announceSimulatedTransfer(
-          voice,
-          id,
-          result.result.department.name,
-        );
+        await announceSimulatedTransfer(voice, result.result.department.name);
       }
       voice.sendCommentary(id, result.speech);
-    } catch {
+    } catch (error) {
       if (voiceRef.current !== voice) return;
+      if (isAbortError(error)) return;
       setError("The assistant could not check that request. Please try again.");
       try {
         voice.sendCommentary(
@@ -280,6 +296,11 @@ export function VoicePanel({
       } catch {
         // The voice session may already be closed; the visible error remains.
       }
+    } finally {
+      if (activeFetchAbortRef.current === controller) {
+        activeFetchAbortRef.current = null;
+      }
+      if (voiceRef.current === voice) setChecking(false);
     }
   }
 
@@ -289,6 +310,7 @@ export function VoicePanel({
     const generation = ++sessionGenerationRef.current;
     setError("");
     setTranscript("");
+    setChecking(false);
     transcriptRef.current = [];
     lastSpeakerRef.current = null;
     transcriptCursorRef.current = 0;
@@ -296,6 +318,8 @@ export function VoicePanel({
     reportDelegationRef.current = null;
     announcedActionRef.current = null;
     handledDelegationsRef.current.clear();
+    activeFetchAbortRef.current?.abort();
+    activeFetchAbortRef.current = null;
 
     const voice = new LiveVoice(audioRef.current, {
       onStatus: (nextStatus) => {
@@ -311,6 +335,9 @@ export function VoicePanel({
       onDelegation: ({ id, offsetMs }) => {
         if (handledDelegationsRef.current.has(id)) return;
         handledDelegationsRef.current.add(id);
+        // A new caller turn supersedes any in-flight round-trip so it is not
+        // serialized behind a stalled request.
+        activeFetchAbortRef.current?.abort();
         const reportEpoch = reportEpochRef.current;
         delegationQueueRef.current = delegationQueueRef.current.then(() =>
           handleDelegation(voice, id, offsetMs, reportEpoch),
@@ -336,6 +363,8 @@ export function VoicePanel({
     const voice = voiceRef.current;
     if (!voice) return;
     sessionGenerationRef.current += 1;
+    activeFetchAbortRef.current?.abort();
+    activeFetchAbortRef.current = null;
     const outcome = await voice.stop();
     if (voiceRef.current === voice) voiceRef.current = null;
     if (outcome === "unconfirmed") {
@@ -344,7 +373,10 @@ export function VoicePanel({
   }
 
   const active =
-    status === "connecting" || status === "ready" || status === "closing";
+    status === "connecting" ||
+    status === "ready" ||
+    status === "reconnecting" ||
+    status === "closing";
 
   return (
     <section className="report-card" aria-labelledby="voice-heading">
@@ -370,7 +402,8 @@ export function VoicePanel({
           End voice
         </button>
       </div>
-      <p role="status">Voice: {status}</p>
+      <p role="status">{VOICE_STATUS_LABELS[status]}</p>
+      {checking && <p role="status">Checking your request…</p>}
       {/* biome-ignore lint/a11y/useMediaCaption: Live audio has no caption file; the timed transcript is displayed below. */}
       <audio ref={audioRef} controls aria-label="Assistant audio" />
       {error && (

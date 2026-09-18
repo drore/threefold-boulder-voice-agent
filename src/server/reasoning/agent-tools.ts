@@ -11,7 +11,6 @@ import {
 } from "../../core/service-report/prepare-service-report.js";
 import {
   agentToolDefinitions,
-  type AgentSourceCard,
   type AgentToolContext,
   type AgentToolHandlers,
   type AgentToolResult,

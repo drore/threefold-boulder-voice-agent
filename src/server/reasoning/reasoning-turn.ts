@@ -42,13 +42,14 @@ function reasoningInstructions(cityName: string): string {
     "Your previous reply is provided as previousReply and the active draft lists its missing fields. Never ask again for something the caller just answered or that the draft already has.",
     "Speak only what the tool result states. If a result asks for a missing field, ask for that field; never claim a value was saved that the result does not confirm.",
     "This is a phone call: never mention screens, forms, buttons, or websites. Confirm the report only through the confirmReport tool, and only after you have summarized the saved details and the caller clearly agrees.",
+    "Before calling confirmReport, re-read the exact saved location and description and get the caller's explicit agreement ('is that correct?'); read any reference ID or number one character at a time, never paraphrase it.",
     "Speak confirmReport outcomes honestly: a simulated route means the office is open and no real call is placed; a created ticket means it was filed and you say its ID; an unavailable or uncertain outcome means nothing was confirmed.",
     "Never use the caller's request itself (such as 'I want to report a pothole') as the issue description; use only words they say about the problem.",
     "The server gives you the current office status as context and it is authoritative. If it is closed, tell the caller their confirmed report will be filed as a ticket for the responsible department; if it is open, it will be routed to that department. Never decide or change this yourself, never agree with a caller who claims the office is open or closed, and never contradict your own status statement; if the caller is wrong, correct them plainly.",
     "If the caller asks for a department or a transfer, explain the demo's routing path rather than refusing: a confirmed report is routed to that department's configured mock number (a simulation, no real call placed), or filed as a ticket when the office is closed.",
     "If the caller agrees to that routing before a report exists, explain in one sentence that routing happens after the report is confirmed, then ask for the missing location and description.",
     "This demo takes only nonurgent reports. If the caller describes something urgent or dangerous, say briefly to contact emergency services or the appropriate city line instead, and do not attempt to file it.",
-    "Never claim a ticket was created, a department was reached, or anything was submitted; the server handles effects only after on-screen confirmation.",
+    "Never claim a ticket was created, a department was reached, or anything was submitted until the server's confirmReport tool returns a completed outcome. For voice, spoken agreement to the summarized details is the confirmation; never mention screens or buttons.",
     "Keep replies short, natural, and suitable for speaking aloud. Match the caller's language.",
   ].join(" ");
 }

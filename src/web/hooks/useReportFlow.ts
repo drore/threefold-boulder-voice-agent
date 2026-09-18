@@ -9,7 +9,7 @@ import type {
   PrepareReportResult,
   SupportedReportType,
 } from "../../core/service-report/prepare-service-report.js";
-import type { LocalConfirmResult } from "../../server/build-app.js";
+import type { LocalConfirmResult } from "../../server/workflow/confirm-outcome.js";
 import {
   confirmReport,
   loadSavedReport,
@@ -168,6 +168,12 @@ export function useReportFlow() {
     setError(blockedMessage(code));
   }
 
+  /** Input: a voice-confirmed route/ticket outcome. Output: the panel shows the same notice as on-screen confirm. */
+  function acceptVoiceAction(nextAction: LocalConfirmResult) {
+    setAction(nextAction);
+    setActionDraftId(null);
+  }
+
   const missingFields =
     result?.status === "needs_input" ? result.fields.join(" and ") : "";
 
@@ -194,5 +200,6 @@ export function useReportFlow() {
     startAnother,
     acceptDraft,
     showBlocked,
+    acceptVoiceAction,
   };
 }

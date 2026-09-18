@@ -277,4 +277,24 @@ describe("LiveVoice", () => {
     expect(track.stop).toHaveBeenCalledOnce();
     expect(onStatus).toHaveBeenLastCalledWith("disconnected");
   });
+
+  it("surfaces a reconnecting status on a transient disconnect and recovers", async () => {
+    const audio = stubBrowser();
+    const onStatus = vi.fn();
+    const voice = new LiveVoice(audio, { onStatus });
+    await voice.start();
+    onStatus.mockClear();
+
+    FakePeer.latest.connectionState = "disconnected";
+    FakePeer.latest.dispatchEvent(new Event("connectionstatechange"));
+    expect(onStatus).toHaveBeenCalledWith("reconnecting");
+
+    FakePeer.latest.connectionState = "connected";
+    FakePeer.latest.dispatchEvent(new Event("connectionstatechange"));
+    expect(onStatus).toHaveBeenCalledWith("ready");
+
+    const stopped = voice.stop();
+    FakePeer.latest.channel.receive({ type: "session.closed" });
+    await expect(stopped).resolves.toBe("closed");
+  });
 });

@@ -3,10 +3,10 @@ import type { TranscriptDelta } from "./live-voice.js";
 export type ReportDelegation = { id: string; draftId: string };
 
 const TRANSCRIPT_POLL_MS = 250;
-const TRANSCRIPT_QUIET_MS = 500;
+const QUIET_PERIOD_MS = 700;
 const TRANSCRIPT_WAIT_MS = 2_000;
 
-/** Input: caller fragments before offset 500 ms. Output: their text and the next unconsumed index. */
+/** Input: caller fragments up to the delegation offset. Output: their text and the next unconsumed index. */
 export function collectCallerText(
   parts: readonly TranscriptDelta[],
   cursor: number,
@@ -20,7 +20,18 @@ export function collectCallerText(
     utterance += part.delta;
     nextCursor = index + 1;
   }
-  return { utterance: utterance.trim(), nextCursor };
+  if (utterance.trim().length > 0) {
+    return { utterance: utterance.trim(), nextCursor };
+  }
+  // A late-arriving final delta can start just after the delegation offset and
+  // be excluded above, leaving the turn empty. Fall back to the last caller
+  // fragment so the caller is not forced to repeat a completed turn.
+  for (let index = parts.length - 1; index >= cursor; index -= 1) {
+    const part = parts[index];
+    if (part?.speaker !== "caller") continue;
+    return { utterance: part.delta.trim(), nextCursor: index + 1 };
+  }
+  return { utterance: "", nextCursor };
 }
 
 /** Input: a caller transcript that changes while the current report resets. Output: null before that old turn is sent. */
@@ -43,7 +54,7 @@ export async function waitForCallerText(
       current.utterance && current.utterance === previous
         ? quietMs + TRANSCRIPT_POLL_MS
         : 0;
-    if (quietMs >= TRANSCRIPT_QUIET_MS) return current;
+    if (quietMs >= QUIET_PERIOD_MS) return current;
     previous = current.utterance;
   }
   return isCurrent() ? read() : null;

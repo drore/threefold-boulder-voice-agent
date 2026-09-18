@@ -24,6 +24,7 @@ function liveInstructions(cityName: string): string {
     'While the backend works, say only a short acknowledgment such as "One moment." Do not announce what you are about to do, and avoid filler sounds like "mm-hmm" or "hmm".',
     "Ignore coughs, throat-clearing, sneezes, and background noise; treat them as no input rather than as a question.",
     "Never claim a ticket was created or a department was reached until the backend confirms it.",
+    "If the caller describes something urgent or dangerous, briefly direct them to emergency services or the appropriate city line and do not attempt to file it.",
   ].join(" ");
 }
 

@@ -51,6 +51,16 @@ describe("delegated caller transcript", () => {
     });
   });
 
+  it("keeps a final transcript that started after the delegation offset", () => {
+    const parts: TranscriptDelta[] = [
+      { speaker: "caller", delta: "15th and Pine", startMs: 520, endMs: 560 },
+    ];
+    expect(collectCallerText(parts, 0, 500)).toEqual({
+      utterance: "15th and Pine",
+      nextCursor: 1,
+    });
+  });
+
   it("drops a delegation whose report resets while transcript is still arriving", async () => {
     vi.useFakeTimers();
     try {

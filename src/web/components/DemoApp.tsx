@@ -20,6 +20,20 @@ export function DemoApp() {
   const knowledge = useKnowledge();
   const scenario = useScenario();
 
+  useEffect(() => {
+    let active = true;
+    void fetchCityName()
+      .then((name) => {
+        if (active) setCityName(name);
+      })
+      .catch(() => {
+        // Non-critical: the header keeps its generic "City" label.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   /** Input: a verified voice-path result. Output: the matching panel reflects it. */
   function handleVoiceResult(result: AgentToolResult) {
     if (
@@ -34,6 +48,14 @@ export function DemoApp() {
       knowledge.show(result);
     } else if (result.status === "blocked") {
       report.showBlocked(result.code);
+    } else if (
+      result.status === "simulated_route" ||
+      result.status === "linear_ticket_created" ||
+      result.status === "ticket_uncertain" ||
+      result.status === "ticket_failed" ||
+      result.status === "ticket_path_unavailable"
+    ) {
+      report.acceptVoiceAction(result);
     }
   }
 
@@ -41,7 +63,7 @@ export function DemoApp() {
     <main className="page">
       <header className="page-header">
         <p className="eyebrow">Independent developer demo · City services</p>
-        <h1>City service demo</h1>
+        <h1>{cityName} service demo</h1>
         <p className="intro">
           Ask a reviewed city question or report a nonurgent pothole or park
           maintenance issue. Confirm the saved details to see the business-hours

@@ -8,7 +8,7 @@ import type {
   SupportedReportType,
 } from "../core/service-report/prepare-service-report.js";
 import type { AgentToolResult } from "../server/reasoning/tool-definitions.js";
-import type { LocalConfirmResult } from "../server/build-app.js";
+import type { LocalConfirmResult } from "../server/workflow/confirm-outcome.js";
 
 export type SavedReport = { status: "empty" } | PrepareReportResult;
 export type DemoScenario = "live" | "open" | "closed";
