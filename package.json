@@ -28,7 +28,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "eval:reasoning": "npm run build:server && node --env-file-if-exists=.env.dev scripts/eval-reasoning.mjs",
-    "eval:conversations": "node --env-file-if-exists=.env.dev scripts/eval-conversations.mjs"
+    "eval:conversations": "node --env-file-if-exists=.env.dev scripts/eval-conversations.mjs",
+    "eval:ui": "npm run build:server && promptfoo eval",
+    "eval:ui:view": "promptfoo view"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
@@ -37,6 +39,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "promptfoo": "0.123.1",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.1"

@@ -9,6 +9,7 @@ import {
   agentToolDefinitions,
   type AgentToolResult,
 } from "./tool-definitions.js";
+import { trace } from "../trace.js";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 export const REASONING_MODEL = "gpt-5.6-luna";
@@ -86,7 +87,7 @@ type OpenAiItem = Record<string, unknown>;
  * Input: a delegated utterance, the demo's tool executor, and the API key.
  * Output: a short grounded speech reply, or an explicit unavailable reason.
  */
-export async function runReasoningTurn(input: {
+export type RunReasoningTurnInput = Readonly<{
   utterance: string;
   cityName: string;
   activeDraft?: Readonly<{
@@ -103,7 +104,16 @@ export async function runReasoningTurn(input: {
   request?: typeof fetch;
   maxToolCalls?: number;
   model?: string;
-}): Promise<ReasoningTurnResult> {
+}>;
+
+/**
+ * Runs one tool-calling turn and returns the model's spoken reply plus the
+ * executed tool calls. The turn emits a `reasoning_turn` trace line with the
+ * model, outcome, and token usage so a run can be inspected after the fact.
+ */
+export async function runReasoningTurn(
+  input: RunReasoningTurnInput,
+): Promise<ReasoningTurnResult> {
   const request = input.request ?? fetch;
   const utterance = input.utterance.trim();
   if (utterance.length === 0 || utterance.length > MAX_UTTERANCE_LENGTH) {
@@ -112,7 +122,30 @@ export async function runReasoningTurn(input: {
   if (!input.apiKey) {
     return { status: "unavailable", reason: "openai_not_configured" };
   }
+  const apiKey = input.apiKey;
 
+  const model = input.model ?? REASONING_MODEL;
+  const usage = { input: 0, output: 0, total: 0 };
+  const result = await runToolLoop(input, apiKey, request, model, usage);
+  trace("reasoning_turn", {
+    model,
+    status: result.status,
+    usage,
+    ...(result.status === "completed"
+      ? { toolCount: result.toolCalls.length }
+      : { reason: result.reason }),
+  });
+  return result;
+}
+
+/** Input: a validated turn plus a token counter. Output: the bounded tool loop result. */
+async function runToolLoop(
+  input: RunReasoningTurnInput,
+  apiKey: string,
+  request: typeof fetch,
+  model: string,
+  usage: { input: number; output: number; total: number },
+): Promise<ReasoningTurnResult> {
   const toolCalls: ReasoningToolCall[] = [];
   const maxToolCalls = input.maxToolCalls ?? MAX_TOOL_CALLS;
   const conversation: OpenAiItem[] = [
@@ -123,7 +156,7 @@ export async function runReasoningTurn(input: {
     {
       role: "user",
       content: JSON.stringify({
-        utterance,
+        utterance: input.utterance,
         activeDraft: input.activeDraft ?? null,
         officeStatus: input.officeStatus ?? null,
         previousReply: input.previousReply ?? null,
@@ -132,13 +165,11 @@ export async function runReasoningTurn(input: {
   ];
 
   for (let round = 0; round <= MAX_TOOL_CALLS; round += 1) {
-    const response = await sendRequest(
-      request,
-      input.apiKey,
-      input.model ?? REASONING_MODEL,
-      conversation,
-    );
+    const response = await sendRequest(request, apiKey, model, conversation);
     if (response.status !== "completed") return response;
+    usage.input += response.usage.input;
+    usage.output += response.usage.output;
+    usage.total += response.usage.total;
 
     const functionCalls = response.output.filter(
       (item) => item.type === "function_call",
@@ -175,7 +206,11 @@ export async function runReasoningTurn(input: {
 }
 
 type SendResult =
-  | { status: "completed"; output: OpenAiItem[] }
+  | {
+      status: "completed";
+      output: OpenAiItem[];
+      usage: { input: number; output: number; total: number };
+    }
   | { status: "unavailable"; reason: ReasoningUnavailableReason };
 
 /** Input: the running conversation. Output: the model output items or a safe failure. */
@@ -234,9 +269,26 @@ async function sendRequest(
   if (!Array.isArray(body.output)) {
     return { status: "unavailable", reason: "invalid_response" };
   }
+  const usage = isRecord(body.usage)
+    ? {
+        input:
+          typeof body.usage.input_tokens === "number"
+            ? body.usage.input_tokens
+            : 0,
+        output:
+          typeof body.usage.output_tokens === "number"
+            ? body.usage.output_tokens
+            : 0,
+        total:
+          typeof body.usage.total_tokens === "number"
+            ? body.usage.total_tokens
+            : 0,
+      }
+    : { input: 0, output: 0, total: 0 };
   return {
     status: "completed",
     output: body.output.filter(isRecord),
+    usage,
   };
 }
 

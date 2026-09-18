@@ -1,0 +1,26 @@
+description: Reasoning tool-selection regression
+providers:
+  - file://./scripts/promptfoo-provider.mjs
+prompts:
+  - "{{utterance}}"
+tests:
+  - vars:
+      utterance: Can I bring a glass bottle to a Boulder park?
+    assert:
+      - type: equals
+        value: lookupMunicipalCode
+  - vars:
+      utterance: What City Council events are coming up?
+    assert:
+      - type: equals
+        value: findCityEvents
+  - vars:
+      utterance: There is a big pothole at 15th and Pine
+    assert:
+      - type: equals
+        value: prepareServiceReport
+  - vars:
+      utterance: How do I report a pothole?
+    assert:
+      - type: equals
+        value: lookupCityInformation

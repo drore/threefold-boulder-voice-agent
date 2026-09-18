@@ -55,3 +55,16 @@ tool arguments and the boundary rejected them (fixed in `areValidArguments`);
 the free-text event guard was narrowed so relative phrasing ("this week") is
 answered from the trusted window; report flows no longer demand dates. After the
 fixes, `events-question` and `specific-event-follow-up` pass 2/2.
+
+## Local eval UI (Promptfoo)
+
+A local web UI for the tool-selection regression matrix and model A/B:
+
+```sh
+npm run eval:ui        # builds the server and runs the matrix (paid model calls)
+npm run eval:ui:view   # opens http://localhost:15500 with the side-by-side results
+```
+
+The provider (`scripts/promptfoo-provider.mjs`) runs one reasoning turn per case and reports the chosen tool. `promptfooconfig.yaml` lists the cases and assertions. To compare models, set `PROMPTFOO_MODEL=<model>` (or add a second `file://` provider entry) and re-run; `promptfoo view` shows the pass/fail matrix side by side.
+
+This is dev-only tooling. The runtime turn/tool trace (including token usage) goes to stdout via `trace.ts` (`reasoning_turn`, `tool_call`, `ticket_outcome` lines); pipe the server log through `jq` for analysis. No tracing runs in production beyond that stdout output.
