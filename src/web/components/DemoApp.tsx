@@ -13,6 +13,7 @@ import { KnowledgePanel } from "./KnowledgePanel.js";
 import { ReportPanel } from "./ReportPanel.js";
 import { ScenarioControl } from "./ScenarioControl.js";
 import { VoicePanel } from "./VoicePanel.js";
+import { BrandHeader } from "./BrandHeader.js";
 
 export function DemoApp() {
   const [cityName, setCityName] = useState("City");
@@ -60,38 +61,40 @@ export function DemoApp() {
   }
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <p className="eyebrow">Independent developer demo · City services</p>
-        <h1>{cityName} service demo</h1>
-        <p className="intro">
-          Ask a reviewed city question or report a nonurgent pothole or park
-          maintenance issue. Confirm the saved details to see the business-hours
-          decision.
-        </p>
-        <p className="intro">
-          Use fictional report details. This demo stores drafts and may create a
-          synthetic issue in its dedicated Linear project.
-        </p>
-      </header>
-
-      <ScenarioControl scenario={scenario} />
-
-      <VoicePanel
-        onResult={handleVoiceResult}
-        action={report.action}
-        actionDraftId={report.actionDraftId}
-        reportEpochRef={report.reportEpochRef}
+    <>
+      <BrandHeader
+        title={`City of ${cityName}`}
+        right={<ScenarioControl scenario={scenario} />}
       />
+      <main className="page">
+        <section className="hero">
+          <h1>Ask a question or report an issue</h1>
+          <p className="intro">
+            Ask a reviewed city question, or report a nonurgent pothole or park
+            maintenance issue and confirm the saved details to see the
+            business-hours decision.
+          </p>
+          <p className="hero-note">
+            Use fictional details only · synthetic demo data
+          </p>
+        </section>
 
-      <ReportPanel flow={report} />
+        <VoicePanel
+          onResult={handleVoiceResult}
+          action={report.action}
+          actionDraftId={report.actionDraftId}
+          reportEpochRef={report.reportEpochRef}
+        />
 
-      <KnowledgePanel knowledge={knowledge} />
+        <ReportPanel flow={report} />
 
-      <p className="footer-note">
-        Local test interface. This page does not contact the city or submit a
-        service request.
-      </p>
-    </main>
+        <KnowledgePanel knowledge={knowledge} />
+
+        <p className="footer-note">
+          Local test interface. This page does not contact the city or submit a
+          service request.
+        </p>
+      </main>
+    </>
   );
 }

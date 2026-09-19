@@ -122,3 +122,16 @@ export async function selectDemoScenario(
   if (!response.ok) throw new Error("Could not set the demo scenario.");
   return (await response.json()) as { simulatedNow: string | null };
 }
+
+/** Input: none. Output: the demo clock the server currently applies, so the toggle resyncs after a reload. */
+export async function fetchDemoScenario(): Promise<{
+  scenario: DemoScenario;
+  simulatedNow: string | null;
+}> {
+  const response = await fetch("/api/local/scenario");
+  if (!response.ok) throw new Error("Could not read the demo scenario.");
+  return (await response.json()) as {
+    scenario: DemoScenario;
+    simulatedNow: string | null;
+  };
+}

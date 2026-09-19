@@ -12,6 +12,7 @@ import {
   waitForCallerText,
   type ReportDelegation,
 } from "../voice/voice-helpers.js";
+import { speechForAction, VOICE_STATUS_LABELS } from "../messages.js";
 
 type DelegationResult =
   | { status: "completed"; speech: string; result?: AgentToolResult }
@@ -26,42 +27,9 @@ type VoicePanelProps = {
 
 const MAX_TRANSCRIPT_LENGTH = 1_500;
 
-const VOICE_STATUS_LABELS: Record<LiveVoiceStatus, string> = {
-  connecting: "Connecting to the voice assistant…",
-  ready: "Connected. You can speak.",
-  closing: "Ending the voice session…",
-  closed: "Voice is off.",
-  disconnected: "Voice connection lost.",
-  reconnecting: "Reconnecting to the voice assistant…",
-};
-
 /** Input: a fetch failure. Output: whether a superseding caller turn canceled it. */
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
-}
-
-/** Input: a verified route or Linear outcome. Output: accurate spoken copy with demo limitations. */
-function speechForAction(action: LocalConfirmResult): string {
-  switch (action.status) {
-    case "simulated_route":
-      return `Since it's during business hours, this would go to ${action.department.name}. This is a demo, so no call is actually made.`;
-    case "linear_ticket_created": {
-      const reference = action.issueKey
-        ? ` Its reference is ${action.issueKey}.`
-        : "";
-      return action.currentDetails === "unavailable"
-        ? `I filed this as a test ticket in Linear, but I can't check its current status right now.${reference}`
-        : `I filed this as a test ticket in Linear and verified it.${reference}`;
-    }
-    case "ticket_path_unavailable":
-      return "The office is closed and the ticket system isn't set up right now, so nothing was filed.";
-    case "ticket_uncertain":
-      return `I'm not sure the ticket went through, so I won't file a second one. The reference is ${action.operationId}.`;
-    case "ticket_failed":
-      return "The ticket system rejected it, so nothing was filed.";
-    default:
-      return "I could not confirm that report. Please review the details on screen.";
-  }
 }
 
 /**
