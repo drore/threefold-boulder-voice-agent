@@ -626,8 +626,9 @@ export function buildLocalApp(
     draftId: string,
     revision: number,
   ): Promise<LocalConfirmResult> {
-    // A repeat confirm reads its durable operation even after a restart, so the
-    // confirmed draft is loadable from the request, not just the in-memory pointer.
+    // A repeat confirm reads its durable operation from the request body, not
+    // only the in-memory pointer (which a restart loses; a returning browser
+    // then starts a fresh session).
     if (ticketing) {
       const existing = await ticketing.operations.findByDraft(
         session.context,

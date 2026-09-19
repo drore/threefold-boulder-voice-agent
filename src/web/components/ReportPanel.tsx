@@ -61,7 +61,11 @@ export function ReportPanel({ flow }: { flow: ReportFlow }) {
                 <dd>{result.summary.location}</dd>
               </div>
             </dl>
-            <p>No service request has been submitted to the city.</p>
+            <p>
+              Nothing is submitted to the city. Confirming checks the office
+              hours: it shows a simulated department route, or files a synthetic
+              ticket in this demo&apos;s own Linear project after hours.
+            </p>
             <button
               type="button"
               disabled={flow.confirming || flow.saving || action !== null}

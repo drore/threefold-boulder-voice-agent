@@ -220,6 +220,46 @@ describe("LiveVoice", () => {
     ]);
   });
 
+  it("splits a long spoken answer on sentence boundaries within the append limit", async () => {
+    const audio = stubBrowser();
+    const voice = new LiveVoice(audio, {
+      onTranscript: vi.fn(),
+      onDelegation: vi.fn(),
+      onStatus: vi.fn(),
+    });
+    await voice.start();
+    const channel = FakePeer.latest.channel;
+    channel.receive({
+      type: "session.delegation.created",
+      offset_ms: 1,
+      delegation: { id: "item_123", target: "client" },
+    });
+    const sentence = "This is a complete sentence about the city service. ";
+    const long = sentence.repeat(30).trim();
+
+    voice.sendCommentary("item_123", long);
+
+    const appends = channel.sent.filter(
+      (event): event is { type: string; content: string } =>
+        typeof event === "object" &&
+        event !== null &&
+        (event as { type?: unknown }).type === "session.commentary.append",
+    );
+    expect(appends.length).toBeGreaterThan(1);
+    for (const append of appends) {
+      expect(append.content.length).toBeLessThanOrEqual(1200);
+    }
+    for (const append of appends.slice(0, -1)) {
+      expect(append.content.trimEnd().endsWith(".")).toBe(true);
+    }
+    const rejoined = appends
+      .map((append) => append.content)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(rejoined).toBe(long.replace(/\s+/g, " ").trim());
+  });
+
   it("stops a pending microphone request without creating an external session", async () => {
     const audio = stubBrowser();
     let resolveMicrophone!: (stream: typeof microphone) => void;

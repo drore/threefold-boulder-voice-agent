@@ -373,7 +373,12 @@ export function VoicePanel({
       <p role="status">{VOICE_STATUS_LABELS[status]}</p>
       {checking && <p role="status">Checking your request…</p>}
       {/* biome-ignore lint/a11y/useMediaCaption: Live audio has no caption file; the timed transcript is displayed below. */}
-      <audio ref={audioRef} controls aria-label="Assistant audio" />
+      <audio
+        ref={audioRef}
+        controls
+        aria-label="Assistant audio"
+        className={status === "closed" ? "audio-idle" : undefined}
+      />
       {error && (
         <p className="error" role="alert">
           {error}

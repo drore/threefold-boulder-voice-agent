@@ -374,6 +374,10 @@ audio {
   margin-top: 0.35rem;
 }
 
+.audio-idle {
+  display: none;
+}
+
 .voice-transcript {
   margin: 0.9rem 0 0;
   padding: 0.85rem;

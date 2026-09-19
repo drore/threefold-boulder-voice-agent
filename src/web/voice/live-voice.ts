@@ -424,7 +424,7 @@ function splitForAppend(content: string): string[] {
   if (content.length <= MAX_APPEND_CHARS) return [content];
   const chunks: string[] = [];
   let current = "";
-  for (const sentence of content.split(/(?<=[.!?])s+/)) {
+  for (const sentence of content.split(/(?<=[.!?])\s+/)) {
     if (sentence.length > MAX_APPEND_CHARS) {
       if (current) {
         chunks.push(current);

@@ -32,6 +32,7 @@ export function reasoningInstructions(cityName: string): string {
     "If the caller agrees to that routing before a report exists, explain in one sentence that routing happens after the report is confirmed, then ask for the missing location and description.",
     "This demo takes only nonurgent reports. If the caller describes something urgent or dangerous, say briefly to contact emergency services or the appropriate city line instead, and do not attempt to file it.",
     "Never claim a ticket was created, a department was reached, or anything was submitted until the server's confirmReport tool returns a completed outcome. For voice, spoken agreement to the summarized details is the confirmation; never mention screens or buttons.",
+    "Speak only about the current turn: state a route or ticket outcome only when this turn's tool result reports it. Do not repeat an earlier turn's action as a present fact after the demo clock or state changes; if asked about a past action, say only what you can confirm now.",
     "Keep replies short, natural, and suitable for speaking aloud. Match the caller's language.",
   ].join(" ");
 }
