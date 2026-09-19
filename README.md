@@ -2,6 +2,10 @@
 
 A municipal voice agent for Boulder, Colorado — the Threefold developer-task take-home. A caller can ask a few reviewed questions (municipal code, service guidance, live events) or report a pothole / park-maintenance issue; the server collects and confirms the details against DB-backed Boulder hours, then routes to a simulated department during office hours or files a real Linear demo ticket after hours.
 
+## Try it online
+
+Live reviewer demo: **https://threefold-boulder-agent.onrender.com** — enter the access code supplied with the submission, then click **Start voice** (microphone required). The free instance sleeps after ~15 minutes idle, so the first load can take ~50s. It is an independent developer demo, not an official city service.
+
 ## System
 
 ```mermaid
@@ -61,6 +65,10 @@ The browser speaks to GPT-Live over WebRTC — audio plus a client-delegation si
 - **Test-driven (TDD).** Each slice defines its acceptance/failure cases and a failing test before the implementation; bug fixes keep a regression case.
 - **Engineering loop.** Run → evaluate with an independent harness (not the implementer) → fix → re-run. The `eval:` scripts and the promptfoo matrix make model quality measurable rather than assumed.
 
+## Development history
+
+`main` preserves the **full, incremental development record** — the real sequence of commits from the initial toolchain through the architecture audit and the deployed reviewer build, including corrections, refactors, and dead ends. That is deliberate: I wanted a reviewer to see *how* the system was built and why, not just the final tree. Read the commit sequence alongside [`DECISIONS.md`](DECISIONS.md) (rationale and alternatives) and [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) (milestones, checks, and evidence) for the process record.
+
 ## Run locally
 
 Requires Node 24.21.0, Docker, and the Supabase CLI.
@@ -72,7 +80,7 @@ supabase db start && supabase migration up --local
 npm run dev                         # API :3001, UI :5173
 ```
 
-Open http://127.0.0.1:5173. For voice, add `OPENAI_API_KEY` to `.env.dev` and click **Start voice**. The **Demo time** toggle flips the office open/closed so both the route and ticket paths can be seen. Use fictional report details.
+Open http://127.0.0.1:5173. For voice, add `OPENAI_API_KEY` to `.env.dev` and click **Start voice**. The **Demo clock** toggle in the header flips the office open/closed so both the route and ticket paths can be seen. Use fictional report details.
 
 ## Test
 

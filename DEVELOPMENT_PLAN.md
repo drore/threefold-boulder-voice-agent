@@ -15,7 +15,7 @@ P0 delivers one browser voice journey for Boulder, one actual municipal-code ans
 
 P0 also includes required-field confirmation, session-scoped access, safe one-operation handling, a readable correlation ID across the action path, and small provider boundaries. Each serves the demonstrated path; broader resilience and telemetry work can follow if needed.
 
-This is an interview exercise with a suggested 4–6-hour time box, not a municipal product build. The milestone tasks below are a risk/acceptance checklist, not a request to implement every possible resilience mechanism. Choose the smallest working implementation that proves the six capabilities: one city, two supported staff intents, one voice screen, one real Linear demo destination, a small reviewed information/events corpus, DB-backed hours, and a compact test/evaluation set. Do not spend time on a general configuration framework, provider plugin system, analytics product, staff UI, or production telephony. Where a basic path is still missing, prioritize that path over deeper hardening. If the target cannot be met, ship the strongest working subset and describe the cut accurately.
+This is an interview exercise, not a municipal product build. The milestone tasks below are a risk/acceptance checklist, not a request to implement every possible resilience mechanism. Choose the smallest working implementation that proves the six capabilities: one city, two supported staff intents, one voice screen, one real Linear demo destination, a small reviewed information/events corpus, DB-backed hours, and a compact test/evaluation set. Do not spend time on a general configuration framework, provider plugin system, analytics product, staff UI, or production telephony. Where a basic path is still missing, prioritize that path over deeper hardening. If the target cannot be met, ship the strongest working subset and describe the cut accurately.
 
 Engineering quality follows SPEC ADR-013: simple human-readable code, clear naming/control flow, single responsibility at useful boundaries, small cohesive modules, minimal dependencies, and DRY for shared rules/contracts/workflows. Every slice reviews these criteria; abstractions need actual reuse or a useful external boundary. Do not trade clarity for cleverness or compress code merely to reduce line count.
 
@@ -49,11 +49,11 @@ Provider identity/access and costs are finite prerequisites, not open architectu
 
 ## 3. Implementation sequence
 
-Estimates are provisional focused engineering effort, excluding this planning conversation, guided review, account access delays, and provider surprises. The earlier 12–20-hour P0 estimate exposed an overbroad implementation plan relative to Threefold's 4–6-hour exercise. Treat the times below as warnings about scope, not a budget to consume. Prefer a working, explainable demonstration and honest cuts over completing every listed subtask. Report actual effort. The desired 48-hour elapsed window is not reset by this plan.
+The estimates below are warnings about scope, not a budget to consume. Prefer a working, explainable demonstration and honest cuts over completing every listed subtask.
 
 The local report, sourced-answer, and voice-API slices are implemented. The remaining sequence is spoken browser proof (M1), live Linear proof (M3), integrated acceptance/security checks (M5), then delivery (M6/M7). Milestone numbers preserve the original planning references; they are not execution priority. The detailed failure lists below are review prompts. Implement only cases that protect the demonstrated behavior, and record any deferred cases in the final writeup rather than expanding the take-home into a platform.
 
-### M0 — foundation and operational shape (0.5–1.5 hours)
+### M0 — foundation and operational shape
 
 Dependencies: G0.
 
@@ -68,7 +68,7 @@ Exit evidence: offline foundation checks pass; core cannot import provider SDKs;
 
 Coherent commits: `build: establish TypeScript application and offline checks`; `feat: define validated contracts and session composition`. Commit tests/docs with the behavior they verify.
 
-### M1 — highest-risk feasibility (1.5–3 hours)
+### M1 — highest-risk feasibility
 
 Dependencies: M0; approved bounded voice API use for real checks.
 
@@ -83,7 +83,7 @@ Exit evidence G1: recorded actual voice/backend round trip and real code corpus 
 
 Commits: `feat: connect browser voice to a controlled backend`; `data: add reviewed code and website evidence with provenance`. Include recorded limitations and refresh instructions.
 
-### M2 — core workflow and durable state (2–3 hours)
+### M2 — core workflow and durable state
 
 Dependencies: M0/G1; local Supabase prerequisites for real DB checks. Cloud project provisioning belongs to release preparation.
 
@@ -101,7 +101,7 @@ Exit evidence: offline policy/state tests plus isolated DB concurrency/access ch
 
 Commits: `feat: enforce DB-backed business-hours decisions`; `feat: persist revision-bound intake and operation state`; `test: verify concurrent authorization and persistence failure behavior` (tests may accompany behavior instead of a separate commit).
 
-### M3 — complete pothole report and action adapters (2–3 hours)
+### M3 — complete pothole report and action adapters
 
 Dependencies: M1/M2/G2, approved Linear demo team.
 
@@ -119,7 +119,7 @@ Exit evidence: one complete spoken J1 with real demo receipt and one open-hours 
 
 Commits: `feat: create and reconcile Linear demo tickets`; `feat: simulate department routing with explicit outcomes`; `feat: complete confirmed pothole voice workflow`.
 
-### M4 — remaining assignment coverage (2–3 hours)
+### M4 — remaining assignment coverage
 
 Dependencies: M2/M3; M1 code sample.
 
@@ -133,7 +133,7 @@ Exit evidence: R1 website/code separation, R2 current dated sources, R4 two corr
 
 Commits: `feat: reuse intake workflow for park maintenance`; `feat: answer supported municipal questions with evidence`; `feat: serve fresh official city news and events`.
 
-### M5 — integrated evaluation and demo polish (1.5–3 hours)
+### M5 — integrated evaluation and demo polish
 
 Dependencies: M1–M4.
 
@@ -147,7 +147,7 @@ Exit evidence: no observed unauthorized/unconfirmed/duplicate mutation or false 
 
 Commit: `test: add reproducible model and voice acceptance evaluations`; focused fixes committed with their regression cases. Avoid tests that simply repeat implementation structure.
 
-### M6 — reviewer deployment and final verification (1–2 hours plus external setup)
+### M6 — reviewer deployment and final verification
 
 Dependencies: M5, G3 external approvals/resources.
 
@@ -161,7 +161,7 @@ Exit evidence: D1/D2 plus deployed V0/R1–R5 evidence, distinct from local/CI p
 
 Commit: `ops: document and verify reviewer deployment` including safe configuration references/build version, no credentials or raw caller data.
 
-### M7 — submission and debugging rehearsal (0.5–1.5 hours)
+### M7 — submission and debugging rehearsal
 
 Dependencies: M6/G4.
 
@@ -252,7 +252,7 @@ The first package scripts and exact Node version are in README/package.json; M0 
 ## 7. Time and risk controls
 
 - End M1 before investing heavily in app integrations. Voice access and actual code acquisition are highest-risk assumptions.
-- At M3, reassess remaining elapsed window with a complete resident report, not just separate components.
+- At M3, reassess progress with a complete resident report, not just separate components.
 - Reserve final effort for deployment, fresh reviewer access, evidence, writeup, and rehearsal. These are mandatory delivery work.
 - If effort exceeds assumptions, keep P1 deferred and narrow topic depth within accepted P0 before cutting a capability. If a capability still cannot be completed, bring Dror the working evidence and proposed honest cut; do not claim a stub or bypass safety.
 - Do not expand retrieval frameworks, full authentication products, vector infrastructure, background orchestration, or shadow UI without a concrete requirement.

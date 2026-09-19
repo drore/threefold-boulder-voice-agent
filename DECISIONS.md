@@ -245,13 +245,13 @@ The first core slice uses native `Date` and `Intl` for trusted instants and Boul
 
 **Status:** Accepted. **SPEC:** ADR-012, ADR-017; P0/P1/P2.
 
-**Why:** Authentic coherent commits show how the system grew and make review/regression diagnosis practical. A behavior, its tests, and its SPEC changes travel together in a usable milestone snapshot. Threefold describes a small task with a 4–6-hour time box and permits partial completion, so evidence of a working reviewer path has higher value than platform breadth. Completing assignment evidence before optional tone, representative view, ticket-always execution, or shadow runners protects the delivery target.
+**Why:** Authentic coherent commits show how the system grew and make review/regression diagnosis practical. A behavior, its tests, and its SPEC changes travel together in a usable milestone snapshot. Threefold permits partial completion, so evidence of a working reviewer path has higher value than platform breadth. Completing assignment evidence before optional tone, representative view, ticket-always execution, or shadow runners protects the review path.
 
 **Alternatives:** A single final dump loses useful progression. Mechanical tiny commits can leave broken intermediate states. Mixing feature/refactor/dependency changes makes diagnosis and rollback harder. Building every discussed extension threatens mandatory deployment/evaluation/writeup work.
 
-**Tradeoff:** Commit boundaries need judgment and snapshot validation, especially with partial staging. Git revert does not undo a Linear ticket or database effects. A provisional effort estimate is not a guarantee that the elapsed delivery window is still available.
+**Tradeoff:** Commit boundaries need judgment and snapshot validation, especially with partial staging. Git revert does not undo a Linear ticket or database effects.
 
-**Reconsider when:** Two changes cannot safely stand alone, or implementation evidence changes sequencing. Keep meaningful history and report actual effort/limitations. Use the development plan's commit/recovery rules.
+**Reconsider when:** Two changes cannot safely stand alone, or implementation evidence changes sequencing. Keep meaningful history and report limitations. Use the development plan's commit/recovery rules.
 
 ## Decisions still open
 
