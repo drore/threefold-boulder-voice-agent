@@ -56,7 +56,7 @@ describe.skipIf(!localDatabaseUrl)(
       context: ReportContext,
       text: string,
     ): Promise<string> {
-      const result = await store.recordObservation(context, "text", text);
+      const result = await store.recordObservation(context, "text", text, null);
       if (result.status !== "recorded")
         throw new Error("Observation not saved");
       return result.observationId;
@@ -193,6 +193,7 @@ describe.skipIf(!localDatabaseUrl)(
           { ...context, admissionId: other.admissionId },
           "text",
           "Wrong scope",
+          null,
         ),
       ).toEqual({ status: "denied" });
       expect(

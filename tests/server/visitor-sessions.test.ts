@@ -19,7 +19,12 @@ function makeStore() {
   const drafts = new Map<string, ReportDraft>();
   const observations: string[] = [];
   const store = {
-    async recordObservation(context: ReportContext) {
+    async recordObservation(
+      context: ReportContext,
+      _channel: "voice" | "text",
+      _text: string,
+      _runId: string | null,
+    ) {
       observations.push(context.conversationId);
       return { status: "recorded" as const, observationId: randomUUID() };
     },

@@ -77,11 +77,13 @@ describe.skipIf(!localDatabaseUrl)(
         context,
         "text",
         locationText,
+        null,
       );
       const description = await drafts.recordObservation(
         context,
         "text",
         descriptionText,
+        null,
       );
       if (location.status !== "recorded" || description.status !== "recorded") {
         throw new Error("Local observation unavailable");
@@ -244,6 +246,7 @@ describe.skipIf(!localDatabaseUrl)(
         context,
         "text",
         "15th and Pearl",
+        null,
       );
       const current = await drafts.load(context, draftId);
       if (
@@ -280,6 +283,7 @@ describe.skipIf(!localDatabaseUrl)(
         context,
         "text",
         "Corrected location: 15th and Pearl",
+        null,
       );
       if (
         current.status !== "found" ||

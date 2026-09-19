@@ -67,6 +67,7 @@ export class PostgresDraftStore implements DraftStore {
     context: ReportContext,
     channel: "voice" | "text",
     observedText: string,
+    runId: string | null,
   ): Promise<
     | { status: "recorded"; observationId: string }
     | { status: "invalid_input" | "denied" | "unavailable" }
@@ -82,8 +83,8 @@ export class PostgresDraftStore implements DraftStore {
     const observationId = randomUUID();
     try {
       const result = await this.pool.query<{ id: string }>(
-        `insert into app.observations (id, conversation_id, channel, observed_text)
-         select $4, id, $5, $6
+        `insert into app.observations (id, conversation_id, channel, observed_text, run_id)
+         select $4, id, $5, $6, $7
          from app.conversations
          where id = $1 and city_id = $2 and admission_id = $3
          returning id`,
@@ -94,6 +95,7 @@ export class PostgresDraftStore implements DraftStore {
           observationId,
           channel,
           observedText,
+          runId,
         ],
       );
       return result.rowCount === 1

@@ -37,6 +37,7 @@ import { isLocalVoiceOrigin } from "./voice/live-session.js";
 import { createKnowledgeToolHandlers } from "./reasoning/knowledge-tools.js";
 import { runReasoningTurn } from "./reasoning/reasoning-turn.js";
 import { trace, traceResult } from "./trace.js";
+import { SERVER_SPEECH } from "./messages.js";
 import {
   newVisitorSession,
   registerVisitorSessions,
@@ -80,9 +81,6 @@ type KnowledgeBody = {
 export type { LocalConfirmResult } from "./workflow/confirm-outcome.js";
 
 const MAX_LOCAL_DELEGATIONS = 20;
-const SUPERSEDED_REPORT_SPEECH =
-  "A new report was started. Please repeat your request.";
-
 /**
  * Fixed clock fixtures for the demo scenario toggle. The interviewer can flip
  * between a real open-hours and closed-hours time so both the route and ticket
@@ -120,6 +118,7 @@ export function buildLocalApp(
     logger: false,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
+  let demoScenario: DemoScenario = "live";
   let scenarioClock: Date | undefined;
   const effectiveClock = () => scenarioClock ?? clock();
   const eventsProvider = events ?? unavailableEvents;
@@ -194,6 +193,11 @@ export function buildLocalApp(
    * experience both the open-hours route and the closed-hours ticket path in
    * one session. `live` restores the real clock. Server-owned, never caller-set.
    */
+  app.get("/api/local/scenario", () => ({
+    scenario: demoScenario,
+    simulatedNow:
+      scenarioClock === undefined ? null : scenarioClock.toISOString(),
+  }));
   app.post<{ Body: { scenario: DemoScenario } }>(
     "/api/local/scenario",
     {
@@ -210,6 +214,7 @@ export function buildLocalApp(
     },
     (request) => {
       const { scenario } = request.body;
+      demoScenario = scenario;
       scenarioClock =
         scenario === "live" ? undefined : SCENARIO_CLOCKS[scenario];
       return {
@@ -238,38 +243,38 @@ export function buildLocalApp(
       if (!access && !isLocalVoiceOrigin(request.headers.origin)) {
         return reply.code(403).send({
           status: "unavailable",
-          speech: "Voice access is unavailable.",
+          speech: SERVER_SPEECH.voiceAccessUnavailable,
         });
       }
       const session = sessionFor(request);
       if (session.delegationCount >= MAX_LOCAL_DELEGATIONS) {
         return reply.code(429).send({
           status: "unavailable",
-          speech:
-            "I've reached my limit for this session — please try again in a little while.",
+          speech: SERVER_SPEECH.sessionLimitReached,
         });
       }
       session.delegationCount += 1;
       const generation = session.reportGeneration;
+      const runId = randomUUID();
 
       const utterance = request.body.utterance.trim();
       const observation = await store.recordObservation(
         session.context,
         "voice",
         utterance,
+        runId,
       );
       if (observation.status !== "recorded") {
         return reply.code(503).send({
           status: "unavailable",
-          speech:
-            "I could not save this conversation turn, so I cannot continue that request.",
+          speech: SERVER_SPEECH.turnNotSaved,
         });
       }
       const observationId = observation.observationId;
       if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
-          speech: SUPERSEDED_REPORT_SPEECH,
+          speech: SERVER_SPEECH.supersededReport,
         };
       }
 
@@ -419,7 +424,6 @@ export function buildLocalApp(
         }
       }
 
-      const runId = randomUUID();
       const officeStatus = await currentOfficeStatus();
       trace("reasoning_turn_start", {
         runId,
@@ -442,14 +446,14 @@ export function buildLocalApp(
       if (generation !== session.reportGeneration) {
         return {
           status: "unavailable",
-          speech: SUPERSEDED_REPORT_SPEECH,
+          speech: SERVER_SPEECH.supersededReport,
         };
       }
       if (turn.status !== "completed") {
         trace("reasoning_turn_end", { runId, turnStatus: turn.status });
         return reply.code(503).send({
           status: "unavailable",
-          speech: "I could not check that request right now. Please try again.",
+          speech: SERVER_SPEECH.checkUnavailable,
         });
       }
       for (const call of turn.toolCalls) {
@@ -559,6 +563,7 @@ export function buildLocalApp(
         location?: string;
       } = {};
       const observationIds: string[] = [];
+      const runId = randomUUID();
       for (const field of ["description", "location"] as const) {
         const text = request.body[field];
         if (text === undefined) continue;
@@ -566,6 +571,7 @@ export function buildLocalApp(
           session.context,
           "text",
           text,
+          runId,
         );
         if (recorded.status !== "recorded") {
           const code =
