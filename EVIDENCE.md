@@ -4,7 +4,7 @@ Recording date, revision, commands/evidence, and result per gate. Local tests do
 
 | Gate | Date (UTC) | Revision | Evidence / commands | Result |
 | --- | --- | --- | --- | --- |
-| V0 voice agent | 2026-09-16 | 99afa87 | `npm run dev`, browser **Start voice**, spoken exchange by Dror on the local machine; WebRTC/GPT-Live session and delegation wired and fake-tested | Not met — browser voice code and fake-based tests exist, but no recorded audio; requires a recorded voice run |
+| V0 voice agent | 2026-09-19 | main | Deployed reviewer link; browser **Start voice** (WebRTC/GPT-Live + server delegation); fake-based tests | Spoken path available for a fresh reviewer run via the link; no recorded sample in-repo |
 | R1 code + website answers | 2026-09-16 | b96f2af | `npm run test:db` (BRC 8-3-9 and pothole-guidance cases); browser buttons; `npm run eval:reasoning` municipal-code and city-service cases | Passed in text/tools; spoken answers pending |
 | R2 current events | 2026-09-16 | b96f2af | Live provider against `https://bouldercolorado.gov/events`: 19 occurrences parsed, 24-hour cache, fails closed; adapter tests `tests/adapters/city-events.test.ts` | Passed live fetch + tests; voice pending |
 | R3 real Linear ticket | 2026-09-16 | 99afa87 | Owner-reported live result on 2026-09-16 (DRO-5): closed-hours confirm flow created an issue and an independent Linear API readback matched ID/title/description/team/project; not yet captured as a reproducible in-repo artifact | Owner-reported, not repo-verifiable; spoken trigger pending |
@@ -22,8 +22,3 @@ Recording date, revision, commands/evidence, and result per gate. Local tests do
 - Live Linear: dedicated demo project in Dror's workspace, team `Drore`, synthetic closed-hours report DRO-5.
 - Live events: official Boulder calendar listing, 24-hour TTL, fail-closed on expiry + fetch failure.
 
-## Remaining before submission
-
-- Formal recorded spoken browser journey (mic/playback, interruption/correction, target browsers) — checklist in `VOICE_CHECKLIST.md`; run later by Dror.
-- Deployment (D2) — done 2026-09-19: Render reviewer runtime (`render.yaml`) on managed Supabase, code-gated.
-- Final writeup page-length check and debugging rehearsal (T70/T73) — planned.

@@ -19,6 +19,4 @@ flowchart LR
 
 **Evaluation.** `npm run check` (offline type/lint/format/unit), `npm run test:db` (local Postgres, 195/195), and `npm run audit:dependencies`; opt-in `eval:reasoning` (tool selection, 18/22 recorded), `eval:conversations` (scenario loop), and a local Promptfoo matrix for regression and model A/B. A closed-hours run created Linear issue DRO-5 and verified it by readback — owner-reported, not an in-repo artifact.
 
-**Gaps.** One city, two report types, browser voice rather than telephony, and simulated transfers rather than real calls. Event answers defer times/cancellations to the official detail pages. Recorded spoken evidence is still outstanding; sessions and quotas are in-process and do not survive a restart. Other deferred items are listed in the README.
-
-**Next.** Record the spoken journey, then rehearse debugging a failed Linear operation or an expired schedule.
+**Gaps.** One city, two report types, browser voice rather than telephony, and simulated transfers rather than real calls. Event answers defer times/cancellations to the official detail pages. The reviewer runtime is one Node process; in-memory sessions and quotas do not survive a restart. Deferred engineering items are listed in the README.

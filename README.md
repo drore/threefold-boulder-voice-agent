@@ -104,7 +104,7 @@ npm run eval:ui && npm run eval:ui:view                                    # loc
 - **In-process sessions** — the active-draft pointer and quota live in memory, so a restart drops them; durable drafts and filed tickets are unaffected.
 - **Table grants instead of row-level security** — adequate for the single-tenant demo, but RLS is deferred.
 - **No server `TransferProvider` port** — the simulated department handoff is a client-side effect, not a first-class provider.
-- **Not yet implemented:** `check:spec`, `test:contracts`, browser (Playwright) tests, and a knowledge refresh/validate command.
+- **Not included:** `check:spec`, `test:contracts`, browser (Playwright) tests, and a knowledge refresh/validate command.
 - **Dev-only advisory:** the eval UI (`promptfoo`, never shipped) transitively pulls `extract-zip`, which has a high advisory that is never exercised here. The blocking gate audits runtime dependencies only (`npm run audit:dependencies` — clean); `npm run audit:all` reports the full picture.
 
 ## More
