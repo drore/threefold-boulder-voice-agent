@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: threefold-boulder-agent
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: APP_MODE
+        value: reviewer
+      - key: CITY_ID
+        value: boulder-co
+      - key: NODE_EXTRA_CA_CERTS
+        value: /opt/render/project/src/certs/supabase-root-ca.pem
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_ORIGIN
+        sync: false
+      - key: REVIEWER_ACCESS_CODE
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LINEAR_API_KEY
+        sync: false
+      - key: LINEAR_TEAM_ID
+        sync: false
+      - key: LINEAR_PROJECT_ID
+        sync: false

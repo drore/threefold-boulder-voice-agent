@@ -9,7 +9,8 @@
   },
   "packageManager": "npm@11.19.0",
   "scripts": {
-    "audit:dependencies": "npm audit --audit-level=high",
+    "audit:dependencies": "npm audit --omit=dev --audit-level=high",
+    "audit:all": "npm audit",
     "build": "npm run build:server && npm run build:web",
     "build:server": "tsc -p tsconfig.build.json",
     "build:web": "vite build",
