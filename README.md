@@ -1,114 +1,107 @@
-# Threefold Boulder voice agent
+# Boulder municipal voice agent
 
-Workspace for the Threefold take-home assignment: a municipal voice agent for Boulder, Colorado.
+A municipal voice agent for Boulder, Colorado — the Threefold developer-task take-home. A caller can ask a few reviewed questions (municipal code, service guidance, live events) or report a pothole / park-maintenance issue; the server collects and confirms the details against DB-backed Boulder hours, then routes to a simulated department during office hours or files a real Linear demo ticket after hours.
 
-**Status: the local browser saves and confirms pothole or park-maintenance reports against DB-backed Boulder hours. Open hours show distinct simulated department routes; closed hours use the Linear adapter when the dedicated demo project and API key are configured, and an owner-reported live closed-hours create/readback on 2026-09-16 (issue DRO-5; not yet captured as a reproducible in-repo artifact). Reviewed code and service answers work in text, and upcoming-event answers come from a live cached fetch of the official Boulder calendar. Asking "what can you do" returns a fixed options overview. GPT-Live browser/client-delegation code is wired; Dror personally used the spoken browser path on 2026-09-16 with a positive report, while formal recorded voice evidence remains pending. Deployment is pending.**
+## System
 
-**Submission target: all six assignment capabilities and all three deliverables.** Track completion against the evidence gates in the specification; optional extensions come after mandatory coverage.
+```mermaid
+flowchart LR
+  subgraph Client["Browser"]
+    UI["React UI + voice"]
+  end
 
-The dedicated Linear demo project tracks the P0 proof: real ticket create/readback (owner-reported 2026-09-16 via DRO-5), the spoken journey (exercised informally by Dror; formal recording pending), and reviewer deployment.
+  subgraph Service["Node service"]
+    Server["Fastify coordinator"]
+    Reason["Tool-calling reasoning"]
+    Core["Report intake + hours policy"]
+  end
 
-- [Assignment](https://www.threefold.ai/developer-task)
-- [Root specification, decisions, and assignment coverage](SPEC.md)
-- [Decision rationale: why Boulder, OpenAI, and this design](DECISIONS.md)
-- [Detailed development plan, milestones, checks, and commits](DEVELOPMENT_PLAN.md)
-- [Architecture diagram and shared interfaces](spec/spec-architecture-system.md)
-- [Application Core responsibilities, use cases, and ports](spec/spec-architecture-application-core.md)
-- [Simple responsive UI concept — selected P0 direction](design/README.md)
-- [Component specifications](spec/)
-- [Versioned live reasoning evaluation and last result](eval/README.md)
-- [One-page reviewer writeup draft](WRITEUP.md)
-- [Evidence ledger: gates, revisions, and results](EVIDENCE.md)
-- [Architecture audit and de-Boulderization plan](AUDIT.md)
-- [Voice recording checklist (V0/A9 spoken evidence)](VOICE_CHECKLIST.md)
-- [Agent engineering instructions](AGENTS.md)
+  DB[("Supabase Postgres")]
+  Live["GPT-Live"]
+  Model["OpenAI Responses"]
+  Linear["Linear"]
+  Site["City website + events"]
 
-## Working approach
+  UI <-->|"WebRTC: audio + delegation sideband"| Live
+  UI <-->|"same-origin API"| Server
+  Server --> Reason
+  Reason <-->|"tool calls"| Model
+  Server --> Core --> DB
+  Server --> Site
+  Server --> Linear
 
-Plan and make technical decisions with Dror step by step during implementation. Explain important alternatives and failure modes so Dror can own the live walkthrough and debugging session.
-
-Review-ready direction: lightweight SDD with model-independent root/component specs and project instructions in `AGENTS.md`. TypeScript, React, and Node are selected. Supabase stores configuration and application state; Linear supplies real demo tickets. GPT-Live uses browser WebRTC and client delegation to the application backend. The API-level integration is wired; a spoken browser journey is still an evidence gate.
-
-The agent-tool boundary and Application Core are shared conversation services. Voice is the required first channel; a later text-chat adapter can pass server-observed messages through the same tools and workflow without a second ticket or business-hours implementation.
-
-Review the root SPEC, architecture, and affected contracts before each slice. Agree on observable behavior, define meaningful acceptance scenarios, implement, validate, and review behavior with relevant tests and changed specs. Model quality requires empirical evaluation as well as deterministic application tests. Keep every assignment capability in P0; tone, representative view, ticket-always execution, and shadow/replay runners are later features.
-
-Environment requirement: first verify local React/Node and local Supabase. Core tests use provider-neutral fakes; Linear-adapter tests use a narrow loopback mock of the consumed GraphQL API. Local end-to-end runs and the cloud demo create/read real synthetic issues in an approved dedicated Linear board. GPT-Live and hosted reasoning remain external APIs. Isolate credentials/data, keep real E2E opt-in and bounded, and distinguish fake/mock/live evidence.
-
-Tests accompany each behavior slice and map to SPEC scenarios; bug fixes retain regression cases, with deterministic checks and empirical voice/model evidence distinguished. Keep dependencies minimal, maintained, pinned, and reviewed for known advisories. Required regression/advisory checks guard integration and release; exact versions and scripts are established during implementation.
-
-The first slices use pinned Node 24, TypeScript, Vitest, Vite, Biome, React, Fastify, and direct `pg` access to local Supabase Postgres. Native `Date` and `Intl` handle current time and Boulder timezone conversion. The policy adapter validates the DB row before the pure hours rule sees it. Playwright remains uninstalled. The runtime spec defines tool responsibilities.
-
-## Run the local report path
-
-Install Node 24.21.0 and npm 11.19.0 (`fnm use 24.21.0`), Docker, and the Supabase CLI. From this worktree:
-
-```sh
-npm ci
-cp .env.example .env.local
-supabase db start
-supabase migration up --local
-# set CITY_ID in .env.local (for example CITY_ID=boulder-co)
-npm run dev
+  Eval["Eval: promptfoo matrix + scenario loop"]
+  Trace["stdout trace: turns, tools, tokens"]
+  Eval -.->|"runs / drives"| Reason
+  Eval -.->|"drives"| Server
+  Server -.->|"emits"| Trace
 ```
 
-Open `http://127.0.0.1:5173`. The server automatically gives each local browser visitor a private conversation cookie; no login is needed. Use fictional report details: drafts are stored, and a configured ticket path may create a synthetic Linear issue. Choose pothole or park maintenance, enter an issue and location, save, review the persisted summary, then confirm it. The server checks the current draft revision, Boulder policy row, and actual server time. If open, the page names the configured fictional department number and says no call was placed. If closed, it creates a Linear issue only when `LINEAR_API_KEY`, `LINEAR_TEAM_ID`, and `LINEAR_PROJECT_ID` are all set in the ignored `.env.local`; otherwise it says no ticket was created. A confirmed ticket operation freezes the draft, permits one create attempt, and stores the readback or uncertainty without blind retries. The API binds to `127.0.0.1:3001`; Vite proxies `/api` there. `npm run dev` starts both local processes and needs the local database. The sample database credential is for the Supabase development container only. Keep hosted credentials separate.
+The browser speaks to GPT-Live over WebRTC — audio plus a client-delegation sideband (`session.delegation` in, `commentary.append` out). GPT-Live never calls the backend directly: the browser relays each delegated turn to Fastify, which runs the reasoning step and returns the verified reply. The server — never the model — owns scope, time, confirmation, and every effect.
 
-The **Demo time** control simulates the office being open or closed so you can experience both the routing and ticket paths in one session. It sets a fixed server clock (not a real time change, and it is never caller-controlled); start a new report between scenarios to re-run the confirmation decision.
+**Why client delegation.** GPT-Live is the speech model and the browser is its client. Rather than let the model call our tools directly (which would hand it an effect path we'd have to trust), it delegates each turn to the browser over a sideband channel; the browser sends the caller's text to Fastify, and a smaller reasoning model (`gpt-5.6-luna`) proposes a tool that the server validates before executing. Speech stays fluent in GPT-Live; authorization stays in our code.
 
-The same page has three information buttons: the reviewed glass-container code rule, official pothole guidance, and upcoming events from the official Boulder calendar. The code and service buttons answer without an OpenAI call; the events button fetches and parses the official calendar listing through a 24-hour server cache and fails closed to limited coverage when the source is unavailable or the cache has expired. Event answers list dates, titles, and locations from the calendar cards and link each detail page for times and cancellations. The browser buttons prove only these examples, not general city search or spoken behavior.
+## Tech choices and why
 
-For the local voice path, put the approved development `OPENAI_API_KEY` in ignored `.env.dev` and click **Start voice**. The browser asks for microphone access and exchanges a WebRTC offer through the local Node server; the key stays server-side. GPT-Live delegates a caller turn to a bounded `gpt-5.6-luna` reasoning turn: the model chooses application tools, the server executes them with validated scope, and the model composes the spoken reply. Asking "what can you do" or "what can I ask" is answered conversationally from the tool list. On the voice channel a report is confirmed by spoken "yes" through the server-owned `confirmReport` tool, and on the text channel by on-screen review and confirmation, before routing or ticketing. Live voice costs apply; the local server limits session attempts and delegations. Without the key, the text path remains usable.
+| Piece | Choice | Why |
+| --- | --- | --- |
+| Voice | GPT-Live, browser WebRTC, client delegation | No server WebSocket; the server owns effects by delegating each turn |
+| Reasoning | tool-calling turn (`gpt-5.6-luna`) | A model picks the tool, the server validates it — more flexible than a brittle intent classifier |
+| Server | Node 24 + Fastify | One long-lived service, typed and minimal |
+| UI | React 19 + Vite | Single screen, fast feedback |
+| State | Supabase Postgres, raw `pg` (no ORM) | Relational constraints + transactions match the confirmation/operation races; local stack + managed cloud; city policy lives in the DB, not code |
+| Tickets | Linear (adapter + verified readback) | The real external ticket system; a create is only claimed after a readback matches |
+| Answers | reviewed corpus + live fetch | Reviewed code/service answers are deterministic; events come from the official calendar, cached and fail-closed |
+| Tooling | TypeScript, Biome, Vitest, Vite | Strict types, fast lint/format/test |
 
-The local harness does not submit a real Boulder service request or place a phone call. With a real Linear key, it can create synthetic tickets in the dedicated Linear demo project; that path was owner-reported once on 2026-09-16 (DRO-5) and will be re-verified in a fresh deployed session. Sessions and quotas are held in one Node process and expire after 30 minutes; a restart requires reentry. Formal recorded microphone/spoken behavior and deployment remain P0 gates; local API tests do not prove those paths.
+## How we built it
 
-## Reviewer runtime candidate
+- **Research → spec.** Surveyed the task, the Boulder sources, and the tooling first; wrote `SPEC` + `DECISIONS` + `DEVELOPMENT_PLAN` before writing code.
+- **Spec-driven (SDD).** The root `SPEC` owns scope, decisions, and evidence gates; component specs own contracts; accepted behavior changes update the `SPEC`.
+- **Test-driven (TDD).** Each slice defines its acceptance/failure cases and a failing test before the implementation; bug fixes keep a regression case.
+- **Engineering loop.** Run → evaluate with an independent harness (not the implementer) → fix → re-run. The `eval:` scripts and the promptfoo matrix make model quality measurable rather than assumed.
 
-The production build can run as one HTTPS Node service with a separate hosted Supabase database. Its startup validates configuration, serves `dist/web`, and binds `0.0.0.0:$PORT`. The hosting platform terminates HTTPS. This candidate has not been deployed or checked in a hosted browser.
+## Run locally
 
-Run `npm ci && npm run build` in the build step and `npm start` in the service step. Set these server-only environment variables in the host; never put their values in Vite variables or Git:
-
-| Variable | Required reviewer value |
-| --- | --- |
-| `APP_MODE` | `reviewer` |
-| `PORT` | Host-provided listening port |
-| `PUBLIC_ORIGIN` | Exact HTTPS origin of this service, with no path |
-| `DATABASE_URL` | Separate hosted Postgres direct or session-pooler URL, without URL options |
-| `REVIEWER_ACCESS_CODE` | Privately delivered code of at least 20 characters |
-| `OPENAI_API_KEY` | Approved server-side OpenAI key |
-| `LINEAR_API_KEY`, `LINEAR_TEAM_ID`, `LINEAR_PROJECT_ID` | Complete dedicated real Linear demo destination |
-
-The Node Postgres pool requires TLS with certificate validation in reviewer mode; a connection string `sslmode` option is rejected because node-postgres would override the verified-TLS setting. If the database certificate is not trusted by Node's default CA set, configure `NODE_EXTRA_CA_CERTS` with the trusted certificate file supplied by the host; do not disable verification. [Supabase connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres) distinguishes direct IPv6 and IPv4 session pooling. [node-postgres TLS guidance](https://node-postgres.com/features/ssl) documents the connection-string override. Apply the versioned migrations and verify the hosted policy seed before starting the service. The code gate issues an HttpOnly/Secure/SameSite cookie, and every application API needs that server-owned session; writes also require the exact origin. A single process is required while admissions and quotas remain in memory. Real browser admission, voice, and ticketing are release checks.
-
-## Local checks
-
-Use Node 24.21.0 and npm 11.19.0 (see `.node-version` and `package.json`). With `fnm` installed, `fnm use 24.21.0` selects the local runtime; then run:
+Requires Node 24.21.0, Docker, and the Supabase CLI.
 
 ```sh
 npm ci
-npm run check
+cp .env.example .env.local          # set CITY_ID=boulder-co; add LINEAR_* to enable tickets
+supabase db start && supabase migration up --local
+npm run dev                         # API :3001, UI :5173
+```
+
+Open http://127.0.0.1:5173. For voice, add `OPENAI_API_KEY` to `.env.dev` and click **Start voice**. The **Demo time** toggle flips the office open/closed so both the route and ticket paths can be seen. Use fictional report details.
+
+## Test
+
+```sh
+npm run check               # offline: format, lint, type, unit tests
+npm run test:db             # local Postgres adapters + API (needs the migrated DB)
 npm run build
-npm run audit:dependencies
-npm run test:db
+npm run audit:dependencies  # dependency advisory check
 ```
 
-To run the opt-in paid reasoning checks with the development OpenAI key, use `npm run eval:reasoning`. The automated conversation loop (`npm run eval:conversations`, needs the dev server running) plays versioned caller scenarios, checks outcomes, and writes a coder-facing report under `eval/results/`. Compare models with `npm run eval:reasoning -- --models=gpt-5.6-luna,candidate-2 --repeats=3`; set `REASONING_MODEL` to run the chosen model in the app. Cases, usage, and the last recorded result are in [eval/README.md](eval/README.md); text tool selection does not substitute for a spoken browser evaluation.
+Opt-in paid model checks (need `OPENAI_API_KEY` in `.env.dev`):
 
-`npm run check` performs formatting, lint (including the core import boundary), type, and offline test checks. `npm run test:db` adds real local Postgres adapter and API checks; it requires `.env.local` and the migrated local database. `npm run check:architecture` runs the focused Biome boundary rules; `npm run test:core` isolates the deterministic policy tests. `isWithinBusinessHours` receives a validated schedule and trusted server time and returns `true`, `false`, or `undefined` when indeterminate. `decideBusinessHoursAction` maps that result to `route`, `create_ticket`, or `unavailable`; neither function performs an external action. `src/server/reasoning/agent-tools.ts` validates arguments and dispatches the four agent capabilities. The tested runtime policy row is seeded by a migration; the schedule in pure unit tests is only a fixture.
+```sh
+npm run eval:reasoning -- --models=gpt-5.6-luna,<candidate> --repeats=3   # tool selection A/B
+npm run eval:conversations                                                 # scenario loop (needs dev server)
+npm run eval:ui && npm run eval:ui:view                                    # local promptfoo matrix + A/B
+```
 
-## Git
+## Known limitations
 
-Repository history starts with one reviewed planning baseline and continues in tested behavior commits. A GitHub Actions workflow runs offline checks, build, and dependency audit without provider credentials; it passed remotely on the public repository on 2026-09-17. Local database tests and opt-in live evaluations remain distinct gates. Before repository changes, follow the applicable personal Git/worktree guide and use an isolated worktree.
+- **In-process sessions** — the active-draft pointer and quota live in memory, so a restart drops them; durable drafts and filed tickets are unaffected.
+- **Table grants instead of row-level security** — adequate for the single-tenant demo, but RLS is deferred.
+- **No server `TransferProvider` port** — the simulated department handoff is a client-side effect, not a first-class provider.
+- **Not yet implemented:** `check:spec`, `test:contracts`, browser (Playwright) tests, and a knowledge refresh/validate command.
+- **Dev-only advisory:** the eval UI (`promptfoo`, never shipped) transitively pulls `extract-zip`, which has a high advisory that is never exercised here. The blocking gate audits runtime dependencies only (`npm run audit:dependencies` — clean); `npm run audit:all` reports the full picture.
 
-Commit discipline (details and examples in the development plan):
+## More
 
-- One coherent, reviewable change per commit; descriptive messages explaining the resulting behavior.
-- Include relevant tests with the behavior they verify. Preserve meaningful development history.
-- Use Conventional Commit subjects, useful scopes, and short rationale/SPEC/verification bodies for nontrivial changes.
-- Keep each delivered commit buildable/checkable at its milestone; verify the committed snapshot, including when partially staging changes.
-- Separate unrelated refactors/formatting/dependency work. Preserve authentic incremental commits and avoid a single final dump or manufactured history.
-- Keep source, prompt, policy, and evaluation changes traceable to specification scenarios.
-- Create the planned stack-specific scripts in M0; verify the final candidate commit before delivery.
-- Record local verification, remote CI, deployment, and live demo results separately.
-
-These commands cover the current local slice. Deployed access, live provider checks, current source/configuration evidence, and the one-page writeup remain mandatory submission work.
+- [SPEC](SPEC.md) — scope, capabilities, evidence gates
+- [DECISIONS](DECISIONS.md) — full rationale for each choice
+- [WRITEUP](WRITEUP.md) — one-page reviewer writeup
+- [Development plan](DEVELOPMENT_PLAN.md) — milestones, checks, commits

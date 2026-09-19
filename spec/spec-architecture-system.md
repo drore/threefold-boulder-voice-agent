@@ -127,7 +127,7 @@ Maintained layout target follows the existing responsibility boundaries. The roo
 │       └── voice/          # Browser WebRTC client and transcript helpers
 ├── tests/                  # Core, contract, DB, browser checks and fixtures
 ├── eval/                   # Model/voice scenarios, rubrics, safe evidence
-├── prompts/                # Planned versioned model instructions/procedures; currently inline in src/server/reasoning/*
+├── prompts/                # Versioned model instructions (now under src/prompts/)
 ├── knowledge/              # Planned reviewed corpus + provenance manifests; currently held in the Postgres corpus
 └── supabase/               # Versioned DB configuration, migrations, seeds
 ```

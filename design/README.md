@@ -23,7 +23,7 @@ The request panel is contextual rather than a second dashboard. Information-only
 
 ## Scope rule
 
-An element belongs in P0 when it helps a reviewer verify a mandatory assignment behavior or helps the caller safely complete that behavior. Decorative branding, maps, ticket boards, representative screens, analytics, model controls, internal traces, hold tone, shadow controls, and broader navigation remain deferred. Permission, clarification, execution, failure, uncertainty, simulated route, ticket result, and disconnect states remain required even though each does not receive a separate raster.
+An element belongs in P0 when it helps a reviewer verify a mandatory assignment behavior or helps the caller safely complete that behavior. Decorative branding is limited to a city wordmark and a generic Flatirons-inspired mark (Dror's P0 direction); maps, ticket boards, representative screens, analytics, model controls, internal traces, hold tone, shadow controls, and broader navigation remain deferred. Permission, clarification, execution, failure, uncertainty, simulated route, ticket result, and disconnect states remain required even though each does not receive a separate raster.
 
 The interface presents backend state; it does not determine workflow. Office state and destinations come from validated DB configuration. Confirmation is tied to the current draft revision, corrections invalidate prior confirmation, and success appears only after verified provider evidence. The static mockup cannot establish live hours, Linear activity, accessibility, responsive-browser behavior, or spoken output.
 
